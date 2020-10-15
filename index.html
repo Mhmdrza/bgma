@@ -7,13 +7,25 @@
   <meta name="robots" content="index, follow">
   <script src="./app.js"></script>
   <style>
-
+    #chart {
+      border: 1px solid grey;
+      box-sizing: border-box;
+      width: 100%;
+      height: 550px;
+      transform: scaleY(-1);
+    }
   </style>
 </head>
 <body>
   <h1>polynomial algorithm for tsp</h1>
-  <p>p is not equal to np; but if we change the problem definition we can get a pretty close to optmial solution by having a good heuristic in mind;
-  <canvas id="my-house" width="300" height="300"></canvas>
-
+  <p>
+    p is not equal to np; but if we change the problem definition we can get a
+    pretty close to optmial solution by having a good heuristic in mind;
+    <button id=solush >draw solution</button>
+    <button id=circl >draw circle</button>
+    <button id=reset onclick="reset()">reset</button>
+    <button id=next style="float: right;">nextStep</button>
+    <canvas id="chart"></canvas>
+  </p>
 </body>
 </html>

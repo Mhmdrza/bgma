@@ -18,9 +18,9 @@
  * For the tuned effort-dial version (low/mid/high/xhigh/max), see hybrid_effort.js.
  *
  * usage:
- *   node hybrid_tsp.js --ns=50,100,200 --seeds=2
- *   node hybrid_tsp.js --n=200 --seeds=4 --gens=8 --polish=6
- *   node hybrid_tsp.js --ns=200 --seeds=4 --anneal=0      # no nature mutation
+ *   node src/hybrid/hybrid_tsp.js --ns=50,100,200 --seeds=2
+ *   node src/hybrid/hybrid_tsp.js --n=200 --seeds=4 --gens=8 --polish=6
+ *   node src/hybrid/hybrid_tsp.js --ns=200 --seeds=4 --anneal=0      # no nature mutation
  */
 'use strict';
 const fs = require('fs');
@@ -44,7 +44,7 @@ const SEEDS = CFG.seeds;
 
 /* --------------------------- load implementations ------------------------ */
 
-const beamCore = fs.readFileSync(path.join(__dirname, 'beam_fast.js'), 'utf8')
+const beamCore = fs.readFileSync(path.join(__dirname, '..', 'beam', 'beam_fast.js'), 'utf8')
   .split('/* ================================= harness')[0]
   .replace('process.argv.slice(2)', '[]');
 const B = eval(beamCore + ';({buildInstance,beamFast,beamFastTunnel,refineFast,refineBase,greedy,' +
@@ -58,7 +58,7 @@ function sliceHtml(file, marker) {
     ? txt.indexOf('<script>') + '<script>'.length : 0;
   return txt.slice(start, cut);
 }
-const NAT = eval(sliceHtml(path.join(__dirname, 'nature_tsp.html'), '/* ============================== drawing') +
+const NAT = eval(sliceHtml(path.join(__dirname, '..', '..', 'web', 'nature_tsp.html'), '/* ============================== drawing') +
   ';({makeNear,popWave,anneal,ox,tourLength,setRand:fn=>{rand=fn;}})');
 
 /* ------------------------------- helpers -------------------------------- */

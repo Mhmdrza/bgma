@@ -10,10 +10,10 @@
  *   beam    <- beam_fast.js    (everything before the harness section)
  *
  * usage:
- *   node bench_dataset.js --per-n=3
- *   node bench_dataset.js --per-n=0            # all instances
- *   node bench_dataset.js --out=results.csv
- *   node bench_dataset.js --exact=1 --max-n=22
+ *   node bench/bench_dataset.js --per-n=3
+ *   node bench/bench_dataset.js --per-n=0            # all instances
+ *   node bench/bench_dataset.js --out=results.csv
+ *   node bench/bench_dataset.js --exact=1 --max-n=22
  */
 'use strict';
 const fs = require('fs');
@@ -47,11 +47,11 @@ function sliceFile(file, marker) {
   return txt.slice(start, cut);
 }
 
-const core = sliceFile(path.join(__dirname, 'nature_tsp.html'), '/* ============================== drawing');
+const core = sliceFile(path.join(__dirname, '..', 'web', 'nature_tsp.html'), '/* ============================== drawing');
 const N = eval(core + ';({makePoints,distRows,nearestOrder,makeNear,farthestPair,popWave,anneal,ox,' +
   'heldKarp,hkBound,tourLength,rng,setRand:(fn)=>{rand=fn;}})');
 
-const beamCore = fs.readFileSync(path.join(__dirname, 'beam_fast.js'), 'utf8')
+const beamCore = fs.readFileSync(path.join(__dirname, '..', 'src', 'beam', 'beam_fast.js'), 'utf8')
   .split('/* ================================= harness')[0]
   .replace('process.argv.slice(2)', '[]');      // beam_fast's own CLI must not see our flags
 const B = eval(beamCore + ';({beamFast,refineFast,KN})');

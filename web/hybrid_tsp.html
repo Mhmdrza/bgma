@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beam-guided memetic annealing — a hybrid TSP</title>
+<style>
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --ink:#16181d; --muted:#6b7280; --line:#e2e2de;
+    --algo:#16a34a; --child:#ea580c; --pa:#2563eb; --pb:#7c3aed; --held:#2563eb;
+    --mono:ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans:system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1115; --panel:#171a20; --ink:#e8e8e6; --muted:#9aa0aa; --line:#2a2e37;
+            --algo:#4ade80; --child:#fb923c; --pa:#60a5fa; --pb:#c084fc; --held:#60a5fa; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); }
+  header { padding:26px 24px 10px; max-width:1180px; margin:0 auto; }
+  h1 { font-size:22px; margin:0 0 6px; letter-spacing:-.2px; }
+  .sub { color:var(--muted); font-size:13.5px; margin:0; max-width:78ch; line-height:1.5; }
+  main { max-width:1180px; margin:0 auto; padding:8px 24px 40px; }
+  .controls { display:flex; flex-wrap:wrap; gap:14px 20px; align-items:flex-end;
+              background:var(--panel); border:1px solid var(--line); border-radius:10px;
+              padding:14px 16px; margin:14px 0 14px; }
+  .field { display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--muted); }
+  .field .row { display:flex; align-items:center; gap:8px; }
+  input[type=range] { width:150px; accent-color:var(--held); }
+  input[type=number], select { font-family:var(--mono); font-size:13px; padding:5px 7px;
+    border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); }
+  button { font:inherit; font-size:13px; padding:8px 14px; border-radius:7px; cursor:pointer;
+           border:1px solid var(--line); background:var(--panel); color:var(--ink); }
+  button.primary { background:var(--held); border-color:var(--held); color:#fff; }
+  button:active { transform:translateY(1px); }
+  button:disabled { opacity:.5; cursor:default; }
+  button:focus-visible, input:focus-visible, select:focus-visible, canvas:focus-visible
+    { outline:2px solid var(--held); outline-offset:2px; }
+  .val { font-family:var(--mono); font-size:12px; color:var(--ink); min-width:26px; text-align:right; }
+  .btns { display:flex; gap:6px; }
+
+  /* pipeline chips */
+  .pipeline { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:0 0 14px; }
+  .chip { display:flex; align-items:center; gap:7px; font-size:12px; padding:6px 11px;
+          border:1px solid var(--line); border-radius:999px; background:var(--panel);
+          color:var(--muted); transition:background .15s, color .15s, border-color .15s; }
+  .chip b { font-family:var(--mono); font-weight:600; font-size:11px; opacity:.7; }
+  .chip.seen { color:var(--ink); }
+  .chip.on { background:var(--chip, var(--algo)); border-color:var(--chip, var(--algo)); color:#fff; }
+  .chip.on b { opacity:.85; }
+  @media (prefers-color-scheme: dark) { .chip.on { color:#10141a; } }
+  .arrow { color:var(--line); font-size:13px; }
+
+  .panels { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:900px) { .panels { grid-template-columns:1fr; } }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 14px 14px; }
+  .panel h2 { font-size:13px; margin:0 0 6px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .panel h2 .ms { font-family:var(--mono); font-weight:400; font-size:12px; color:var(--muted); margin-left:6px; }
+  .panel h2 .len { font-family:var(--mono); font-size:13px; color:var(--ink); }
+  .panel canvas { width:100%; aspect-ratio:1 / .86; display:block; border-radius:6px;
+                  background:
+                    radial-gradient(circle, var(--line) 1px, transparent 1.2px) 0 0 / 22px 22px; }
+  .stage { font-family:var(--mono); font-size:12px; margin:10px 0 0; min-height:1.4em; color:var(--ink); }
+  .note { color:var(--muted); font-size:12px; line-height:1.5; margin:2px 0 0; min-height:2.6em; }
+  .note b { color:var(--algo); font-weight:600; font-family:var(--mono); }
+
+  .timeline { margin-top:16px; }
+  .timeline canvas { aspect-ratio:auto; height:150px; cursor:pointer; touch-action:none;
+                     background:none; }
+  .timeline h2 .hint { font-weight:400; color:var(--muted); font-size:11.5px; }
+
+  .stats { margin-top:16px; background:var(--panel); border:1px solid var(--line);
+           border-radius:10px; padding:12px 16px; display:grid;
+           grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:10px 18px; }
+  .stat .k { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+  .stat .v { font-family:var(--mono); font-size:15px; margin-top:2px; }
+  .stat .v.gap { color:var(--held); }
+  .legend { display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:12px; }
+  .legend i { display:inline-block; width:18px; height:3px; border-radius:2px; vertical-align:middle; margin-right:6px; }
+  .legend i.dash { background:none !important; height:0; border-top:3px dashed; border-radius:0; }
+  .legend i.ring { width:10px; height:10px; border-radius:50%; background:none !important;
+                   border:2px solid; vertical-align:-2px; }
+  footer { max-width:1180px; margin:0 auto; padding:0 24px 46px; color:var(--muted);
+           font-size:12.5px; line-height:1.6; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Beam-guided memetic annealing</h1>
+  <p class="sub">
+    A beam constructs diverse partial tours from several poles, a fast 2-opt/Or-opt screen turns
+    each final into a local optimum, and an elite pool is recombined with edge crossover (ERX).
+    Children are kicked by double-bridge moves or a short simulated anneal, screened again, and
+    only the best few get the expensive full-restart polish. The effort dial scales how many
+    islands, generations, children and polish passes the search spends. The right panel is the
+    Held–Karp optimum for n ≤ 20, and a proven 1-tree lower bound above that.
+  </p>
+</header>
+
+<main>
+  <section class="controls">
+    <label class="field">cities <span class="row"><input id="n" type="range" min="8" max="30" value="18"><span class="val" id="nOut">18</span></span></label>
+    <label class="field">seed <span class="row"><input id="seed" type="number" min="1" max="99" value="7" step="1"><button id="dice" title="new seed">↻</button></span></label>
+    <label class="field">points <span class="row"><select id="kind"><option value="uniform">uniform</option><option value="cluster">clustered</option></select></span></label>
+    <label class="field">effort <span class="row"><select id="effort"><option value="low">low</option><option value="mid" selected>mid</option><option value="high">high</option><option value="xhigh">xhigh</option><option value="max">max</option></select></span></label>
+    <label class="field">animation speed <span class="row"><input id="speed" type="range" min="20" max="500" step="20" value="160"><span class="val" id="speedOut">160</span></span></label>
+    <div class="btns">
+      <button id="run" class="primary">Run</button>
+      <button id="play">Pause</button>
+      <button id="back" title="previous step (←)">◀</button>
+      <button id="step" title="next step (→)">▶</button>
+      <button id="reset">Reset</button>
+    </div>
+    <span id="status" class="field" style="color:var(--muted)"></span>
+    <span id="effortMap" class="field" style="flex-basis:100%;color:var(--muted)"></span>
+  </section>
+
+  <div class="pipeline" id="pipeline" aria-label="pipeline stage"></div>
+
+  <section class="panels">
+    <div class="panel">
+      <h2><span>Hybrid search <span class="ms" id="hMs"></span></span><span class="len" id="hLen">—</span></h2>
+      <canvas id="cv1" role="img" aria-label="hybrid search tour"></canvas>
+      <p class="stage" id="hStage"></p>
+      <p class="note" id="hNote">Press Run.</p>
+    </div>
+    <div class="panel">
+      <h2><span><span id="oTitle">Held–Karp optimum</span> <span class="ms" id="oMs"></span></span><span class="len" id="oLen">—</span></h2>
+      <canvas id="cv2" role="img" aria-label="optimum or lower bound comparison"></canvas>
+      <p class="stage" id="oStage"></p>
+      <p class="note" id="oNote"></p>
+    </div>
+  </section>
+
+  <section class="panel timeline">
+    <h2><span>Best tour length per step</span><span class="hint">click or drag to scrub · ← → step · space play/pause</span></h2>
+    <canvas id="cv3" tabindex="0" role="slider" aria-label="step timeline"></canvas>
+  </section>
+
+  <div class="legend" id="legend"></div>
+
+  <section class="stats">
+    <div class="stat"><div class="k">stage</div><div class="v" id="sStage">—</div></div>
+    <div class="stat"><div class="k">effort</div><div class="v" id="sEffort">—</div></div>
+    <div class="stat"><div class="k">best</div><div class="v" id="sBest">—</div></div>
+    <div class="stat"><div class="k">optimum / bound</div><div class="v" id="sOpt">—</div></div>
+    <div class="stat"><div class="k">gap</div><div class="v gap" id="sGap">—</div></div>
+    <div class="stat"><div class="k">pool</div><div class="v" id="sPool">—</div></div>
+    <div class="stat"><div class="k">tour evaluations</div><div class="v" id="sWork">—</div></div>
+    <div class="stat"><div class="k">step</div><div class="v" id="sStep">—</div></div>
+    <div class="stat"><div class="k">compute time</div><div class="v" id="sTime">—</div></div>
+  </section>
+</main>
+
+<footer>
+  The hybrid pipeline is: beam islands → fast screen → elite pool → ERX → double-bridge / short
+  anneal → fast screen → selective full-restart polish. The effort dial selects a demo-scaled
+  version of the CLI ladder (`low` → `max`): islands, generations, children, elite pool and polish
+  all grow with the level, but the animation caps long runs so playback stays watchable. The full
+  `--effort` budgets live in `hybrid_effort.js`. Held–Karp needs (n−1)·2^(n−1) states: exact up to
+  n = 20 here, impossible beyond. For n = 21..30 the right panel computes a 1-tree + subgradient
+  lower bound; when the heuristic meets it the tour is <em>proven optimal</em>, otherwise the shown
+  gap is an upper bound on the true gap.
+</footer>
+
+<!-- algorithm lives in hybrid_vis.js; effort levels are shared with the CLI -->
+<script src="../src/hybrid/effort_profiles.js"></script>
+<script src="../src/hybrid/hybrid_vis.js"></script>
+<script>
+'use strict';
+
+const { EXACT_MAX, effortOptions, makeInstance, buildSnapshots, heldKarp, hkBoundTree, tourLen, greedy } = window.HybridTSP;
+
+const $ = id => document.getElementById(id);
+
+/* =============================== palette =============================== */
+/* Canvas cannot resolve CSS variables, so read them once per theme. */
+
+const PAL = {};
+function readPalette() {
+  const cs = getComputedStyle(document.documentElement);
+  for (const k of ['bg', 'panel', 'ink', 'muted', 'line', 'algo', 'child', 'pa', 'pb', 'held']) {
+    PAL[k] = cs.getPropertyValue('--' + k).trim();
+  }
+}
+const col = c => { const m = /^var\(--(\w+)\)$/.exec(c || ''); return m ? PAL[m[1]] : c; };
+readPalette();
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readPalette(); renderAll(); });
+
+/* ============================ stage taxonomy =========================== */
+
+const KINDS = [
+  { key: 'beam',   label: 'Beam search',    color: 'algo' },
+  { key: 'screen', label: 'Fast screen',    color: 'algo' },
+  { key: 'polish', label: 'Full polish',    color: 'algo' },
+  { key: 'erx',    label: 'ERX crossover',  color: 'pa'   },
+  { key: 'mutate', label: 'Kick / anneal',  color: 'child' },
+  { key: 'pool',   label: 'Elite pool',     color: 'pb'   }
+];
+function kindOf(stage) {
+  if (/beam depth/.test(stage)) return 'beam';
+  if (/finals screened|fast screen/.test(stage)) return 'screen';
+  if (/polish/.test(stage)) return 'polish';
+  if (/parents/.test(stage)) return 'erx';
+  if (/kick|anneal/.test(stage)) return 'mutate';
+  if (/complete|^done$/.test(stage)) return 'pool';
+  return '';
+}
+function phaseOf(stage) {
+  if (/^island|^finals/.test(stage)) return 'beam';
+  if (/^initial/.test(stage)) return 'polish';
+  if (/^done$/.test(stage)) return 'done';
+  return 'evolve';
+}
+const PHASES = {
+  beam:   { label: 'beam islands',   color: 'algo'  },
+  polish: { label: 'polish',         color: 'held'  },
+  evolve: { label: 'evolve',         color: 'child' },
+  done:   { label: '',               color: 'muted' }
+};
+
+function buildChips() {
+  const el = $('pipeline');
+  el.innerHTML = '';
+  KINDS.forEach((k, i) => {
+    if (i) { const a = document.createElement('span'); a.className = 'arrow'; a.textContent = '›'; el.appendChild(a); }
+    const c = document.createElement('span');
+    c.className = 'chip'; c.id = 'chip-' + k.key;
+    c.style.setProperty('--chip', 'var(--' + k.color + ')');
+    c.innerHTML = '<b>' + (i + 1) + '</b>' + k.label;
+    el.appendChild(c);
+  });
+}
+function legendItem(cls, style, text) {
+  return '<span><i class="' + cls + '" style="' + style + '"></i>' + text + '</span>';
+}
+function buildLegend() {
+  const exact = OPTSRC === 'exact';
+  $('legend').innerHTML = [
+    legendItem('', 'background:var(--algo);opacity:.4', 'elite pool (thicker = edge shared by more elites)'),
+    legendItem('', 'background:var(--algo)', 'best so far'),
+    legendItem('', 'background:var(--pa)', 'parent A'),
+    legendItem('', 'background:var(--pb)', 'parent B'),
+    legendItem('', 'background:var(--child)', 'child / escape'),
+    exact ? legendItem('', 'background:var(--held)', 'optimum') : legendItem('', 'background:var(--held)', '1-tree'),
+    exact ? legendItem('dash', 'border-color:var(--child)', 'best-tour edge not in optimum')
+          : legendItem('ring', 'border-color:var(--child)', 'vertex of 1-tree degree ≠ 2')
+  ].join('');
+}
+
+/* ============================== drawing ================================ */
+
+function fitCanvas(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const r = canvas.getBoundingClientRect();
+  const w = Math.max(200, r.width), h = Math.max(100, r.height);
+  canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return [ctx, w, h];
+}
+
+function edgeKey(a, b, n) { return a < b ? a * n + b : b * n + a; }
+function edgeSet(tour) {
+  const n = tour.length, s = new Set();
+  for (let i = 0; i < n; i++) s.add(edgeKey(tour[i], tour[(i + 1) % n], n));
+  return s;
+}
+
+function strokeTour(ctx, pts, tour, X, Y, color, width, alpha, close, dash) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = col(color);
+  ctx.lineWidth = width;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  if (dash) ctx.setLineDash(dash);
+  ctx.beginPath();
+  for (let i = 0; i < tour.length; i++) {
+    const p = pts[tour[i]];
+    if (i === 0) ctx.moveTo(X(p), Y(p)); else ctx.lineTo(X(p), Y(p));
+  }
+  if (close) ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function strokeEdges(ctx, pts, edges, X, Y, color, width, alpha, dash) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = col(color);
+  ctx.lineWidth = width;
+  ctx.lineCap = 'round';
+  if (dash) ctx.setLineDash(dash);
+  ctx.beginPath();
+  for (const [a, b] of edges) { ctx.moveTo(X(pts[a]), Y(pts[a])); ctx.lineTo(X(pts[b]), Y(pts[b])); }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function tourEdges(tour) {
+  const out = [], n = tour.length;
+  for (let i = 0; i < n; i++) out.push([tour[i], tour[(i + 1) % n]]);
+  return out;
+}
+
+/* chevrons that show the direction a tour is travelled */
+function drawArrows(ctx, pts, tour, X, Y, color, alpha) {
+  const n = tour.length;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = col(color);
+  for (let i = 0; i < n; i++) {
+    const a = pts[tour[i]], b = pts[tour[(i + 1) % n]];
+    const ax = X(a), ay = Y(a), bx = X(b), by = Y(b);
+    const len = Math.hypot(bx - ax, by - ay);
+    if (len < 26) continue;
+    const ang = Math.atan2(by - ay, bx - ax), mx = (ax + bx) / 2, my = (ay + by) / 2;
+    ctx.save();
+    ctx.translate(mx, my); ctx.rotate(ang);
+    ctx.beginPath(); ctx.moveTo(4.5, 0); ctx.lineTo(-3.5, -3.6); ctx.lineTo(-3.5, 3.6); ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/* the pool as an edge-consensus map: edges shared by many elites are thick and strong */
+function drawConsensus(ctx, pts, pool, X, Y) {
+  if (!pool || !pool.length) return;
+  const n = pts.length, cnt = new Map();
+  for (const t of pool) for (let i = 0; i < n; i++) {
+    const a = t[i], b = t[(i + 1) % n], k = edgeKey(a, b, n);
+    const e = cnt.get(k);
+    if (e) e.c++; else cnt.set(k, { a, b, c: 1 });
+  }
+  ctx.save();
+  ctx.strokeStyle = col('var(--algo)');
+  ctx.lineCap = 'round';
+  for (const e of cnt.values()) {
+    const f = e.c / pool.length;
+    ctx.globalAlpha = .08 + .42 * f * f;
+    ctx.lineWidth = 1 + 4 * f;
+    ctx.beginPath();
+    ctx.moveTo(X(pts[e.a]), Y(pts[e.a])); ctx.lineTo(X(pts[e.b]), Y(pts[e.b]));
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawCities(ctx, pts, X, Y, o) {
+  const labels = pts.length <= 20;
+  ctx.font = '10px ' + getComputedStyle(document.body).getPropertyValue('--mono');
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < pts.length; i++) {
+    const x = X(pts[i]), y = Y(pts[i]);
+    const bad = o.badDeg && o.badDeg[i] !== 2 && o.badDeg[i] != null;
+    const r = i === 0 ? 5 : 3.6;
+    ctx.beginPath(); ctx.arc(x, y, r + 2.4, 0, Math.PI * 2);
+    ctx.fillStyle = PAL.panel; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = i === 0 ? PAL.child : PAL.ink; ctx.fill();
+    if (bad) {
+      ctx.beginPath(); ctx.arc(x, y, r + 4.5, 0, Math.PI * 2);
+      ctx.strokeStyle = PAL.child; ctx.lineWidth = 2; ctx.stroke();
+    }
+    if (labels) {
+      ctx.fillStyle = PAL.muted;
+      ctx.fillText(i, x + r + 4, y - r - 3);
+    }
+  }
+  for (const h of o.heads || []) {
+    const p = pts[h.c];
+    ctx.beginPath(); ctx.arc(X(p), Y(p), 6, 0, Math.PI * 2);
+    ctx.strokeStyle = col(h.color); ctx.globalAlpha = .55; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawPanel(canvas, pts, o) {
+  const [ctx, w, h] = fitCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+  const s = Math.min(w, h) / 104;
+  const ox = (w - 100 * s) / 2, oy = (h - 100 * s) / 2;
+  const X = p => ox + p[0] * s, Y = p => oy + p[1] * s;
+
+  if (o.pool) drawConsensus(ctx, pts, o.pool, X, Y);
+
+  const heads = [];
+  if (o.active) for (const a of o.active) {
+    strokeTour(ctx, pts, a.t, X, Y, a.color || 'var(--child)', 2.2,
+      a.alpha == null ? .8 : a.alpha, !a.partial, a.partial ? [5, 4] : null);
+    if (a.partial) heads.push({ c: a.t[a.t.length - 1], color: a.color || 'var(--algo)' });
+  }
+
+  if (o.tree) {
+    if (o.best) strokeTour(ctx, pts, o.best, X, Y, 'var(--algo)', 1.8, .45, true, [4, 4]);
+    strokeEdges(ctx, pts, o.tree.edges, X, Y, 'var(--held)', 3, .9);
+  } else if (o.opt) {
+    const optE = edgeSet(o.opt);
+    strokeTour(ctx, pts, o.opt, X, Y, 'var(--held)', 3.5, .9, true);
+    if (o.best) {
+      const n = o.best.length, diff = [];
+      for (let i = 0; i < n; i++) {
+        const a = o.best[i], b = o.best[(i + 1) % n];
+        if (!optE.has(edgeKey(a, b, n))) diff.push([a, b]);
+      }
+      strokeEdges(ctx, pts, diff, X, Y, 'var(--child)', 2.6, .95, [6, 4]);
+      o.diffCount = diff.length;
+    }
+  } else if (o.best) {
+    strokeTour(ctx, pts, o.best, X, Y, 'var(--algo)', 3, .95, true);
+    drawArrows(ctx, pts, o.best, X, Y, 'var(--algo)', .95);
+  }
+
+  drawCities(ctx, pts, X, Y, { badDeg: o.tree ? o.tree.deg : null, heads });
+  return o;
+}
+
+/* ============================== timeline =============================== */
+
+let TL = null; // geometry of the last timeline draw, used for hit-testing
+
+function drawTimeline() {
+  const canvas = $('cv3');
+  const [ctx, w, h] = fitCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+  if (!SNAPS.length) return;
+  const S = SNAPS.length, padL = 50, padR = 14, padT = 22, padB = 20;
+  const X = i => padL + (S <= 1 ? 0 : i / (S - 1)) * (w - padL - padR);
+  const vals = SNAPS.map(s => (s.best ? s.best.len : null));
+  const real = vals.filter(v => v != null);
+  if (!real.length) return;
+  let lo = Math.min(...real), hi = Math.max(...real);
+  if (OPT) lo = Math.min(lo, OPT.len);
+  const span = (hi - lo) || 1;
+  lo -= span * .08; hi += span * .08;
+  const Y = v => padT + (1 - (v - lo) / (hi - lo)) * (h - padT - padB);
+  TL = { X, padL, padR, S, w };
+
+  ctx.font = '10.5px ' + getComputedStyle(document.body).getPropertyValue('--mono');
+  ctx.textBaseline = 'middle';
+
+  // phase bands
+  let a = 0;
+  for (let i = 1; i <= S; i++) {
+    if (i === S || phaseOf(SNAPS[i].stage) !== phaseOf(SNAPS[a].stage)) {
+      const ph = PHASES[phaseOf(SNAPS[a].stage)];
+      if (ph.label) {
+        const x0 = a === 0 ? padL : X(a - .5), x1 = i === S ? w - padR : X(i - .5);
+        ctx.fillStyle = PAL[ph.color]; ctx.globalAlpha = .08;
+        ctx.fillRect(x0, padT, x1 - x0, h - padT - padB);
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = PAL.muted; ctx.textAlign = 'left';
+        if (x1 - x0 > ctx.measureText(ph.label).width + 10) ctx.fillText(ph.label, x0 + 5, 10);
+      }
+      a = i;
+    }
+  }
+  // generation ticks
+  ctx.strokeStyle = PAL.line; ctx.lineWidth = 1;
+  SNAPS.forEach((s, i) => {
+    if (/^generation \d+ complete/.test(s.stage)) {
+      ctx.beginPath(); ctx.moveTo(X(i), padT); ctx.lineTo(X(i), h - padB); ctx.stroke();
+    }
+  });
+
+  // axes
+  ctx.textAlign = 'right'; ctx.fillStyle = PAL.muted;
+  ctx.fillText((hi - span * .08).toFixed(0), padL - 8, Y(hi - span * .08));
+  ctx.fillText((lo + span * .08).toFixed(0), padL - 8, Y(lo + span * .08));
+
+  // optimum / bound
+  if (OPT) {
+    const y = Y(OPT.len);
+    ctx.save();
+    ctx.setLineDash([6, 4]); ctx.strokeStyle = PAL.held; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(w - padR, y); ctx.stroke();
+    ctx.restore();
+    ctx.textAlign = 'right'; ctx.fillStyle = PAL.held;
+    ctx.fillText((OPTSRC === 'exact' ? 'optimum ' : 'bound ') + OPT.len.toFixed(1), w - padR - 2, y - 8);
+  }
+
+  // best-so-far step line: faint future, solid played part
+  const path = upto => {
+    ctx.beginPath();
+    let started = false, prevY = 0;
+    for (let i = 0; i <= upto; i++) {
+      if (vals[i] == null) continue;
+      const x = X(i), y = Y(vals[i]);
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else { ctx.lineTo(x, prevY); ctx.lineTo(x, y); }
+      prevY = y;
+    }
+  };
+  ctx.lineJoin = 'round'; ctx.lineWidth = 2;
+  ctx.globalAlpha = .28; ctx.strokeStyle = PAL.algo; path(S - 1); ctx.stroke();
+  ctx.globalAlpha = 1;   ctx.strokeStyle = PAL.algo; path(IDX); ctx.stroke();
+
+  // improvement markers
+  for (let i = 1; i < S; i++) {
+    if (vals[i] != null && (vals[i - 1] == null || vals[i] < vals[i - 1] - 1e-9)) {
+      ctx.beginPath(); ctx.arc(X(i), Y(vals[i]), 3, 0, Math.PI * 2);
+      ctx.fillStyle = i <= IDX ? PAL.algo : PAL.panel;
+      ctx.globalAlpha = i <= IDX ? 1 : .8;
+      ctx.fill();
+      ctx.strokeStyle = PAL.algo; ctx.lineWidth = 1.3; ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  // cursor
+  const cx = X(IDX);
+  ctx.strokeStyle = PAL.ink; ctx.globalAlpha = .55; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(cx, padT - 4); ctx.lineTo(cx, h - padB + 2); ctx.stroke();
+  ctx.globalAlpha = 1;
+  if (vals[IDX] != null) {
+    ctx.beginPath(); ctx.arc(cx, Y(vals[IDX]), 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = PAL.ink; ctx.fill();
+    ctx.strokeStyle = PAL.panel; ctx.lineWidth = 2; ctx.stroke();
+  }
+  ctx.textAlign = 'center'; ctx.fillStyle = PAL.muted;
+  ctx.fillText('step ' + (IDX + 1) + ' / ' + S, Math.min(w - 50, Math.max(padL + 34, cx)), h - 6);
+}
+
+function seekFromEvent(e) {
+  if (!SNAPS.length || !TL) return;
+  const r = $('cv3').getBoundingClientRect();
+  const x = e.clientX - r.left;
+  const f = (x - TL.padL) / (TL.w - TL.padL - TL.padR);
+  IDX = Math.max(0, Math.min(SNAPS.length - 1, Math.round(f * (SNAPS.length - 1))));
+  render();
+}
+
+/* =============================== playback ============================== */
+
+let SNAPS = [], IDX = 0, PLAYING = false, TIMER = null, SPEED = 160;
+let INST = null, OPT = null, OPTSRC = '', TREE = null, COMPUTE = 0, T_HYB = 0, T_OPT = 0;
+let EFFORT = 'mid', EFFOPTS = null;
+
+const EFFORT_SPEED = { low: 200, mid: 160, high: 130, xhigh: 100, max: 70 };
+
+function describeEffort(level, o) {
+  return level + ' demo budget · ' + o.islands + ' islands · K=' + o.K + ' · ' +
+    o.gens + ' gens · ' + o.children + ' children · ' + o.elites + ' elites · polish ' + o.polish;
+}
+function applyEffortSpeed(level) {
+  const v = EFFORT_SPEED[level] || 140;
+  $('speed').value = v; SPEED = v; $('speedOut').textContent = v;
+}
+function refreshEffortMap() {
+  const level = $('effort').value;
+  $('effortMap').textContent = describeEffort(level, effortOptions(level, +$('n').value));
+}
+
+const fmtMs = t => t < 10 ? t.toFixed(1) + ' ms' : t < 1000 ? Math.round(t) + ' ms' : (t / 1000).toFixed(2) + ' s';
+
+function updateChips(st) {
+  const seen = new Set();
+  for (let i = 0; i <= IDX && i < SNAPS.length; i++) seen.add(kindOf(SNAPS[i].stage));
+  const cur = kindOf(st.stage || '');
+  for (const k of KINDS) {
+    const c = $('chip-' + k.key);
+    if (!c) continue;
+    c.classList.toggle('on', k.key === cur);
+    c.classList.toggle('seen', k.key !== cur && seen.has(k.key));
+  }
+}
+
+function render() {
+  if (!INST) return;
+  const st = SNAPS[IDX] || { stage: '', note: '', pool: [], best: null, active: [], poolLen: 0, work: 0 };
+  const bestT = st.best ? st.best.t : null;
+  drawPanel($('cv1'), INST.pts, { pool: st.pool, best: bestT, active: st.active });
+  const right = drawPanel($('cv2'), INST.pts, OPTSRC === 'exact'
+    ? { opt: OPT ? OPT.tour : null, best: bestT }
+    : { tree: TREE, best: bestT });
+  drawTimeline();
+  updateChips(st);
+
+  $('hLen').textContent = st.best ? st.best.len.toFixed(1) : '—';
+  $('oLen').textContent = OPT ? OPT.len.toFixed(1) : '—';
+  $('hMs').textContent = '(' + fmtMs(T_HYB) + ')';
+  $('oMs').textContent = '(' + fmtMs(T_OPT) + ')';
+  $('hStage').textContent = st.stage || '';
+
+  let note = st.note || '';
+  const prev = IDX > 0 ? SNAPS[IDX - 1].best : null;
+  if (st.best && (!prev || st.best.len < prev.len - 1e-9)) {
+    note = (prev ? '<b>▼ new best ' + st.best.len.toFixed(1) + ' (−' + (prev.len - st.best.len).toFixed(1) + ')</b> · '
+                 : '<b>first tour ' + st.best.len.toFixed(1) + '</b> · ') + note;
+  }
+  $('hNote').innerHTML = note;
+
+  if (OPTSRC === 'exact') {
+    const d = right.diffCount;
+    $('oStage').textContent = d == null ? '' : (d === 0 ? 'best tour = optimum' : d + ' edge' + (d > 1 ? 's' : '') + ' differ from the optimum');
+  } else if (TREE) {
+    const bad = TREE.deg.filter(x => x !== 2).length;
+    $('oStage').textContent = bad + ' of ' + TREE.deg.length + ' vertices have 1-tree degree ≠ 2';
+  }
+
+  $('sStage').textContent = st.stage || '—';
+  $('sEffort').textContent = EFFORT + (EFFOPTS
+    ? ' · ' + EFFOPTS.islands + 'i/' + EFFOPTS.gens + 'g/' + EFFOPTS.children + 'c'
+    : '');
+  $('sBest').textContent = st.best ? st.best.len.toFixed(2) : '—';
+  $('sOpt').textContent = OPT ? (OPTSRC === 'exact' ? '' : '≥ ') + OPT.len.toFixed(2) : '—';
+  $('sPool').textContent = st.poolLen || 0;
+  $('sWork').textContent = st.work || 0;
+  $('sStep').textContent = (IDX + 1) + ' / ' + SNAPS.length;
+  const b = st.best ? st.best.len : null;
+  const gap = b != null && OPT ? (b / OPT.len - 1) * 100 : null;
+  const proven = b != null && OPT && b <= OPT.len + 1e-6;
+  $('sGap').textContent = gap == null ? '—' : (gap >= 0 ? '+' : '') + gap.toFixed(2) + '%' +
+    (OPTSRC === 'exact' ? '' : ' (≤)') +
+    (proven ? (OPTSRC === 'exact' ? ' · OPTIMAL' : ' · PROVEN') : '');
+  $('sTime').textContent = COMPUTE.toFixed(0) + ' ms';
+  $('cv3').setAttribute('aria-valuenow', IDX + 1);
+  $('cv3').setAttribute('aria-valuemax', SNAPS.length);
+}
+const renderAll = () => { if (INST) render(); };
+
+function stop() { PLAYING = false; clearTimeout(TIMER); $('play').textContent = 'Play'; }
+function tick() {
+  if (!PLAYING) return;
+  if (IDX >= SNAPS.length - 1) { stop(); $('status').textContent = 'done'; return; }
+  IDX++; render();
+  TIMER = setTimeout(tick, SPEED);
+}
+function play() {
+  if (!SNAPS.length) return;
+  if (PLAYING) { stop(); return; }
+  if (IDX >= SNAPS.length - 1) IDX = 0;
+  PLAYING = true; $('play').textContent = 'Pause';
+  tick();
+}
+function stepBy(d) {
+  stop();
+  if (!SNAPS.length) return;
+  IDX = Math.max(0, Math.min(SNAPS.length - 1, IDX + d));
+  render();
+}
+
+function run() {
+  stop();
+  const n = +$('n').value, seed = +$('seed').value, kind = $('kind').value;
+  const level = $('effort').value;
+  const opts = effortOptions(level, n);
+  EFFORT = level; EFFOPTS = opts;
+  $('effortMap').textContent = describeEffort(level, opts);
+  $('status').textContent = 'building instance and solving (' + level + ')…';
+  $('run').disabled = true;
+  setTimeout(() => {
+    try {
+      const t0 = performance.now();
+      INST = makeInstance(n, seed, kind);
+      const D = INST.D;
+      $('hNote').textContent = 'precomputing steps…';
+      const th = performance.now();
+      SNAPS = buildSnapshots(INST, opts);
+      T_HYB = performance.now() - th;
+      IDX = 0;
+
+      const lastBest = SNAPS[SNAPS.length - 1].best;
+      const ub = lastBest ? lastBest.len : tourLen(D, greedy(D, INST.order, 0));
+      TREE = null;
+      const to = performance.now();
+      if (n <= EXACT_MAX) {
+        OPT = heldKarp(D); OPTSRC = 'exact';
+        $('oTitle').textContent = 'Held–Karp optimum';
+        $('oNote').textContent = 'Held–Karp exact optimum in blue — the true target, not an estimate. Orange dashes mark edges of the current best tour that the optimum does not use.';
+      } else {
+        const b = hkBoundTree(D, ub, 400);
+        OPT = { tour: lastBest ? lastBest.t : null, len: b.L };
+        TREE = { edges: b.edges, deg: b.deg };
+        OPTSRC = 'bound';
+        $('oTitle').textContent = '1-tree lower bound';
+        $('oNote').textContent = 'Held–Karp is infeasible here, so this is a proven 1-tree lower bound (blue tree, best tour dashed green). A tour needs every vertex at degree 2; rings mark where the tree falls short. The gap is an upper bound on the true gap.';
+      }
+
+      T_OPT = performance.now() - to;
+      COMPUTE = performance.now() - t0;
+      $('oLen').textContent = OPT.len.toFixed(1);
+      $('status').textContent = (OPTSRC === 'exact' ? 'exact optimum ready' : 'lower bound ready') +
+        ' · effort ' + level;
+      buildLegend();
+      render();
+      PLAYING = true; $('play').textContent = 'Pause'; tick();
+    } catch (e) {
+      console.error(e.stack || e);
+      $('status').textContent = 'error: ' + e.message;
+    } finally {
+      $('run').disabled = false;
+    }
+  }, 30);
+}
+
+/* ================================ wiring =============================== */
+
+$('n').addEventListener('input', () => { $('nOut').textContent = $('n').value; refreshEffortMap(); });
+$('speed').addEventListener('input', () => { SPEED = +$('speed').value; $('speedOut').textContent = SPEED; });
+$('seed').addEventListener('change', () => { if (SNAPS.length) run(); });
+$('kind').addEventListener('change', () => { if (SNAPS.length) run(); });
+$('effort').addEventListener('change', () => {
+  applyEffortSpeed($('effort').value);
+  refreshEffortMap();
+  if (SNAPS.length) run();
+});
+$('dice').addEventListener('click', () => { $('seed').value = 1 + Math.floor(Math.random() * 99); run(); });
+$('run').addEventListener('click', run);
+$('play').addEventListener('click', play);
+$('step').addEventListener('click', () => stepBy(1));
+$('back').addEventListener('click', () => stepBy(-1));
+$('reset').addEventListener('click', () => {
+  stop();
+  SNAPS = []; IDX = 0; INST = null; OPT = null; TREE = null; COMPUTE = 0; T_HYB = 0; T_OPT = 0;
+  ['cv1', 'cv2', 'cv3'].forEach(id => {
+    const [ctx, w, h] = fitCanvas($(id)); ctx.clearRect(0, 0, w, h);
+  });
+  $('hLen').textContent = '—'; $('oLen').textContent = '—';
+  $('hMs').textContent = ''; $('oMs').textContent = '';
+  $('oTitle').textContent = 'Held–Karp optimum';
+  $('hNote').textContent = 'Press Run.'; $('oNote').textContent = '';
+  $('hStage').textContent = ''; $('oStage').textContent = '';
+  KINDS.forEach(k => $('chip-' + k.key).classList.remove('on', 'seen'));
+  ['sStage', 'sBest', 'sOpt', 'sGap', 'sPool', 'sWork', 'sStep', 'sTime'].forEach(id => $(id).textContent = '—');
+  $('sEffort').textContent = EFFORT;
+  $('status').textContent = '';
+});
+
+let dragging = false;
+$('cv3').addEventListener('pointerdown', e => {
+  dragging = true; stop(); $('cv3').setPointerCapture(e.pointerId); seekFromEvent(e);
+});
+$('cv3').addEventListener('pointermove', e => { if (dragging) seekFromEvent(e); });
+$('cv3').addEventListener('pointerup', () => { dragging = false; });
+$('cv3').addEventListener('pointercancel', () => { dragging = false; });
+
+window.addEventListener('keydown', e => {
+  if (e.target.matches('input[type=number], select')) return;
+  if (e.key === ' ' && !e.target.matches('button')) { e.preventDefault(); play(); }
+  else if (e.key === 'ArrowRight' && !e.target.matches('input')) { e.preventDefault(); stepBy(1); }
+  else if (e.key === 'ArrowLeft' && !e.target.matches('input')) { e.preventDefault(); stepBy(-1); }
+  else if (e.key === 'Home' && !e.target.matches('input')) { e.preventDefault(); stepBy(-1e9); }
+  else if (e.key === 'End' && !e.target.matches('input')) { e.preventDefault(); stepBy(1e9); }
+});
+window.addEventListener('resize', renderAll);
+
+buildChips();
+applyEffortSpeed($('effort').value);
+refreshEffortMap();
+run();
+</script>
+</body>
+</html>

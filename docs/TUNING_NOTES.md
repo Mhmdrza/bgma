@@ -1,6 +1,6 @@
 # Knob tuning — observations and future work
 
-Last run: 2026-10-19. Harness: `tune_knobs.js` (built on `beam_fast.js` + `nature_tsp.html`).
+Last run: 2026-10-19. Harness: `tuning/tune_knobs.js` (built on `src/beam/beam_fast.js` + `web/nature_tsp.html`).
 This file records what the sweeps actually showed, why `--preset=tuned` looks the way it
 does, and which directions are worth trying next.
 
@@ -27,7 +27,7 @@ does, and which directions are worth trying next.
 ## 2. The final rule
 
 ```bash
-node beam_fast.js --n=200 --preset=tuned
+node src/beam/beam_fast.js --n=200 --preset=tuned
 ```
 
 Expanded:
@@ -188,7 +188,7 @@ quality-first preset is a batch tool, not an interactive one.
 Ranked by expected value:
 
 1. **Hybrid tunnel (cheap screen, expensive polish).** Fast-tunnel all finals, then run the
-   base tunnel only on the top 3–8 by fast length. **Implemented in `hybrid_tsp.js`**: it
+   base tunnel only on the top 3–8 by fast length. **Implemented in `src/hybrid/hybrid_tsp.js`**: it
    reaches the best-of-all tour in the synthetic sweep while cutting n=400 time from
    ~6.5 s to ~1.2 s. The remaining work is TSPLIB/CSV validation and parameter tuning.
 2. **Parallel restarts/finals.** Restarts and finals are independent. One worker per
@@ -227,25 +227,25 @@ Ranked by expected value:
 
 ```bash
 # the swept engine
-node tune_knobs.js --ns=40,75,100,150,200,300,400 --seeds=2
+node tuning/tune_knobs.js --ns=40,75,100,150,200,300,400 --seeds=2
 
 # final head-to-head (writes per-instance CSV)
-node tune_knobs.js --ns=40,75,100,150,200,300,400 --seeds=2 --only=FINAL --out=tune.csv
+node tuning/tune_knobs.js --ns=40,75,100,150,200,300,400 --seeds=2 --only=FINAL --out=tune.csv
 
 # the tuned solver
-node beam_fast.js --n=200 --preset=tuned
-node beam_fast.js --n=400 --preset=tuned
+node src/beam/beam_fast.js --n=200 --preset=tuned
+node src/beam/beam_fast.js --n=400 --preset=tuned
 
 # faster, slightly weaker alternative
-node beam_fast.js --n=200 --K='max(16,n/3)' --near='max(10,n/10)' --refineF=n \
+node src/beam/beam_fast.js --n=200 --K='max(16,n/3)' --near='max(10,n/10)' --refineF=n \
   --oroptMaxL=5 --restarts=8 --parity=1 --tunnelMode=fast
 ```
 
 ---
 
-## 7. Effort levels for the hybrid (`hybrid_effort.js`)
+## 7. Effort levels for the hybrid (`src/hybrid/hybrid_effort.js`)
 
-Last run: 2026-10-20. Harness: `tune_effort.js` / `hybrid_effort.js`, built on `bgma.js`.
+Last run: 2026-10-20. Harness: `tuning/tune_effort.js` / `src/hybrid/hybrid_effort.js`, built on `src/hybrid/bgma.js`.
 
 ### 7.1 Method
 
@@ -254,10 +254,10 @@ Last run: 2026-10-20. Harness: `tune_effort.js` / `hybrid_effort.js`, built on `
   uniform/cluster.
 - **Reference:** best tour produced by any tested configuration or the tuned beam on that
   instance. This is a relative-quality reference, not the optimum.
-- **Second reference:** a 1-tree lower bound from `hybrid_vis.js` (`hkBound`, 600
+- **Second reference:** a 1-tree lower bound from `src/hybrid/hybrid_vis.js` (`hkBound`, 600
   subgradient iterations; 400 at n=300/400). The bound is proven but loose, so
   `len/bound - 1` is an *upper bound* on the true optimality gap.
-- **Exact check:** `validate_effort.js` runs Held–Karp at n=18, 20, 22.
+- **Exact check:** `tuning/validate_effort.js` runs Held–Karp at n=18, 20, 22.
 - **One-factor sweep:** 33 configurations changing one knob at a time from a base
   (`islands=4, K=n/3, elites=16, gens=6, children=8, polish=4`), plus combined profiles.
 - **Caveat:** synthetic instances only; in-sample tuning. Treat the exact n and the ordering
@@ -355,17 +355,17 @@ at n=60–120, not more hybrid knobs.
 
 ```bash
 # one-factor sweeps
-node tune_effort.js --ns=40,80,150 --seeds=2
-node tune_effort.js --ns=80,150 --seeds=2 --only='elite|gen|children|polish'
-node tune_effort.js --ns=150,200 --seeds=2 --only='L[1-7]|combo'
+node tuning/tune_effort.js --ns=40,80,150 --seeds=2
+node tuning/tune_effort.js --ns=80,150 --seeds=2 --only='elite|gen|children|polish'
+node tuning/tune_effort.js --ns=150,200 --seeds=2 --only='L[1-7]|combo'
 
 # exact check
-node validate_effort.js --ns=18,20,22 --seeds=3
+node tuning/validate_effort.js --ns=18,20,22 --seeds=3
 
 # final ladder
-node hybrid_effort.js --ns=80,150,200 --seeds=2 --kind=both \
+node src/hybrid/hybrid_effort.js --ns=80,150,200 --seeds=2 --kind=both \
   --efforts=low,mid,high,xhigh,max --bound=1
 
 # one run
-node hybrid_effort.js --n=200 --effort=max --bound=1 --tour=tour.txt
+node src/hybrid/hybrid_effort.js --n=200 --effort=max --bound=1 --tour=tour.txt
 ```

@@ -7,6 +7,7 @@
  *   HybridTSP.buildSnapshots(inst, opts)  -> snapshot[]
  *   HybridTSP.heldKarp(D)                 -> { tour, len }        exact, n <= EXACT_MAX
  *   HybridTSP.hkBound(D, ub, iters)       -> number              proven 1-tree lower bound
+ *   HybridTSP.hkBoundTree(D, ub, iters)   -> { L, edges, deg }   same bound plus its 1-tree
  *   HybridTSP.tourLen(D, tour)            -> number
  *   HybridTSP.greedy(D, order, start)     -> tour
  *   HybridTSP.effortOptions(level, n)     -> demo-capped snapshot options
@@ -543,15 +544,21 @@
     deg[0] = 2; deg[a1]++; deg[a2]++;
     let sum = 0;
     for (let i = 0; i < n; i++) sum += pi[i];
-    return { L: total - 2 * sum, deg };
+    const edges = [[0, a1], [0, a2]];
+    for (let i = 1; i < n; i++) if (par[i] >= 0) edges.push([par[i], i]);
+    return { L: total - 2 * sum, deg, edges };
   }
 
-  function hkBound(D, ub, iters) {
+  function hkBound(D, ub, iters) { return hkBoundTree(D, ub, iters).L; }
+
+  /* Same subgradient ascent as hkBound, but also returns the 1-tree (edge list
+   * and vertex degrees) at the multipliers that produced the best bound. */
+  function hkBoundTree(D, ub, iters) {
     const n = D.length, pi = new Float64Array(n);
-    let bestL = -Infinity, lam = 2, stall = 0;
+    let bestL = -Infinity, lam = 2, stall = 0, bestTree = null;
     for (let it = 0; it < iters; it++) {
       const r = oneTree(D, pi);
-      if (r.L > bestL + 1e-12) { bestL = r.L; stall = 0; }
+      if (r.L > bestL + 1e-12) { bestL = r.L; stall = 0; bestTree = { edges: r.edges, deg: Array.from(r.deg) }; }
       else if (++stall >= 25) { lam *= 0.6; stall = 0; }
       let sq = 0;
       for (let i = 0; i < n; i++) { const g = r.deg[i] - 2; sq += g * g; }
@@ -560,7 +567,7 @@
       if (!isFinite(step) || step <= 0) break;
       for (let i = 0; i < n; i++) pi[i] += step * r.deg[i];
     }
-    return bestL;
+    return { L: bestL, edges: bestTree ? bestTree.edges : [], deg: bestTree ? bestTree.deg : [] };
   }
 
   /* =============================== export ================================ */
@@ -568,7 +575,7 @@
   const api = {
     EXACT_MAX, DEFAULTS, effortOptions,
     makeInstance, makePoints, distRows, nearestOrder, makeNear, farthestPair,
-    buildSnapshots, heldKarp, hkBound, tourLen, checkTour, greedy, rng
+    buildSnapshots, heldKarp, hkBound, hkBoundTree, tourLen, checkTour, greedy, rng
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   global.HybridTSP = api;

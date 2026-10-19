@@ -9,10 +9,10 @@
  * per instance, so it is the whole cost of this benchmark.
  *
  * usage:
- *   node n22_bench.js                          # 8 seeds/family, K=16, tunnel on
- *   node n22_bench.js --seeds=12 --K=64
- *   node n22_bench.js --refine=0               # beam only
- *   node n22_bench.js --n=20 --seeds=4         # any n from 8..26
+ *   node bench/n22_bench.js                          # 8 seeds/family, K=16, tunnel on
+ *   node bench/n22_bench.js --seeds=12 --K=64
+ *   node bench/n22_bench.js --refine=0               # beam only
+ *   node bench/n22_bench.js --n=20 --seeds=4         # any n from 8..26
  *
  * flags: --n=22  --seeds=8  --K=16  --refine=1|0
  */

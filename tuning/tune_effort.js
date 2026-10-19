@@ -8,14 +8,14 @@
  *   - median wall time
  *
  * usage:
- *   node tune_effort.js --ns=40,80,150 --seeds=2
- *   node tune_effort.js --ns=100,200 --seeds=2 --only=elite|gen
- *   node tune_effort.js --ns=80 --seeds=1 --boundIters=0 --out=effort.csv
+ *   node tuning/tune_effort.js --ns=40,80,150 --seeds=2
+ *   node tuning/tune_effort.js --ns=100,200 --seeds=2 --only=elite|gen
+ *   node tuning/tune_effort.js --ns=80 --seeds=1 --boundIters=0 --out=effort.csv
  */
 'use strict';
 const fs = require('fs');
-const { B, hybrid, runEffort, effortPreset } = require('./bgma.js');
-const { hkBound } = require('./hybrid_vis.js');
+const { B, hybrid, runEffort, effortPreset } = require('../src/hybrid/bgma.js');
+const { hkBound } = require('../src/hybrid/hybrid_vis.js');
 
 const CFG = { ns: '40,80,150', seeds: 2, only: '', boundIters: 600, out: '' };
 process.argv.slice(2).forEach(a => {

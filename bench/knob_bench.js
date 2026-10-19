@@ -5,10 +5,10 @@
  * bench_dataset.js does it. Instances are the synthetic uniform/cluster families.
  *
  * usage:
- *   node knob_bench.js
- *   node knob_bench.js --ns=50,100,200 --seeds=2
- *   node knob_bench.js --ns=200 --seeds=4 --M=96 --iters=200000
- *   node knob_bench.js --out=knob_results.csv
+ *   node bench/knob_bench.js
+ *   node bench/knob_bench.js --ns=50,100,200 --seeds=2
+ *   node bench/knob_bench.js --ns=200 --seeds=4 --M=96 --iters=200000
+ *   node bench/knob_bench.js --out=knob_results.csv
  */
 'use strict';
 const fs = require('fs');
@@ -25,7 +25,7 @@ const SEEDS = CFG.seeds, M = CFG.M, FIXED_ITERS = CFG.iters;
 
 /* ------------------------- load the two solvers ------------------------- */
 
-const beamCore = fs.readFileSync(path.join(__dirname, 'beam_fast.js'), 'utf8')
+const beamCore = fs.readFileSync(path.join(__dirname, '..', 'src', 'beam', 'beam_fast.js'), 'utf8')
   .split('/* ================================= harness')[0]
   .replace('process.argv.slice(2)', '[]');       // beam_fast's CLI must not see our flags
 const B = eval(beamCore + ';({buildInstance,beamFast,beamFastTunnel,refineFast,greedy,' +
@@ -39,7 +39,7 @@ function sliceHtml(file, marker) {
     ? txt.indexOf('<script>') + '<script>'.length : 0;
   return txt.slice(start, cut);
 }
-const N = eval(sliceHtml(path.join(__dirname, 'nature_tsp.html'), '/* ============================== drawing') +
+const N = eval(sliceHtml(path.join(__dirname, '..', 'web', 'nature_tsp.html'), '/* ============================== drawing') +
   ';({makeNear,popWave,anneal,ox,tourLength,setRand:fn=>{rand=fn;}})');
 
 /* ------------------------------- presets -------------------------------- */

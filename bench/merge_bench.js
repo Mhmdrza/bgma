@@ -14,7 +14,7 @@
  *   add edges heaviest-first subject to degree <= 2 and no premature subtour
  *   repair the loose ends by nearest distance, close the cycle, then tunnel.
  *
- * usage: node merge_bench.js --n=200 --seeds=6 --K=16 [--exact=1]
+ * usage: node bench/merge_bench.js --n=200 --seeds=6 --K=16 [--exact=1]
  *
  * Reuses the implementations from beam_fast.js (same directory) instead of copying them.
  */
@@ -31,7 +31,7 @@ process.argv.slice(2).forEach(a => {
 const N = CFG.n, SEEDS = CFG.seeds, K = CFG.K, EXACT = !!CFG.exact;
 
 /* ---- pull the algorithms in (the harness section of beam_fast.js is stripped) ---- */
-const core = fs.readFileSync(path.join(__dirname, 'beam_fast.js'), 'utf8')
+const core = fs.readFileSync(path.join(__dirname, '..', 'src', 'beam', 'beam_fast.js'), 'utf8')
   .split('/* ================================= harness')[0];
 eval(core + ';globalThis.TSP={buildInstance,beamFast,refineFast,greedy,tourLenFlat,tourLenRows,heldKarp,checkTour,KN};');
 const TSP = globalThis.TSP;

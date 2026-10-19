@@ -18,7 +18,7 @@ const { effortPreset } = require('./effort_profiles.js');
 
 /* --------------------------- load implementations ------------------------ */
 
-const beamCore = fs.readFileSync(path.join(__dirname, 'beam_fast.js'), 'utf8')
+const beamCore = fs.readFileSync(path.join(__dirname, '..', 'beam', 'beam_fast.js'), 'utf8')
   .split('/* ================================= harness')[0]
   .replace('process.argv.slice(2)', '[]');
 const B = eval(beamCore + ';({buildInstance,beamFast,beamFastTunnel,refineFast,refineBase,greedy,' +
@@ -32,7 +32,7 @@ function sliceHtml(file, marker) {
     ? txt.indexOf('<script>') + '<script>'.length : 0;
   return txt.slice(start, cut);
 }
-const NAT = eval(sliceHtml(path.join(__dirname, 'nature_tsp.html'), '/* ============================== drawing') +
+const NAT = eval(sliceHtml(path.join(__dirname, '..', '..', 'web', 'nature_tsp.html'), '/* ============================== drawing') +
   ';({makeNear,popWave,anneal,ox,tourLength,setRand:fn=>{rand=fn;}})');
 
 /* ------------------------------- defaults -------------------------------- */

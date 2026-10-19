@@ -12,11 +12,11 @@
  *   max    ~7 s at n=200     xhigh run + heavier max run, shorter tour wins
  *
  * usage:
- *   node hybrid_effort.js --n=200 --effort=mid
- *   node hybrid_effort.js --n=200 --effort=max --bound=1 --tour=tour.txt
- *   node hybrid_effort.js --ns=50,100,200 --efforts=low,mid,high,xhigh,max --seeds=2
- *   node hybrid_effort.js --n=200 --effort=high --set=children=20,polish=10
- *   node hybrid_effort.js --n=20 --effort=max --exact=1
+ *   node src/hybrid/hybrid_effort.js --n=200 --effort=mid
+ *   node src/hybrid/hybrid_effort.js --n=200 --effort=max --bound=1 --tour=tour.txt
+ *   node src/hybrid/hybrid_effort.js --ns=50,100,200 --efforts=low,mid,high,xhigh,max --seeds=2
+ *   node src/hybrid/hybrid_effort.js --n=200 --effort=high --set=children=20,polish=10
+ *   node src/hybrid/hybrid_effort.js --n=20 --effort=max --exact=1
  *
  * flags:
  *   --n=200              instance size

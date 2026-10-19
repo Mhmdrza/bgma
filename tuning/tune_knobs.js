@@ -5,9 +5,9 @@
  * Runtime is reported, but ranking is by quality across sizes.
  *
  * usage:
- *   node tune_knobs.js --ns=50,100,200 --seeds=2
- *   node tune_knobs.js --ns=40,60,100,150,200,300,400 --seeds=2 --only=k4
- *   node tune_knobs.js --ns=200 --seeds=4 --out=tune.csv
+ *   node tuning/tune_knobs.js --ns=50,100,200 --seeds=2
+ *   node tuning/tune_knobs.js --ns=40,60,100,150,200,300,400 --seeds=2 --only=k4
+ *   node tuning/tune_knobs.js --ns=200 --seeds=4 --out=tune.csv
  */
 'use strict';
 const fs = require('fs');
@@ -24,7 +24,7 @@ const SEEDS = CFG.seeds, M = CFG.M, FIXED_ITERS = CFG.iters;
 
 /* --------------------------- load implementations ------------------------ */
 
-const beamCore = fs.readFileSync(path.join(__dirname, 'beam_fast.js'), 'utf8')
+const beamCore = fs.readFileSync(path.join(__dirname, '..', 'src', 'beam', 'beam_fast.js'), 'utf8')
   .split('/* ================================= harness')[0]
   .replace('process.argv.slice(2)', '[]');
 const B = eval(beamCore + ';({buildInstance,beamFast,beamBase,beamFastTunnel,refineFast,refineBase,greedy,' +
@@ -38,7 +38,7 @@ function sliceHtml(file, marker) {
     ? txt.indexOf('<script>') + '<script>'.length : 0;
   return txt.slice(start, cut);
 }
-const NAT = eval(sliceHtml(path.join(__dirname, 'nature_tsp.html'), '/* ============================== drawing') +
+const NAT = eval(sliceHtml(path.join(__dirname, '..', 'web', 'nature_tsp.html'), '/* ============================== drawing') +
   ';({makeNear,popWave,anneal,ox,tourLength,setRand:fn=>{rand=fn;}})');
 
 /* ------------------------------- configs -------------------------------- */

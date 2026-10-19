@@ -17,7 +17,7 @@
  * recombination            AB-style crossover: splice a segment of tour B into
  *                          tour A, repair, re-anneal
  *
- * usage: node nature_tsp.js --n=200 --seeds=4 --M=48 --iters=4000 [--exact=1]
+ * usage: node src/nature/nature_tsp.js --n=200 --seeds=4 --M=48 --iters=4000 [--exact=1]
  *
  * Baseline ("beam + tunnel") is loaded from beam_fast.js in the same directory.
  */
@@ -34,7 +34,7 @@ process.argv.slice(2).forEach(a => {
 const N = CFG.n, SEEDS = CFG.seeds, M = CFG.M, ITERS = CFG.iters, EXACT = !!CFG.exact;
 
 /* ------------------------------ baseline ------------------------------ */
-const core = fs.readFileSync(path.join(__dirname, 'beam_fast.js'), 'utf8')
+const core = fs.readFileSync(path.join(__dirname, '..', 'beam', 'beam_fast.js'), 'utf8')
   .split('/* ================================= harness')[0]
   .replace('process.argv.slice(2)', '[]');       // beam_fast's CLI must not see our flags
 eval(core + ';globalThis.TSP={buildInstance,beamFast,refineFast,heldKarp,greedy,KN};');

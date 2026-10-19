@@ -5,11 +5,11 @@
  * cannot provide. Reports optimal-hit rate, mean gap to optimum and time.
  *
  * usage:
- *   node validate_effort.js --ns=18,20 --seeds=5
+ *   node tuning/validate_effort.js --ns=18,20 --seeds=5
  */
 'use strict';
-const { B, runEffort } = require('./bgma.js');
-const { heldKarp } = require('./hybrid_vis.js');
+const { B, runEffort } = require('../src/hybrid/bgma.js');
+const { heldKarp } = require('../src/hybrid/hybrid_vis.js');
 
 const CFG = { ns: '18,20', seeds: 5 };
 process.argv.slice(2).forEach(a => {

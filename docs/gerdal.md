@@ -400,18 +400,18 @@ scaling guide, not a benchmark guarantee.
 
 #+BEGIN_SRC sh
 # exact check of every effort level
-node validate_effort.js --ns=18,20,22 --seeds=3
+node tuning/validate_effort.js --ns=18,20,22 --seeds=3
 
 # one run, with a proven lower bound and a tour file
-node hybrid_effort.js --n=200 --effort=max --bound=1 --tour=tour.txt
+node src/hybrid/hybrid_effort.js --n=200 --effort=max --bound=1 --tour=tour.txt
 
 # compare the full ladder
-node hybrid_effort.js --ns=80,150,200 --seeds=2 --kind=both \
+node src/hybrid/hybrid_effort.js --ns=80,150,200 --seeds=2 --kind=both \
   --efforts=low,mid,high,xhigh,max --bound=1
 
 # one-factor knob sweeps
-node tune_effort.js --ns=40,80,150 --seeds=2
-node tune_effort.js --ns=80,150 --seeds=2 --only='elite|gen|children|polish'
+node tuning/tune_effort.js --ns=40,80,150 --seeds=2
+node tuning/tune_effort.js --ns=80,150 --seeds=2 --only='elite|gen|children|polish'
 
 # open the animated visualizer (effort selector included)
 python3 -m http.server 8000

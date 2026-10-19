@@ -17,8 +17,8 @@
  * This file is the fixed reference implementation. The configurable knobs
  * (score, starts, lag, dedupe, Or-opt, guards, epsilon, ...) live in beam_fast.js.
  *
- * usage:  node beam_simple.js [n] [seeds] [K]
- *         node beam_simple.js 200 6 16
+ * usage:  node src/beam/beam_simple.js [n] [seeds] [K]
+ *         node src/beam/beam_simple.js 200 6 16
  */
 'use strict';
 

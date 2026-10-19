@@ -13,10 +13,10 @@
  *              delta evaluation, pos[] index; optional single-city Or-opt pass
  *
  * usage:
- *   node beam_fast.js --n=200 --seeds=6 --K=16 --refineB=16 --refineF=5
- *   node beam_fast.js --n=22 --seeds=4 --exact=1        # verify against Held-Karp
- *   node beam_fast.js --n=200 --score=all                # score unvisited cities too
- *   node beam_fast.js --n=200 --starts=random --startCount=8
+ *   node src/beam/beam_fast.js --n=200 --seeds=6 --K=16 --refineB=16 --refineF=5
+ *   node src/beam/beam_fast.js --n=22 --seeds=4 --exact=1        # verify against Held-Karp
+ *   node src/beam/beam_fast.js --n=200 --score=all                # score unvisited cities too
+ *   node src/beam/beam_fast.js --n=200 --starts=random --startCount=8
  *
  * flags (defaults in brackets). Every constant that changes the answer is exposed.
  * Numeric flags also accept n-based expressions: --K=n/2, --K=n/3, --K=n,

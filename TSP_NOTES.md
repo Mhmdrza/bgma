@@ -1,0 +1,296 @@
+# TSP notes — quantum-inspired demo, fast solvers, nature model, benchmarks
+
+Last updated: 2026-10-19
+Working dir: `/Users/mohammadreza/Documents/Default Project`
+
+This file is the context hand-off for future sessions. It records what exists, what was
+measured, what was disproved, and what is still open.
+
+---
+
+## TL;DR
+
+- The original artifact is a **beam search with deduplication plus 2-opt/Or-opt**, dressed in
+  quantum vocabulary. There is no quantum mechanics in it.
+- The **beam's score ignores unvisited cities**; an MST-based score fixes that at n ≤ 15
+  (optimum hit rate goes from 1–2/20 to 11–12/20) but is absorbed by tunnelling at n ≥ 100.
+- At n ≥ 100 **diversity beats the beam**: 16 random starts + tunnel beat beam + tunnel by
+  1.2–2.4%.
+- A fast rewrite (`beam_fast.js`) is **10× faster at n=200 / 41× at n=400** with the beam
+  producing bit-identical tours; the tunnel trades 0.9–3.7pp of quality for 12–57× speed.
+- A "nature model" rewrite (weighted population + soft selection + annealing + recombination)
+  is the best-quality solver in the set, but ~10–50× slower than beam+tunnel.
+- On classic TSPLIB instances (`fri26`, `dantzig42`, `att48`) **beam + tunnel is optimal,
+  deterministic, and 5–20× faster** than the nature solver.
+- The 216 MB CSV dataset (`~/Downloads/tsp_dataset.csv`) has **no optimal tours**; its
+  `total_distance` is a stored-route cost. Benchmark against it only as a baseline.
+
+---
+
+## 1. The original artifact
+
+`/Users/mohammadreza/Downloads/Voting Greedy TSP (1).html` — a self-contained demo.
+
+Pipeline (n = 5…15 only):
+
+1. **Geometry** — random or 3-cluster points; distance matrix; per-city sorted neighbour list;
+   two poles = farthest pair.
+2. **Voting greedy** — the last three cities each nominate their 1st/2nd/3rd nearest
+   unvisited; two agreeing votes win; otherwise fall back to nearest-to-current.
+3. **Superposition (beam)** — K ∈ {1,4,16,64} partial tours grown from both poles. Each step
+   each tour branches to ≤4 cities (nearest of the last 3 at ranks 1–3, plus 2nd nearest of
+   the current). Dedupe on `(visited set, last city, start)` = "interference". Keep the K
+   lowest `f = len + d(last, home)` = "measurement".
+4. **Tunnelling** — 2-opt + Or-opt (segments 1–3), first improvement, full restart after each
+   move, on the best ≤16 finals.
+5. **Held–Karp** — exact optimum for the comparison panel.
+
+Known limitations found:
+
+- beam width is a hard top-K cut, not real amplitude;
+- `refine()` only accepts improving moves, so "tunnelling" never crosses a barrier;
+- the score `len + d(last, home)` is blind to unvisited cities.
+
+---
+
+## 2. Files in this directory
+
+| file | what it is |
+|---|---|
+| `beam_fast.js` | Optimised beam + tunnel (arena, parent pointers, bitsets, Zobrist dedupe, DLB 2-opt, Or-opt). Includes its own bench. Baseline implementations included for comparison. |
+| `beam_simple.js` | Same solver written only to be read (~55 lines of algorithm). Strings/arrays/boolean sets, no bitsets. |
+| `nature_tsp.js` | Nature-model solver: weighted population, soft selection, simulated annealing with avulsion kicks, ordered-crossover recombination. Includes a bench. |
+| `nature_tsp.html` | Visual page for the nature solver: population drawn faint, best tour bold, second panel shows the exact optimum (n ≤ 22) or a proven bound (23–30). |
+| `merge_bench.js` | "Mix the wave, then contract": edge-vote assembly vs picking the best tour. |
+| `bench_dataset.js` | CSV dataset bench: greedy vs beam+tunnel vs nature, with 1-tree bound and optional Held–Karp check. |
+| `att48_bench.js` | TSPLIB att48 (ATT distances). |
+| `dantzig42_bench.js` | TSPLIB dantzig42 (explicit lower-diagonal matrix). |
+| `fri26_bench.js` | TSPLIB fri26 (explicit lower-diagonal matrix). |
+| `n22_bench.js` | greedy vs beam+tunnel vs Held–Karp at n=22. Written but **never executed** (user asked not to run it). |
+
+All later benches load the solver code out of the page/file (string slice + `eval`) so they
+measure the exact same implementation, not a copy.
+
+---
+
+## 3. Measurements that shaped the design
+
+### 3.1 Where the time goes (original algorithm, n=200, K=16)
+
+| component | time | share |
+|---|---|---|
+| beam | 12.4 ms | 11% |
+| tunnel (6–9 finals) | 102.6 ms | 89% |
+
+Tunnel complexity: **moves × n²**, and moves grow with n → measured **n^2.84** (n=50…400).
+Beam alone: ~n^1.6.
+
+### 3.2 Fast rewrite (`beam_fast.js`)
+
+Paired runs (same instances, baseline → fast):
+
+| n | baseline total | fast total | speedup | quality cost |
+|---|---|---|---|---|
+| 200 | 115.0 ms (beam 12.4 + tunnel 102.6) | 11.3 ms (2.8 + 8.5) | **10.2×** | +1.56 pp (worst +3.94) |
+| 400 | 780.9 ms (38.2 + 742.7) | 18.9 ms (6.0 + 13.0) | **41.2×** | +3.66 pp (worst +6.05) |
+
+Fast-path-only scaling (no baseline, K=16), for complexity fitting:
+
+| n | beam | tunnel | total |
+|---|---|---|---|
+| 100 | 1.39 | 3.93 | 5.32 ms |
+| 200 | 3.01 | 8.14 | 11.16 ms |
+| 400 | 6.18 | 13.02 | 19.20 ms |
+
+`--parity=1` (adds full O(n²) sweeps): 6.9× at n=200 / 15.8× at n=400, quality within
++0.91 / +1.69 pp.
+
+The fast **beam alone** is bit-identical to the baseline on all 32 test instances
+(n=30…200, 4 seeds, uniform + cluster) — verified by direct comparison.
+
+Fast complexity: beam O(M·n²) (M = population); tunnel O(A·n + n·k) where A = accepted moves;
+measured slopes over n=100…800: beam 1.11, tunnel 0.65, total 0.82 (constants dominate at
+these sizes).
+
+### 3.3 The readable version (`beam_simple.js`)
+
+| n | total | vs fast | quality |
+|---|---|---|---|
+| 100 | 16.8 ms | 3.2× slower | ≈ equal |
+| 200 | 84.1 ms | 7.4× slower | 1.3% worse |
+| 400 | 515.9 ms | 27× slower | ~2–3% worse |
+
+### 3.4 Scoring against unvisited cities
+
+Replacing `f = len + d(home)` with `f = len + MST(unvisited ∪ {last, start})`:
+
+| n | old score | MST score |
+|---|---|---|
+| 12 | +7.40%, optimal 2/20 | **+0.83%, optimal 12/20** |
+| 15 | +9.34%, optimal 1/20 | **+1.60%, optimal 11/20** |
+| 200 | beam 1337.5 → 1009.0 after tunnel | beam **1006.9** → **985.9** after tunnel |
+
+A cheap adaptive bound (2 nearest unvisited neighbours) improves the beam by 8–18% but buys
+nothing after tunnelling. The true MST bound is the only one that helps end-to-end.
+
+### 3.5 Diversity beats the beam at scale
+
+| n | beam + tunnel | 16 random starts + tunnel | relative |
+|---|---|---|---|
+| 100 | 713.1 | **694.5** | −1.17% median |
+| 200 | 1009.0 | **991.9** | −1.85% median |
+| 400 | — (not paired in that run) | — | −2.36% median |
+
+### 3.6 Mixing the wave and contracting (`merge_bench.js`, n=200)
+
+| pipeline | median | vs best | time |
+|---|---|---|---|
+| beam + tunnel | 1009.0 | +2.02% | 11.7 ms |
+| beam, mix **raw** finals | 1010.8 | +2.20% | 4.6 ms |
+| beam, mix **tunnelled** finals | 996.1 | +0.71% | 12.5 ms |
+| 16 random + tunnel | 991.9 | +0.29% | 19.8 ms |
+| 16 random, mix tunnelled | **989.0** | +0.00% | 20.9 ms |
+
+Mixing raw finals is useless (+0.18%): they are too correlated, the consensus reproduces the
+best parent. Mixing *local optima* helps (−1.28%). Proper AB-cycle/EAX recombination is still
+unimplemented.
+
+### 3.7 Held–Karp limits
+
+- n=20: 0.30 s / 86 MiB; n=21: 0.60 s / 180 MiB; n=22: 1.34 s / 378 MiB; n=23: 2.9 s / 792 MiB.
+- n=30 needs 2^29 states (~100 GB) — impossible. n=200 needs ~10^63 bytes.
+- Practical browser cap: **22** (n=23 is 800 MB, risky).
+- For 23–30 the page shows a **1-tree + subgradient lower bound** instead, and marks the tour
+  "proven optimal" when it meets the bound.
+
+---
+
+## 4. The nature model (`nature_tsp.js`, `nature_tsp.html`)
+
+| quantum step | nature step | implementation |
+|---|---|---|
+| superposition | population of M foragers, flow-weighted | `states[]` with `w` |
+| branching | short edges from the last 3 cities | same 4-branch rule |
+| interference | identical configurations merge, flows add | dedupe + weight sum |
+| measurement | **soft** resample ∝ flow·exp(−(f−fₘᵢₙ)/T); T = 0.25·spread | systematic resampling |
+| tunnelling | **Metropolis annealing + double-bridge avulsion** (uphill allowed) | 85% informed proposals |
+| — | **recombination** | ordered crossover + re-anneal |
+
+Results:
+
+| n | population only | + anneal | + recombination |
+|---|---|---|---|
+| 15 | 29.1% above opt | optimal 10/16 | **optimal 16/16** |
+| 200 | +32.3% | 996.7 (+0.48% vs best known) | 996.7 |
+
+Cost: 27 ms at n=20, 95 ms at n=50, 136 ms at n=100, 281 ms at n=200 (median).
+Complexity: **O(M·n² + R·I·n)** time, **O(n² + M·n)** memory, with
+`I = min(120000, 1500 + 45n²)`, `R ≤ 14`.
+
+---
+
+## 5. Dataset bench (`~/Downloads/tsp_dataset.csv`)
+
+Facts about the file (verified, not assumed):
+
+- 216 MB, 2,783 rows, **n = 20…100** (81 distinct sizes), CRLF.
+- Columns: `instance_id, num_cities, city_coordinates, distance_matrix, best_route, total_distance`.
+- `best_route` is a **categorical label** (`Route_0`, `Route_1`, …), not a permutation.
+- `total_distance` is **not an optimum**: for id 0 (n=55) it is 2,966, while the all-pairs sum
+  is 82,433 and the identity-order tour is 2,893. It is the cost of a stored route that
+  behaves like a random tour. Held–Karp check at n=20: reference matched exact on **0/8**.
+
+Sample of 243 instances (3 per size), 24 s total:
+
+| method | vs stored route | vs 1-tree bound | median time |
+|---|---|---|---|
+| greedy | −75.3% | +24.2% | 0.0 ms |
+| beam + tunnel | −80.0% | +1.75% | 1.8 ms |
+| nature | −80.0% | **+0.94%** | 96 ms |
+
+At n=20 with exact optima: greedy 0/8 optimal, beam+tunnel 7/8, nature **8/8**.
+
+---
+
+## 6. TSPLIB results
+
+| instance | optimum | greedy (best start) | beam + tunnel | nature |
+|---|---|---|---|---|
+| fri26 | 937 | 965 (+3.0%) | **937**, 4.9 ms | **937**, 10/10 seeds, 28 ms |
+| dantzig42 | 699 | 864 (+23.6%) | **699**, 10.1 ms | 699, 8/10 seeds, 68 ms |
+| att48 | 10628 | 12012 (+13.0%) | **10628**, 13 ms | 10638 best (+0.09%), 100 ms |
+
+Notes:
+
+- fri26: 1-tree bound = 937, so the tour is **provably optimal** without trusting TSPLIB.
+- dantzig42: 2,522 triangle-inequality violations → non-metric, which is why greedy is so bad.
+- att48: ATT pseudo-Euclidean rounding; nature needs `--iters=400000 --M=96` to reach 10628.
+
+**Conclusion:** on small structured TSPLIB instances the classical beam + tunnel wins outright.
+The nature model's edge appears only on larger/rugged instances (n ≥ 100 in the synthetic set).
+
+---
+
+## 7. Bugs found and fixed (worth remembering)
+
+1. **Beam dedupe re-pricing bug.** Updating `len` on an existing node without rebuilding its
+   parent chain produced tours whose recorded length did not match their path. Fix: create a
+   new node when a shorter duplicate arrives.
+2. **Off-by-one in beam depth.** Used `depth = step + 1`, giving one fewer voter than the page,
+   silently degrading the beam 10–20%. Fix: `depth = step`.
+3. **TDZ in `nature_tsp.html`.** `addEventListener('change', debounced)` read `debounced`
+   before its `const` initialisation. Fix: declare `debounced` at the top of the wiring block.
+4. **`beam_fast.js` CLI parsing swallowed bench flags** when the file was eval'd into another
+   script. Fix: strip `process.argv.slice(2)` before eval (see `bench_dataset.js`).
+5. **`rand` is a closure variable** in the page, not a property. Benches need
+   `setRand: fn => { rand = fn; }` in the exported object to seed it.
+
+---
+
+## 8. Commands
+
+```bash
+# fast solver + comparison bench
+node beam_fast.js --n=200 --seeds=6
+node beam_fast.js --n=200 --seeds=6 --parity=1
+
+# readable version (quality/time trade)
+node beam_simple.js 200 6 16
+
+# nature model
+node nature_tsp.js --n=200 --seeds=4
+node nature_tsp.js --n=15 --seeds=8 --exact=1
+
+# visual page (open in browser)
+open nature_tsp.html
+
+# mixing study
+node merge_bench.js --n=200 --seeds=6
+
+# dataset (243 sampled instances, ~25 s)
+node bench_dataset.js --per-n=3
+node bench_dataset.js --min-n=20 --max-n=22 --per-n=8 --exact=1
+node bench_dataset.js --per-n=0 --out=results.csv
+
+# TSPLIB
+node fri26_bench.js
+node dantzig42_bench.js
+node att48_bench.js
+node att48_bench.js --iters=400000 --M=96 --seeds=5
+```
+
+---
+
+## 9. Open threads
+
+- **EAX / AB-cycle recombination** instead of edge voting — the only mixing operator with a
+  demonstrated upside in the literature (edge voting on raw finals scored exactly 0).
+- **Nature solver cost**: 14 annealed tours is the whole budget at large n; dropping to 3–4
+  and using a fast representation (bitsets / arena) would cut it 5–10×.
+- **Exact up to n≈30** via branch-and-bound with 1-tree bounds (Held–Karp cannot go past 22 in
+  a browser).
+- **Workers**: the finals are independent; one worker per final is a clean cores× win.
+- **Page story**: with the MST score the beam is near-optimal at n ≤ 15, which removes the
+  visible contribution of "tunnelling" — a presentational trade-off not yet decided.
+- `n22_bench.js` has never been executed; it is the smallest reproducible greedy vs beam+tunnel
+  vs exact comparison.

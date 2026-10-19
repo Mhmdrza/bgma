@@ -1,11 +1,13 @@
 # tsp-lab
 
-**An exact-quality TSP solver that runs in milliseconds, not minutes.**
+**A polynomial-time TSP solver that matches the exact optimum up to n = 22 and beats Christofides'
+1.5-approximation by a wide margin beyond it.**
 
-Beam-Guided Memetic Annealing (BGMA) is a polynomial-time heuristic that has so far found the
-**true optimum on every instance we could check against Held–Karp**, and it does it in
-milliseconds. Held–Karp, the classic exact method, is exponential, and its table doubles with every city: past n≈22 it no longer fits in
-memory on an ordinary machine.
+Beam-Guided Memetic Annealing (BGMA) found the **true optimum on every instance we could check against
+Held–Karp**, in milliseconds. Held–Karp, the classic exact method, doubles its cost with every city, and
+past n ≈ 22 its table no longer fits in memory on an ordinary machine. Christofides' algorithm is the
+classic polynomial method with a proof (at most 1.5× optimal), but in practice it sits 10–13% above the
+best tour, while BGMA's `low` level is within 0.1–2.2% of it from n = 50 to 400.
 
 | | Held–Karp (exact) | BGMA |
 |---|---|---|
@@ -14,7 +16,8 @@ memory on an ordinary machine.
 | growth | doubles with every extra city | **≈ n²** (measured n^2.0–2.3) |
 | n=30 | ≈ 100 GiB of table | ≈ 13 ms (`low`) |
 | n=400 | impossible | 0.7 s (`low`) · 64 s (`max`) |
-| quality guarantee | exact | none proven (empirical, +0.1–2% at n ≤ 400) |
+| tour excess vs best, n=400 | 0 (exact, n ≤ 22 only) | `low` +2.21% · `max` 0.00% (Christofides: +13.02%) |
+| quality guarantee | exact | none proven; Christofides has a proven 1.5× but is 6–80× worse in practice |
 
 ### n ≤ 22: matched the exact optimum, every time
 

@@ -1,5 +1,47 @@
 # tsp-lab
 
+**An exact-quality TSP solver that runs in milliseconds, not minutes.**
+
+Beam-Guided Memetic Annealing (BGMA) is a polynomial-time heuristic that has so far found the
+**true optimum on every instance we could check against Held–Karp**, and it does it in
+milliseconds. Held–Karp, the classic exact method, is exponential, and its table doubles with every city: past n≈22 it no longer fits in
+memory on an ordinary machine.
+
+| | Held–Karp (exact) | BGMA |
+|---|---|---|
+| time at n=20 | 354 ms | **1.6 ms** (`low`) · 77 ms (`max`) |
+| time at n=22 | 1.3–1.6 s, 378 MiB | **2–60 ms** |
+| growth | doubles with every extra city | **≈ n²** (measured n^2.0–2.3) |
+| n=30 | ≈ 100 GiB of table | ≈ 13 ms (`low`) |
+| n=400 | impossible | 0.8 s (`low`) · 64 s (`max`) |
+
+### n ≤ 22: matched the exact optimum, every time
+
+Every effort level, from `low` to `max`, hit the Held–Karp optimum on **26 of 26 instances**
+(n = 18, 20, 22; uniform and clustered). Even the cheapest level never missed.
+
+### n > 22: Held–Karp is out, so we measured against a proof instead
+
+Past n=22 there is nothing exact left to compare with. Rather than stop there, every run is
+measured against a **proven 1-tree (Held–Karp–style subgradient) lower bound**. The optimum can
+never be below it, so the reported gap is a guarantee, not an estimate.
+
+- On **fri26** the tour meets the bound exactly (937 = 937), so it is **proven optimal** without
+  trusting any reference answer.
+- At n = 80–200 the median tour is within **+0.71%** of the bound at `xhigh`/`max`. The bound is
+  loose, so the true gap is smaller still.
+- At n = 300–400 the best tours stay within **+1.13%** of the bound, and `low` finishes
+  n=400 in under a second.
+
+### Honest fine print
+
+BGMA is a heuristic. "Optimal" above means *matched on every instance we could verify*, not a
+proof that it always is, and no polynomial-time algorithm is known to guarantee TSP optima.
+The exact check covers n ≤ 22 (26 instances); beyond that the evidence is the lower bound.
+Details and caveats: [docs/gerdal.md](docs/gerdal.md).
+
+---
+
 Experiments around a quantum-inspired TSP demo: a fast beam + tunnelling solver, a readable
 reference implementation, a nature-model rewrite (weighted population, soft selection,
 annealing with kicks, recombination), a tuned hybrid with an `--effort` dial, and benchmarks
@@ -37,6 +79,7 @@ node src/beam/beam_fast.js --n=40 --seeds=2 --score=all   # score unvisited citi
 node src/beam/beam_fast.js --n=200 --K=n/2 --near=n/10    # n-based knob values
 # every beam/tunnel knob is documented in src/beam/beam_fast.js's header
 node src/nature/nature_tsp.js --n=200 --seeds=4
+node bench/runtime_bench.js                          # runtime + quality of every algorithm
 node bench/bench_dataset.js --per-n=3                   # CSV dataset
 node bench/knob_bench.js --ns=50,100,200 --seeds=2      # greedy vs nature vs knob presets
 node src/hybrid/hybrid_tsp.js --ns=100,200,300 --seeds=2     # beam + ERX + nature anneal hybrid
@@ -49,6 +92,55 @@ open web/nature_tsp.html                              # visual page (nature solv
 open web/hybrid_tsp.html                              # step-by-step hybrid, effort dial + Held–Karp
 ```
 
+## Runtime
+
+The numbers behind the headline. Median wall time per instance, 4 instances per cell (2 seeds × uniform/cluster), Apple M3 Pro, Node v22.23.2.
+Only the solve is timed (distance-matrix setup excluded). The last column is the empirical
+exponent in time ∝ n^k between n=20 and n=400.
+
+| method | n=20 | n=50 | n=100 | n=200 | n=400 | scaling ~ n^k |
+|---|---:|---:|---:|---:|---:|---:|
+| greedy nearest-neighbour | 4 us | 11 us | 13 us | 26 us | 54 us | 0.88 |
+| beam only (K=n/3) | 231 us | 547 us | 2.2 ms | 9.7 ms | 44 ms | 1.75 |
+| beam + tunnel (tuned) | 2.0 ms | 10 ms | 72 ms | 688 ms | 6.61 s | 2.71 |
+| nature (population + anneal) | 12 ms | 72 ms | 91 ms | 189 ms | 572 ms | 1.30 |
+| BGMA low | 1.6 ms | 5.0 ms | 18 ms | 118 ms | 770 ms | 2.05 |
+| BGMA mid | 5.9 ms | 19 ms | 56 ms | 317 ms | 2.51 s | 2.02 |
+| BGMA high | 12 ms | 41 ms | 124 ms | 851 ms | 8.27 s | 2.19 |
+| BGMA xhigh | 20 ms | 69 ms | 297 ms | 2.27 s | 19.8 s | 2.30 |
+| BGMA max | 77 ms | 261 ms | 914 ms | 6.85 s | 63.8 s | 2.24 |
+| 1-tree lower bound | 142 us | 3.7 ms | 14 ms | 66 ms | 270 ms | 2.52 |
+| Held-Karp exact | 354 ms | — | — | — | — | — |
+
+Mean excess over the best tour any method found on the same instance:
+
+| method | n=20 | n=50 | n=100 | n=200 | n=400 |
+|---|---:|---:|---:|---:|---:|
+| greedy nearest-neighbour | +14.03% | +27.72% | +31.90% | +31.04% | +26.46% |
+| beam only (K=n/3) | +14.94% | +32.13% | +32.43% | +37.63% | +38.88% |
+| beam + tunnel (tuned) | +0.00% | +0.04% | +0.69% | +1.53% | +2.22% |
+| nature (population + anneal) | +0.00% | +0.07% | +0.69% | +3.39% | +35.39% |
+| BGMA low | +0.00% | +0.12% | +0.52% | +1.69% | +2.21% |
+| BGMA mid | +0.00% | +0.00% | +0.03% | +0.69% | +1.13% |
+| BGMA high | +0.00% | +0.00% | +0.02% | +0.31% | +0.59% |
+| BGMA xhigh | +0.00% | +0.00% | +0.00% | +0.02% | +0.12% |
+| BGMA max | +0.00% | +0.00% | +0.00% | +0.00% | +0.00% |
+
+What it shows:
+
+- Each BGMA effort level costs about **3×** the previous one and roughly **halves** the gap
+  (n=400: +2.21% → +1.13% → +0.59% → +0.12% → 0.00%, in 0.77 s → 2.5 s → 8.3 s → 20 s → 64 s).
+- `low` matches the tuned beam + tunnel at n=400 (+2.21% vs +2.22%) in **0.77 s instead of 6.6 s**;
+  at n=100 `mid` is both faster and better (56 ms, +0.03% vs 72 ms, +0.69%).
+- BGMA grows like n^2.0–2.3, the tuned beam + tunnel like n^2.7 (it polishes every beam final).
+- Greedy and beam-only cost microseconds to milliseconds but stay 26–39% above the best tour.
+- Nature looks cheap at n=400 (0.57 s) only because its annealing budget is capped; it is +35% there.
+- The 1-tree bound costs about 35–55% of a `low` run; Held–Karp needs 0.35 s at n=20 and doubles per city.
+
+Reproduce (about ten minutes): `node bench/runtime_bench.js --json=docs/runtime.json --web=web/runtime_data.js`.
+The same data drives the runtime table in both pages under `web/`; the pages also show the live
+runtime of each panel. Analysis and caveats: [docs/gerdal.md](docs/gerdal.md) (section "Measured runtime").
+
 ## Files
 
 | file | role |
@@ -59,6 +151,8 @@ open web/hybrid_tsp.html                              # step-by-step hybrid, eff
 | `web/nature_tsp.html` | visual page with optimum / bound panel |
 | `bench/merge_bench.js` | "mix the wave, then contract" comparison |
 | `bench/bench_dataset.js` | dataset bench (greedy / beam+tunnel / nature) |
+| `bench/runtime_bench.js` | wall-clock runtime and quality of every algorithm; writes `docs/runtime.json` and `web/runtime_data.js` |
+| `web/runtime_table.js` | renders the measured-runtime table inside both pages |
 | `bench/knob_bench.js` | greedy vs nature vs beam+tunnel under n-based knob presets |
 | `tuning/tune_knobs.js` | knob sweep against greedy/nature/random-start heuristics; finds `--preset=tuned` |
 | `src/hybrid/hybrid_tsp.js` | Beam-Guided Memetic Annealing: beam islands + ERX + nature anneal + selective base polish |

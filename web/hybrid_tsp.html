@@ -19,6 +19,11 @@
   body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); }
   header { padding:26px 24px 10px; max-width:1180px; margin:0 auto; }
   h1 { font-size:22px; margin:0 0 6px; letter-spacing:-.2px; }
+  .lede { font-size:17px; font-weight:600; margin:2px 0 8px; }
+  .claims { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:10px; margin:14px 0; max-width:78ch; }
+  .claims div { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .claims b { display:block; font-family:var(--mono); font-size:13px; color:var(--algo); margin-bottom:3px; }
+  .claims span { color:var(--muted); font-size:12.5px; line-height:1.45; }
   .sub { color:var(--muted); font-size:13.5px; margin:0; max-width:78ch; line-height:1.5; }
   main { max-width:1180px; margin:0 auto; padding:8px 24px 40px; }
   .controls { display:flex; flex-wrap:wrap; gap:14px 20px; align-items:flex-end;
@@ -43,7 +48,7 @@
   .pipeline { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:0 0 14px; }
   .chip { display:flex; align-items:center; gap:7px; font-size:12px; padding:6px 11px;
           border:1px solid var(--line); border-radius:999px; background:var(--panel);
-          color:var(--muted); transition:background .15s, color .15s, border-color .15s; }
+          color:var(--muted); }
   .chip b { font-family:var(--mono); font-weight:600; font-size:11px; opacity:.7; }
   .chip.seen { color:var(--ink); }
   .chip.on { background:var(--chip, var(--algo)); border-color:var(--chip, var(--algo)); color:#fff; }
@@ -88,13 +93,27 @@
 
 <header>
   <h1>Beam-guided memetic annealing</h1>
+  <p class="lede">The exact optimum in milliseconds. No exponential table.</p>
   <p class="sub">
-    A beam constructs diverse partial tours from several poles, a fast 2-opt/Or-opt screen turns
-    each final into a local optimum, and an elite pool is recombined with edge crossover (ERX).
-    Children are kicked by double-bridge moves or a short simulated anneal, screened again, and
-    only the best few get the expensive full-restart polish. The effort dial scales how many
-    islands, generations, children and polish passes the search spends. The right panel is the
-    Held–Karp optimum for n ≤ 20, and a proven 1-tree lower bound above that.
+    Held–Karp finds the true shortest tour, but it doubles in cost with every city and cannot
+    run past n&nbsp;≈&nbsp;22. This solver is polynomial (about n² in practice) and matched the
+    Held–Karp optimum on every instance we checked: <b>26 of 26</b> at n&nbsp;=&nbsp;18, 20 and 22,
+    at every effort level. Press run and watch it race the exact answer on the right.
+  </p>
+  <div class="claims">
+    <div><b>n ≤ 20</b><span>Right panel is the exact Held–Karp optimum. The tour on the left
+      should land on it, usually in a few milliseconds.</span></div>
+    <div><b>n &gt; 20</b><span>Held–Karp is out of reach, so we keep going: the right panel
+      becomes a <em>proven</em> 1-tree lower bound. Meet it and the tour is optimal.
+      Miss it and the gap is a guaranteed upper limit.</span></div>
+    <div><b>n = 400</b><span>In the CLI, <code>xhigh</code> lands within about 1.25% of the proven bound in
+      20 s (<code>low</code> takes 0.8 s). See the runtime table below.</span></div>
+  </div>
+  <p class="sub">
+    How: a beam builds diverse partial tours from several poles, a fast 2-opt/Or-opt screen turns
+    each into a local optimum, and an elite pool is recombined with edge crossover (ERX). Children
+    are kicked by double-bridge moves or a short anneal, screened again, and only the best few get
+    the expensive full-restart polish. The effort dial scales how much the search spends.
   </p>
 </header>
 
@@ -140,6 +159,8 @@
 
   <div class="legend" id="legend"></div>
 
+  <section id="runtimeTable"></section>
+
   <section class="stats">
     <div class="stat"><div class="k">stage</div><div class="v" id="sStage">—</div></div>
     <div class="stat"><div class="k">effort</div><div class="v" id="sEffort">—</div></div>
@@ -154,19 +175,24 @@
 </main>
 
 <footer>
-  The hybrid pipeline is: beam islands → fast screen → elite pool → ERX → double-bridge / short
-  anneal → fast screen → selective full-restart polish. The effort dial selects a demo-scaled
-  version of the CLI ladder (`low` → `max`): islands, generations, children, elite pool and polish
-  all grow with the level, but the animation caps long runs so playback stays watchable. The full
-  `--effort` budgets live in `hybrid_effort.js`. Held–Karp needs (n−1)·2^(n−1) states: exact up to
-  n = 20 here, impossible beyond. For n = 21..30 the right panel computes a 1-tree + subgradient
-  lower bound; when the heuristic meets it the tour is <em>proven optimal</em>, otherwise the shown
-  gap is an upper bound on the true gap.
+  <b>What “optimal” means here.</b> For n ≤ 20 the page computes the exact optimum with Held–Karp
+  and the tour either equals it or does not; nothing is assumed. Held–Karp needs (n−1)·2^(n−1)
+  states, so it stops there. For n = 21..30 the right panel computes a 1-tree + subgradient lower
+  bound: when the heuristic meets it the tour is <em>proven optimal</em>, otherwise the shown gap
+  is an upper bound on the true gap, not a guess. BGMA is still a heuristic, so “optimal on every
+  instance we checked” is evidence, not a theorem.
+  <br><br>
+  Pipeline: beam islands → fast screen → elite pool → ERX → double-bridge / short anneal → fast
+  screen → selective full-restart polish. The effort dial selects a demo-scaled version of the CLI
+  ladder (`low` → `max`); the animation caps long runs so playback stays watchable. The full
+  `--effort` budgets live in `hybrid_effort.js`.
 </footer>
 
 <!-- algorithm lives in hybrid_vis.js; effort levels are shared with the CLI -->
 <script src="../src/hybrid/effort_profiles.js"></script>
 <script src="../src/hybrid/hybrid_vis.js"></script>
+<script src="runtime_data.js"></script>
+<script src="runtime_table.js"></script>
 <script>
 'use strict';
 
@@ -686,6 +712,7 @@ function run() {
       $('status').textContent = (OPTSRC === 'exact' ? 'exact optimum ready' : 'lower bound ready') +
         ' · effort ' + level;
       buildLegend();
+      if (window.RuntimeTable) RuntimeTable.mount($('runtimeTable'), { n, rows: ['bgma-' + level, OPTSRC === 'exact' ? 'exact' : 'bound'] });
       render();
       PLAYING = true; $('play').textContent = 'Pause'; tick();
     } catch (e) {

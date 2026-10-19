@@ -75,6 +75,8 @@ Known limitations found:
 | `tuning/validate_effort.js` | Held–Karp check of every effort level at n ≤ 22. |
 | `web/hybrid_tsp.html` | Animated hybrid demo: beam depth, island screening, ERX, kicks/anneal, selective polish; Held–Karp optimum for n≤20 and 1-tree bound for n=21..30. |
 | `src/hybrid/hybrid_vis.js` | Isolated demo logic for `web/hybrid_tsp.html`: `makeInstance`, `buildSnapshots`, `effortOptions`, `heldKarp`, `hkBound` (browser global + CommonJS). |
+| `bench/runtime_bench.js` | Wall-clock runtime and quality of every algorithm (greedy, beam, tuned beam+tunnel, nature, BGMA levels, 1-tree, Held–Karp) at n=20..400; writes `docs/runtime.json` and `web/runtime_data.js`. Results: `docs/gerdal.md`, "Measured runtime". |
+| `web/runtime_table.js` | Renders the measured-runtime table in both pages. |
 | `bench/att48_bench.js` | TSPLIB att48 (ATT distances). |
 | `bench/dantzig42_bench.js` | TSPLIB dantzig42 (explicit lower-diagonal matrix). |
 | `bench/fri26_bench.js` | TSPLIB fri26 (explicit lower-diagonal matrix). |

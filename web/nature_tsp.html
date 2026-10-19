@@ -40,6 +40,7 @@
   @media (max-width: 900px) { .panels { grid-template-columns:1fr; } }
   .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 14px 14px; }
   .panel h2 { font-size:13px; margin:0 0 4px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+  .panel h2 .ms { font-family:var(--mono); font-weight:400; font-size:12px; color:var(--muted); margin-left:6px; }
   .panel h2 .len { font-family:var(--mono); font-size:13px; color:var(--muted); }
   .panel canvas { width:100%; height:340px; display:block; }
   .note { color:var(--muted); font-size:12px; line-height:1.5; margin:8px 0 0; min-height:2.6em; }
@@ -80,12 +81,12 @@
 
   <section class="panels">
     <div class="panel">
-      <h2><span>Foraging + annealing</span><span class="len" id="hLen">—</span></h2>
+      <h2><span>Foraging + annealing <span class="ms" id="hMs"></span></span><span class="len" id="hLen">—</span></h2>
       <canvas id="cv1"></canvas>
       <p class="note" id="hNote"></p>
     </div>
     <div class="panel">
-      <h2><span>Optimum</span><span class="len" id="oLen">—</span></h2>
+      <h2><span><span id="oTitle">Optimum</span> <span class="ms" id="oMs"></span></span><span class="len" id="oLen">—</span></h2>
       <canvas id="cv2"></canvas>
       <p class="note" id="oNote"></p>
     </div>
@@ -96,6 +97,8 @@
     <span><i style="background:var(--algo)"></i>best tour</span>
     <span><i style="background:var(--held)"></i>optimum</span>
   </div>
+
+  <section id="runtimeTable"></section>
 
   <section class="stats">
     <div class="stat"><div class="k">population best</div><div class="v" id="sPop">—</div></div>
@@ -115,12 +118,15 @@
   anything. When it doesn't, the gap shown is an upper bound on the true gap, not a guess.
 </footer>
 
+<script src="runtime_data.js"></script>
+<script src="runtime_table.js"></script>
 <script>
 'use strict';
 
 /* ============================== utilities ============================== */
 
 const $ = id => document.getElementById(id);
+const fmtMs = t => t < 10 ? t.toFixed(1) + ' ms' : t < 1000 ? Math.round(t) + ' ms' : (t / 1000).toFixed(2) + ' s';
 let RUN = 0;
 let rand = Math.random;
 
@@ -563,6 +569,9 @@ function solve() {
     $('sPop').textContent = popLen.toFixed(1);
     $('sAnn').textContent = bestLen.toFixed(1);
     $('sTime').textContent = (tWave + tAnn).toFixed(0) + ' ms';
+    $('hMs').textContent = '(' + fmtMs(tWave + tAnn) + ')';
+    $('oMs').textContent = '';
+    if (window.RuntimeTable) RuntimeTable.update({ n, rows: ['nature', n <= 22 ? 'exact' : 'bound'] });
     $('sWork').textContent = 'M=' + M + ', ' + (iters * runs / 1000).toFixed(0) + 'k proposals';
     $('status').textContent = '';
     $('sGap').textContent = '—';
@@ -572,6 +581,7 @@ function solve() {
     setTimeout(() => {
       if (token !== RUN) return;
       const t2 = performance.now();
+      $('oTitle').textContent = n <= 22 ? 'Held–Karp optimum' : '1-tree lower bound';
       if (n <= 22) {
         let res = null;
         try { res = heldKarp(D); } catch (e) { res = null; }
@@ -581,12 +591,14 @@ function solve() {
         }
         draw($('cv2'), pts, [res.tour, best.tour], '#2563eb', true);
         $('oLen').textContent = res.len.toFixed(1);
+        $('oMs').textContent = '(' + fmtMs(performance.now() - t2) + ')';
         $('oNote').textContent = 'Held–Karp, exact. Computed in ' + (performance.now() - t2).toFixed(0) + ' ms.';
         $('sOpt').textContent = res.len.toFixed(1);
         const gap = Math.max(0, (bestLen / res.len - 1) * 100);
         $('sGap').textContent = gap < 0.005 ? '0.00%' : '+' + gap.toFixed(2) + '%';
       } else {
         const lb = hkBound(D, bestLen, 400);
+        $('oMs').textContent = '(' + fmtMs(performance.now() - t2) + ')';
         const proven = bestLen <= lb + 1e-6;
         draw($('cv2'), pts, [best.tour], '#2563eb', false);
         if (proven) {
@@ -631,6 +643,7 @@ $('dice').addEventListener('click', () => {
 
 window.addEventListener('resize', debounce(() => solve(), 250));
 
+if (window.RuntimeTable) RuntimeTable.mount($('runtimeTable'), { n: +$('n').value, rows: ['nature'] });
 solve();
 </script>
 </body>

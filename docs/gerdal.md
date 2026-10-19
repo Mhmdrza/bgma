@@ -97,7 +97,7 @@ makes =max= monotone over =xhigh= on the same instance.
 
 ** Beam islands
 
-Each island runs the beam search in =beam_fast.js=. A beam state is a partial
+Each island runs the beam search in =src/beam/beam_fast.js=. A beam state is a partial
 tour with a visited set, a current city, a start city, and a partial length.
 At each depth the beam:
 
@@ -117,7 +117,7 @@ reliable improvement.
 
 ** Fast screen: candidate-list 2-opt + Or-opt
 
-The fast screen is =refineFast= in =beam_fast.js=. It performs:
+The fast screen is =refineFast= in =src/beam/beam_fast.js=. It performs:
 
 - 2-opt with a neighbour list of size $m$;
 - a don't-look-bit queue so a city is revisited only after an incident edge
@@ -168,7 +168,7 @@ by design: the operators are escape mechanisms, not the main search.
 
 ** Selective full-restart polish**
 
-The base tunnel is =refineBase= in =beam_fast.js=: first-improvement 2-opt over
+The base tunnel is =refineBase= in =src/beam/beam_fast.js=: first-improvement 2-opt over
 the full distance matrix, followed by Or-opt segment relocation of lengths
 $1,\ldots,\text{oroptMaxL}$, restarting the scan after every accepted move.
 It reaches a stronger local optimum than the fast screen but costs much more.
@@ -295,7 +295,7 @@ function BGMA(instance, seed, options):
 
 ** The tuned ladder
 
-The values below are in =effort_profiles.js= and are shared by the Node CLI and
+The values below are in =src/hybrid/effort_profiles.js= and are shared by the Node CLI and
 the browser visualizer. Here $r(x)$ means =max(1, round(x))=.
 
 | level | islands | K | elites | gens | children | polish | finalPolish | restarts |
@@ -368,18 +368,104 @@ by any tested effort level or the tuned beam on that instance, not the optimum.
 +2.25% / +0.97% / +0.62% / +0.16% / +0.00% for low→max. Gap to the 1-tree
 bound: +3.28% / +2.06% / +1.78% / +1.25% / +1.13%.
 
-**Approximate runtime**
+** Measured runtime
 
-| effort | n=200 | n=400 |
-|--------+-------+-------|
-| =low= | ~0.1 s | 0.6–0.8 s |
-| =mid= | ~0.3 s | ~2.5 s |
-| =high= | ~0.8 s | ~8.5 s |
-| =xhigh= | ~2.3 s | ~20 s |
-| =max= | ~7 s | ~63 s |
+All numbers below come from =bench/runtime_bench.js=, which loads every solver from
+the project files and times only the solve (wall clock, =process.hrtime=). Each cell
+is the median over 4 instances (2 seeds x uniform/cluster) on Apple M3 Pro,
+Node v22.23.2, measured 2026-10-19. The raw results are in =docs/runtime.json=.
 
-These are single-process times on the tuning machine. They are intended as a
-scaling guide, not a benchmark guarantee.
+#+CAPTION: Median wall time per instance. The last column is the empirical exponent k in time ~ n^k between n=20 and n=400.
+| algorithm | n=20 | n=50 | n=100 | n=200 | n=400 | ~n^k |
+|---+---+---+---+---+---+---|
+| greedy nearest-neighbour | 4 µs | 11 µs | 13 µs | 26 µs | 54 µs | 0.88 |
+| beam only (K=n/3) | 231 µs | 547 µs | 2.2 ms | 9.7 ms | 44 ms | 1.75 |
+| beam + tunnel (tuned) | 2.0 ms | 10 ms | 72 ms | 688 ms | 6.61 s | 2.71 |
+| nature (population + anneal) | 12 ms | 72 ms | 91 ms | 189 ms | 572 ms | 1.30 |
+| =BGMA low= | 1.6 ms | 5.0 ms | 18 ms | 118 ms | 770 ms | 2.05 |
+| =BGMA mid= | 5.9 ms | 19 ms | 56 ms | 317 ms | 2.51 s | 2.02 |
+| =BGMA high= | 12 ms | 41 ms | 124 ms | 851 ms | 8.27 s | 2.19 |
+| =BGMA xhigh= | 20 ms | 69 ms | 297 ms | 2.27 s | 19.8 s | 2.30 |
+| =BGMA max= | 77 ms | 261 ms | 914 ms | 6.85 s | 63.8 s | 2.24 |
+| 1-tree lower bound | 142 µs | 3.7 ms | 14 ms | 66 ms | 270 ms | 2.52 |
+| Held-Karp exact | 354 ms | — | — | — | — | — |
+
+#+CAPTION: Mean excess over the best tour any method found on the same instance (=BGMA max= reads 0.00% at every size because it found the best tour on every instance).
+| algorithm | n=20 | n=50 | n=100 | n=200 | n=400 |
+|---+---+---+---+---+---|
+| greedy nearest-neighbour | +14.03% | +27.72% | +31.90% | +31.04% | +26.46% |
+| beam only (K=n/3) | +14.94% | +32.13% | +32.43% | +37.63% | +38.88% |
+| beam + tunnel (tuned) | +0.00% | +0.04% | +0.69% | +1.53% | +2.22% |
+| nature (population + anneal) | +0.00% | +0.07% | +0.69% | +3.39% | +35.39% |
+| =BGMA low= | +0.00% | +0.12% | +0.52% | +1.69% | +2.21% |
+| =BGMA mid= | +0.00% | +0.00% | +0.03% | +0.69% | +1.13% |
+| =BGMA high= | +0.00% | +0.00% | +0.02% | +0.31% | +0.59% |
+| =BGMA xhigh= | +0.00% | +0.00% | +0.00% | +0.02% | +0.12% |
+| =BGMA max= | +0.00% | +0.00% | +0.00% | +0.00% | +0.00% |
+
+Reproduce with =node bench/runtime_bench.js --json=docs/runtime.json --web=web/runtime_data.js=
+(about ten minutes; =--ns=, =--seeds=, =--levels= and =--maxN= shorten it). The same
+data feeds the "Measured runtime" table in both visualizer pages.
+
+*** Where the time goes
+
+Per level the cost is roughly (#islands x beam) + (#screens x fast tunnel) + (#polishes x
+base tunnel) + (#anneals x annealing run) + (#children x ERX). The components scale
+differently:
+
+- *Beam island.* K states x at most four candidates per depth, n depths, with a
+  bitset copy and a hash per candidate: about O(n K log K). With K = max(16, n/3)
+  the measured exponent for the beam alone is 1.75 (44 ms at n=400).
+- *Fast screen.* Candidate-list 2-opt with don't-look bits plus Or-opt up to length 3.
+  Cheap per tour, but it is run on every beam final and every child.
+- *Base polish.* Full-restart 2-opt + Or-opt (segment length up to 5, 6 or 8) over all
+  O(n^2) pairs, repeated until no move helps. This is the expensive pass, which is why
+  only the best few children get it. It is the reason the tuned beam + tunnel
+  baseline, which tunnels every beam final (up to n of them) over 4 restarts, scales as n^2.7.
+- *Short anneal.* Capped at min(level cap, max(1000, 200 n)) proposals of cost O(n) each (the
+  2-opt reversal), so it grows with n but is bounded by the level's cap.
+- *ERX.* O(n) per child; never visible in the profile.
+
+Because islands, K, elites, generations and polish count all grow with n inside a level
+(see the ladder above), BGMA does not stay near-linear: the measured exponent is
+2.0 for =low= and =mid= and 2.2--2.3 for =high=, =xhigh= and =max=. The worst case is
+cubic (about n polishes of O(n^2) each), but polishing an already good tour ends after
+a few passes, so the practical growth is close to quadratic.
+
+*** What the measurements show
+
+- *Each effort level costs about 3x the previous one, and about halves the gap.* At n=200
+  the ladder runs 118 ms, 317 ms, 851 ms, 2.27 s, 6.85 s (ratios 2.7, 2.7, 2.7, 3.0); at
+  n=400 it is 0.77 s, 2.51 s, 8.27 s, 19.8 s, 63.8 s (3.3, 3.3, 2.4, 3.2). The gap to
+  the best-known tour at n=400 falls +2.21%, +1.13%, +0.59%, +0.12%, 0.00%.
+  Returns per second diminish quickly past =high=.
+- *=low= replaces the tuned beam + tunnel at large n.* At n=400 the two reach the same
+  quality (+2.21% vs +2.22%) but =low= takes 0.77 s against 6.61 s, 8.6x faster. At
+  n=100 =mid= (56 ms, +0.03%) is both faster and better than beam + tunnel (72 ms, +0.69%).
+  Below n=50 everything finds the optimum in a few milliseconds and the levels are
+  indistinguishable.
+- *Greedy and beam-only are fast and poor.* Microseconds to tens of milliseconds, but
+  26--39% above the best tour at every n >= 50. Greedy's time is a scan of precomputed
+  neighbour lists (setup excluded), so its n^0.88 is not the O(n^2) of building them.
+- *Nature is cheap at large n only because it is under-budgeted.* Its annealing budget is
+  capped at 120 000 proposals per tour, so its time grows slowly (n^1.3, 0.57 s at
+  n=400) while quality collapses (+35% at n=400). At n=20--50 it costs 12--72 ms, more than
+  =BGMA low= or =BGMA mid= (1.6--19 ms), because its budget 1500 + 45 n^2 proposals is large for small n.
+- *The reference computations.* The 1-tree bound (400 subgradient steps, each a dense
+  O(n^2) Prim) costs 66 ms at n=200 and 270 ms at n=400, about 35--55% of a
+  =low= run, and much less than =max=. Held--Karp is exact but exponential: 354 ms at
+  n=20, and the notes record 1.3--1.6 s at n=22; it needs (n-1) 2^(n-1) table entries
+  and is not run beyond n=22 (this benchmark stops at n=20).
+
+*** Caveats
+
+- Four instances per cell is enough for the order of magnitude and the ratios between
+  levels, not for tight confidence intervals; microsecond cells (greedy, 1-tree at
+  n=20) are dominated by timer and JIT noise.
+- The exponents use only the first and last size, so they are indicative, not fitted.
+- One machine, one Node version, single thread. The animated pages run a
+  scaled-down version of the same pipeline in the browser (see "Parameters and effort
+  levels"), so their live timings are not comparable to this table.
 
 * What is proven and what is not
 
@@ -415,29 +501,31 @@ node tuning/tune_effort.js --ns=80,150 --seeds=2 --only='elite|gen|children|poli
 
 # open the animated visualizer (effort selector included)
 python3 -m http.server 8000
-# then open http://127.0.0.1:8000/hybrid_tsp.html
+# then open http://127.0.0.1:8000/web/hybrid_tsp.html
 #+END_SRC
 
 * Implementation map
 
 | file | role |
 |------+------|
-| =beam_fast.js= | beam search, fast screen, base tunnel, instance builder |
-| =nature_tsp.js= | simulated annealer and population operators used by the hybrid |
-| =bgma.js= | parameterised BGMA core; =hybrid()=, =runEffort()= |
-| =effort_profiles.js= | shared low/mid/high/xhigh/max budgets |
-| =hybrid_effort.js= | tuned CLI with =--effort=, =--bound=, =--exact=, =--tour=, =--json= |
-| =hybrid_vis.js= | browser/Node core for the animated demo |
-| =hybrid_tsp.html= | animated visualizer with the effort selector |
-| =tune_effort.js= | knob sweep and quality/runtime harness |
-| =validate_effort.js= | Held–Karp validation at n≤22 |
+| =src/beam/beam_fast.js= | beam search, fast screen, base tunnel, instance builder |
+| =src/nature/nature_tsp.js= | simulated annealer and population operators used by the hybrid |
+| =src/hybrid/bgma.js= | parameterised BGMA core; =hybrid()=, =runEffort()= |
+| =src/hybrid/effort_profiles.js= | shared low/mid/high/xhigh/max budgets |
+| =src/hybrid/hybrid_effort.js= | tuned CLI with =--effort=, =--bound=, =--exact=, =--tour=, =--json= |
+| =src/hybrid/hybrid_vis.js= | browser/Node core for the animated demo |
+| =web/hybrid_tsp.html= | animated visualizer with the effort selector |
+| =tuning/tune_effort.js= | knob sweep and quality/runtime harness |
+| =tuning/validate_effort.js= | Held–Karp validation at n≤22 |
 | =TSP_NOTES.md= | full project notes and earlier benchmarks |
 | =TUNING_NOTES.md= | tuning observations and future work |
+| =bench/runtime_bench.js= | runtime and quality of every algorithm; source of =docs/runtime.json= |
+| =web/runtime_table.js= | renders the measured-runtime table in both visualizer pages |
 
-The Node core loads =beam_fast.js= and =nature_tsp.js= by slicing the source and
+The Node core loads =src/beam/beam_fast.js= and =src/nature/nature_tsp.js= by slicing the source and
 evaluating the algorithm portion. This keeps the browser page and the CLI on the
 same implementation while avoiding a build step. The browser core
-(=hybrid_vis.js=) mirrors the pipeline for animation and uses demo-capped
+(=src/hybrid/hybrid_vis.js=) mirrors the pipeline for animation and uses demo-capped
 budgets so a =max= run stays watchable; it is not the exact Node code path.
 
 * Limitations and future work

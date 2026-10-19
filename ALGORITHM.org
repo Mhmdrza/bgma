@@ -1,0 +1,495 @@
+#+TITLE: Beam-Guided Memetic Annealing (BGMA)
+#+SUBTITLE: An archival algorithm note for the polynomialTSP repository
+#+AUTHOR: Mhmdrza
+#+DATE: 2026-10-20
+#+FILETAGS: :tsp:heuristic:bgma:
+#+OPTIONS: toc:3 num:t
+#+STARTUP: overview
+#+PROPERTY: header-args :results none
+
+#+BEGIN_QUOTE
+This document describes the algorithm implemented in this repository at commit
+=0f8f69d1cdb0e93aec26281017cabd4cf6ec84e8= (2026-10-20). It is intended as a
+stable, self-contained reference for the method, its parameters, its measured
+behaviour, and the claims that are and are not supported by the experiments.
+#+END_QUOTE
+
+* Abstract
+
+Beam-Guided Memetic Annealing (BGMA) is a hybrid heuristic for the symmetric
+Euclidean Travelling Salesman Problem. It combines four ideas:
+
+1. a beam search that constructs diverse partial tours from several poles;
+2. a fast candidate-list local search that screens every beam final;
+3. an elite pool recombined with edge recombination (ERX), perturbed by
+   double-bridge moves or short simulated annealing, and screened again; and
+4. a full-restart 2-opt + Or-opt polish applied only to the few tours that can
+   plausibly win.
+
+The design is deliberately asymmetric: cheap operators run on every candidate,
+while the expensive local search is reserved for the elite frontier. An
+=--effort= dial maps five levels (=low=, =mid=, =high=, =xhigh=, =max=) onto
+increasing search budgets. At small sizes every level reaches the Held–Karp
+optimum; at larger sizes the levels trade runtime for a progressively smaller
+gap to the best tour found, with =max= matching the best-of-all tested tour on
+all reported n=80–200 instances.
+
+* Problem and notation
+
+** The problem
+
+Given $n$ points $p_0,\ldots,p_{n-1}$ in the plane, find a cyclic permutation
+$\pi$ of the points that minimises
+
+\begin{equation}
+L(\pi) = \sum_{i=0}^{n-1} d(p_{\pi(i)}, p_{\pi((i+1) \bmod n)}),
+\end{equation}
+
+where $d$ is Euclidean distance. The distance matrix is written $D$, with
+$D_{ij}=d(p_i,p_j)$.
+
+** Notation used below
+
+| symbol | meaning |
+|--------+---------|
+| $n$ | number of cities |
+| $K$ | beam width (number of partial tours kept per depth) |
+| $m$ | candidate-list size for the fast local search |
+| $P$ | elite pool |
+| $g$ | number of generations |
+| $c$ | number of children per generation |
+| $e$ | elite-pool capacity |
+| $q$ | number of children polished per generation |
+| $R$ | number of independent hybrid restarts |
+
+A tour is stored as an array of city indices. Two arrays that are rotations or
+reversals of each other represent the same cyclic tour; the canonical form used
+for deduplication starts at city 0 and takes the lexicographically smaller of
+the forward and reverse representations.
+
+* Algorithm
+
+** High-level pipeline
+
+#+BEGIN_EXAMPLE
+build instance and distance matrix
+repeat R times:
+    beam islands          -> beam finals
+    fast screen           -> locally optimal candidates
+    elite pool            -> dedupe, sort, truncate
+    initial polish        -> base-tunnel the top q elites
+    repeat g generations:
+        select two parents from the pool
+        ERX                   -> child
+        double-bridge and/or short anneal
+        fast screen
+        base-polish the top q children
+        merge into the pool
+        if stagnant for 2 generations: inject a fresh beam island
+    final polish          -> base-tunnel the top finalPolish pool entries
+return the shortest tour seen
+#+END_EXAMPLE
+
+For ~--effort=max~, the CLI runs the =xhigh= configuration and the =max=
+configuration independently and returns the shorter tour. This portfolio step
+makes =max= monotone over =xhigh= on the same instance.
+
+** Beam islands
+
+Each island runs the beam search in =beam_fast.js=. A beam state is a partial
+tour with a visited set, a current city, a start city, and a partial length.
+At each depth the beam:
+
+- proposes candidates from the last three cities, using ranks 1, 2, and 3 of
+  each city's nearest-neighbour order;
+- adds rank 2 of the current city;
+- deduplicates equal states and keeps the $K$ states with the smallest
+  $f = \text{length} + D_{\text{last},\text{start}}$.
+
+The first island uses the farthest pair of cities as poles. Later islands use
+deterministic random pole pairs derived from the seed. Every beam final is
+immediately passed to the fast screen.
+
+The beam is a constructor, not the main quality mechanism. In the tuning
+experiments, increasing $K$ without also screening every final was not a
+reliable improvement.
+
+** Fast screen: candidate-list 2-opt + Or-opt
+
+The fast screen is =refineFast= in =beam_fast.js=. It performs:
+
+- 2-opt with a neighbour list of size $m$;
+- a don't-look-bit queue so a city is revisited only after an incident edge
+  changes;
+- delta evaluation and an in-place position index;
+- one Or-opt pass over segments of length at most =fastOrOptMaxL= (default 3).
+
+Its purpose is to turn a raw beam final into a decent local optimum at low cost.
+It is used on every beam final and every child.
+
+** Elite pool
+
+Candidates are deduplicated by canonical cycle, sorted by length, and truncated
+to the best $e$ tours. The pool is the memetic memory of the search: it supplies
+parents for ERX and survives across generations.
+
+** Edge recombination (ERX)
+
+ERX treats a tour as a cycle of edges. For two parents $A$ and $B$:
+
+1. Build an adjacency list for each city from the edges of $A$ and $B$.
+2. Start at a random city.
+3. At each step, among the unused neighbours of the current city, choose the
+   one with the fewest unused neighbours; break ties by the shorter edge.
+4. If the adjacency list is exhausted, jump to the nearest unvisited city.
+
+ERX preserves edges that both parents agree on and repairs the rest. It is
+cheaper and simpler than EAX; the repository notes flag EAX/AB-cycle
+recombination as future work.
+
+** Mutation: double bridge and short annealing**
+
+Each child may be perturbed by two independent operators:
+
+- *Double bridge.* Split the tour into four segments and reorder them as
+  $A \to D \to C \to B$. This is a 4-opt-like kick that usually jumps to a
+  different basin.
+- *Short anneal.* Run the nature-model annealer with 2-opt moves and
+  Metropolis acceptance. The temperature starts at
+  $T_0 = \max(1, 0.02n)$ and cools by $T \leftarrow 0.99998T$ per iteration.
+  After $50n$ consecutive non-improving iterations, a double-bridge reheat sets
+  $T \leftarrow \max(T, 0.4T_0)$. The iteration cap is
+  $\min(\text{anneal}, \max(1000, 200n))$.
+
+The two events are checked independently with probabilities =kickRate= and
+=annealRate=, so a child may receive a kick, an anneal, or both. They are modest
+by design: the operators are escape mechanisms, not the main search.
+
+** Selective full-restart polish**
+
+The base tunnel is =refineBase= in =beam_fast.js=: first-improvement 2-opt over
+the full distance matrix, followed by Or-opt segment relocation of lengths
+$1,\ldots,\text{oroptMaxL}$, restarting the scan after every accepted move.
+It reaches a stronger local optimum than the fast screen but costs much more.
+
+BGMA applies it only to:
+
+- the top =polish= elites after the islands;
+- the top =polish= children of each generation; and
+- the top =finalPolish= pool entries at the end.
+
+This is the central cost-control idea: use the fast screen as a filter, then
+spend the full-restart search on contenders only.
+
+** Stagnation injection**
+
+If the best tour has not improved for two consecutive generations, the search
+runs a fresh beam island from a new random pole pair, fast-screens its finals,
+and merges them into the pool. The stagnation counter resets. This prevents the
+population from collapsing onto one basin without paying for a full restart.
+
+** Restarts and the effort portfolio**
+
+The public =hybrid()= entry point runs $R$ independent copies of the pipeline
+with seed offsets and keeps the shortest tour. For =max= effort, the CLI also
+runs the =xhigh= profile and keeps the better of the two results. The portfolio
+is the only place where the levels are deliberately nested; the other levels are
+single configurations.
+
+* Pseudocode
+
+#+BEGIN_SRC text
+function BGMA(instance, seed, options):
+    P = empty elite pool
+    best = null
+
+    for each island i in 1..islands:
+        poles = (i == 1) ? farthest_pair() : random_pair(seed, i)
+        finals = beam_search(poles, K)
+        for each final in finals:
+            candidate = fast_screen(final)
+            insert candidate into P
+        P = dedupe_sort_truncate(P, elites)
+        best = min(best, P[0])
+
+    for i in 1..min(polish, |P|):
+        candidate = base_polish(P[i])
+        insert candidate into P
+    P = dedupe_sort_truncate(P, elites)
+
+    stagnant = 0
+    for generation in 1..gens:
+        children = []
+        for child in 1..children:
+            parentA = P[random index in 1..min(4, |P|)]
+            parentB = P[random index in 1..|P|]
+            while parentB == parentA and |P| > 1:
+                parentB = P[random index in 1..|P|]
+
+            tour = ERX(parentA, parentB)
+
+            if random() < kickRate:
+                repeat 1..kicks:
+                    tour = double_bridge(tour)
+            else if anneal > 0 and random() < annealRate:
+                tour = anneal(tour,
+                              iters = min(anneal, max(1000, 200n)),
+                              T0 = max(1, 0.02n))
+
+            candidate = fast_screen(tour)
+            children.append(candidate)
+
+        sort children by length
+        for i in 1..min(polish, |children|):
+            children[i] = base_polish(children[i])
+
+        before = best
+        insert children into P
+        P = dedupe_sort_truncate(P, elites)
+        best = P[0]
+
+        if best improved:
+            stagnant = 0
+        else:
+            stagnant += 1
+
+        if inject and stagnant >= 2:
+            finals = beam_search(random_poles(), K)
+            for each final in finals:
+                candidate = fast_screen(final)
+                insert candidate into P
+            P = dedupe_sort_truncate(P, elites)
+            best = P[0]
+            stagnant = 0
+
+    for i in 1..min(finalPolish, |P|):
+        candidate = base_polish(P[i])
+        insert candidate into P
+    P = dedupe_sort_truncate(P, elites)
+    return P[0]
+#+END_SRC
+
+* Parameters and effort levels
+
+** Defaults in the core
+
+| parameter | default | role |
+|-----------+---------+------|
+| =islands= | 4 | number of independent beam islands |
+| =K= | 0 (default max(16, n/3)) | beam width |
+| =near= | 0 (default max(10, n/10)) | fast-screen candidate-list size |
+| =elites= | 16 | elite-pool capacity |
+| =polish= | 6 | initial and per-generation base-tunnel count |
+| =gens= | 6 | generations |
+| =children= | 8 | children per generation |
+| =kicks= | 1 | maximum double-bridge kicks per child |
+| =kickRate= | 0.35 | probability of choosing kicks |
+| =anneal= | 20000 | annealing iteration cap; 0 disables |
+| =annealRate= | 0.35 | probability of choosing annealing |
+| =inject= | 1 | enable stagnation injection |
+| =fastOrOptMaxL= | 3 | Or-opt segment cap in the fast screen |
+| =polishOrOptMaxL= | 5 | Or-opt segment cap in the base tunnel |
+| =finalPolish= | 0 | final base-tunnel count |
+| =restarts= | 1 | independent hybrid restarts |
+
+** The tuned ladder
+
+The values below are in =effort_profiles.js= and are shared by the Node CLI and
+the browser visualizer. Here $r(x)$ means =max(1, round(x))=.
+
+| level | islands | K | elites | gens | children | polish | finalPolish | restarts |
+|-------+---------+---+--------+------+----------+--------+-------------+----------|
+| =low= | 2 | max(12, r(n/4)) | max(8, r(n/20)) | max(2, r(n/50)) | 4 | 2 | 0 | 1 |
+| =mid= | 4 | max(16, r(n/3)) | max(16, r(n/10)) | max(4, r(n/25)) | 10 | 6 | 2 | 1 |
+| =high= | 5 | max(20, r(n/2.5)) | max(24, r(n/6)) | max(6, r(n/15)) | 14 | max(6, r(n/15)) | 3 | 1 |
+| =xhigh= | 6 | max(24, r(n/2)) | max(32, r(n/3)) | max(8, r(n/8)) | 18 | max(10, r(n/10)) | 6 | 1 |
+| =max= | 8 | max(32, r(n/2)) | max(48, r(n/2)) | max(10, r(n/8)) | 18 | max(10, r(n/12)) | 8 | 2 |
+
+The annealing cap and probability also scale: 8k/0.25 for =low=, 20k/0.35 for
+=mid=, 30k/0.40 for =high=, 50k/0.45 for =xhigh=, and 60k/0.50 for =max=.
+=polishOrOptMaxL= is 5 for =low=/=mid=, 6 for =high=, and 8 for =xhigh=/=max=.
+
+~--effort=max~ additionally runs the =xhigh= profile and keeps the shorter
+tour, so it costs the sum of the two runs.
+
+** What the tuning showed
+
+- *Generations dominate.* Raising =gens= from 6 to ~n/5 cut the mean gap to the
+  best-of-all reference from +0.31% to +0.03% at n=80/150, at about 2.4x the
+  time. Beyond ~n/5 the curve flattens.
+- *Children are the cheapest diversity.* 8 to 24 children moved the mean gap
+  from +0.21% to +0.06% for about 1.5x the time, because only the top =polish=
+  children receive the expensive base tunnel.
+- *Polish saturates around 6.* ~polish=6~ gave a mean gap of +0.05% and a worst
+  case of +0.42% at roughly the same cost as ~polish=2~. Values 8, 10, n/10,
+  and n/5 did not improve on it.
+- *Elites alone are noise.* Elite sizes from 8 to n landed within +0.16–0.24%
+  mean with a fixed generation budget. Elites are capacity for the generation
+  loop, not a standalone quality lever.
+- *Beam width and island count are secondary.* K=n was slower and not better.
+  Island counts from 2 to 12 changed less than generations or children once
+  every final was screened.
+- *Annealing, restarts, Or-opt length, and final polish are minor.* They help
+  the worst case slightly but are not where the quality comes from.
+
+* Validation and measured behaviour
+
+** Exact checks
+
+Held–Karp was run on synthetic instances with n=18, 20, and 22.
+
+| n | instances | result |
+|---+-----------+--------|
+| 18 | 10 | every effort level reached the optimum |
+| 20 | 10 | every effort level reached the optimum |
+| 22 | 6 | every effort level reached the optimum |
+
+At these sizes the exact solve costs about 0.06–0.4 s for n=18/20 and 1.3–1.6 s
+for n=22; the heuristic itself takes milliseconds. Effort levels only begin to
+separate above roughly n=40.
+
+**Relative quality, n=80/150/200**
+
+12 instances (2 seeds x uniform/cluster). The reference is the best tour found
+by any tested effort level or the tuned beam on that instance, not the optimum.
+
+| effort | median vs ref | mean vs ref | worst vs ref | median vs 1-tree bound | median time |
+|--------+---------------+-------------+--------------+------------------------+-------------|
+| =low= | +0.99% | +1.07% | +2.50% | +1.89% | 47 ms |
+| =mid= | +0.19% | +0.31% | +0.99% | +1.09% | 161 ms |
+| =high= | +0.01% | +0.13% | +0.50% | +0.87% | 363 ms |
+| =xhigh= | +0.00% | +0.02% | +0.23% | +0.71% | 941 ms |
+| =max= | +0.00% | +0.00% | +0.00% | +0.71% | 2.87 s |
+
+**Large-n check, n=300/400**
+
+4 instances (one seed x uniform/cluster). Mean gap vs the best-of-all reference:
++2.25% / +0.97% / +0.62% / +0.16% / +0.00% for low→max. Gap to the 1-tree
+bound: +3.28% / +2.06% / +1.78% / +1.25% / +1.13%.
+
+**Approximate runtime**
+
+| effort | n=200 | n=400 |
+|--------+-------+-------|
+| =low= | ~0.1 s | 0.6–0.8 s |
+| =mid= | ~0.3 s | ~2.5 s |
+| =high= | ~0.8 s | ~8.5 s |
+| =xhigh= | ~2.3 s | ~20 s |
+| =max= | ~7 s | ~63 s |
+
+These are single-process times on the tuning machine. They are intended as a
+scaling guide, not a benchmark guarantee.
+
+* What is proven and what is not
+
+- *Proven optimal* is used only when the returned tour length equals a proven
+  lower bound (Held–Karp for n≤22, or a 1-tree subgradient bound), or when
+  Held–Karp is run directly. The CLI prints =PROVEN OPTIMAL= in that case.
+- The larger-n tables use the best tour found by any tested method as the
+  reference. They are *relative* comparisons, not optimality gaps.
+- The 1-tree bound is proven but loose. At n=80–200 the best tours plateau
+  roughly 0.5–1.2% above it, and adding much more search does not close that
+  plateau. The evidence is consistent with bound looseness, but it is not a
+  proof that the tours are optimal.
+- The tuning is in-sample on synthetic uniform/cluster instances. Held-out
+  seeds, TSPLIB, and the CSV dataset are still needed before treating the level
+  boundaries as universal.
+
+* Reproduction
+
+#+BEGIN_SRC sh
+# exact check of every effort level
+node validate_effort.js --ns=18,20,22 --seeds=3
+
+# one run, with a proven lower bound and a tour file
+node hybrid_effort.js --n=200 --effort=max --bound=1 --tour=tour.txt
+
+# compare the full ladder
+node hybrid_effort.js --ns=80,150,200 --seeds=2 --kind=both \
+  --efforts=low,mid,high,xhigh,max --bound=1
+
+# one-factor knob sweeps
+node tune_effort.js --ns=40,80,150 --seeds=2
+node tune_effort.js --ns=80,150 --seeds=2 --only='elite|gen|children|polish'
+
+# open the animated visualizer (effort selector included)
+python3 -m http.server 8000
+# then open http://127.0.0.1:8000/hybrid_tsp.html
+#+END_SRC
+
+* Implementation map
+
+| file | role |
+|------+------|
+| =beam_fast.js= | beam search, fast screen, base tunnel, instance builder |
+| =nature_tsp.js= | simulated annealer and population operators used by the hybrid |
+| =bgma.js= | parameterised BGMA core; =hybrid()=, =runEffort()= |
+| =effort_profiles.js= | shared low/mid/high/xhigh/max budgets |
+| =hybrid_effort.js= | tuned CLI with =--effort=, =--bound=, =--exact=, =--tour=, =--json= |
+| =hybrid_vis.js= | browser/Node core for the animated demo |
+| =hybrid_tsp.html= | animated visualizer with the effort selector |
+| =tune_effort.js= | knob sweep and quality/runtime harness |
+| =validate_effort.js= | Held–Karp validation at n≤22 |
+| =TSP_NOTES.md= | full project notes and earlier benchmarks |
+| =TUNING_NOTES.md= | tuning observations and future work |
+
+The Node core loads =beam_fast.js= and =nature_tsp.js= by slicing the source and
+evaluating the algorithm portion. This keeps the browser page and the CLI on the
+same implementation while avoiding a build step. The browser core
+(=hybrid_vis.js=) mirrors the pipeline for animation and uses demo-capped
+budgets so a =max= run stays watchable; it is not the exact Node code path.
+
+* Limitations and future work
+
+- *Tighter bounds.* The 1-tree bound is the main obstacle to knowing the true
+  gap at n=60–120. A tighter Lagrangian or assignment bound, or exact
+  branch-and-bound, would settle it.
+- *EAX / AB-cycle recombination.* ERX is simple; EAX is the natural next
+  recombination operator with a demonstrated literature upside.
+- *Parallelism.* Islands, children, and polish calls are independent. A worker
+  pool would turn the =max= runtime into a cores× speedup without changing
+  quality.
+- *Held-out and real-instance validation.* Re-run the ladder on unseen seeds,
+  TSPLIB, and the CSV dataset.
+- *Adaptive budgets.* The current ladder is one Pareto curve. A small model of
+  quality vs (K, gens, children, polish, n) could choose a budget from a wall
+  clock or a target gap.
+- *Stronger local search.* 3-opt or Lin–Kernighan-style moves may beat adding
+  more generations, but the current base tunnel is already a strong 2-opt +
+  Or-opt local optimum.
+
+* References
+
+- Held, M., and Karp, R. M. (1962). A dynamic programming approach to sequencing
+  problems. /Journal of the Society for Industrial and Applied Mathematics/.
+- Held, M., and Karp, R. M. (1971). The traveling-salesman problem and minimum
+  spanning trees: Part II. /Mathematical Programming/.
+- Lin, S., and Kernighan, B. W. (1973). An effective heuristic algorithm for the
+  traveling-salesman problem. /Operations Research/.
+- Whitley, D., Starkweather, T., and Fuquay, D. (1989). Scheduling problems and
+  traveling salesmen: The genetic edge recombination operator. /ICGA/.
+- Martin, O., Otto, S. W., and Felten, E. W. (1991). Large-step Markov chains
+  for the traveling salesman problem. /Complex Systems/.
+- Johnson, D. S., and McGeoch, L. A. (1997). The traveling salesman problem:
+  A case study in local optimization. In /Local Search in Combinatorial
+  Optimization/.
+- Applegate, D., Bixby, R., Chvátal, V., and Cook, W. (2006). /The Traveling
+  Salesman Problem: A Computational Study/. Princeton University Press.
+
+* Archive metadata
+
+| field | value |
+|-------+-------|
+| title | Beam-Guided Memetic Annealing (BGMA) |
+| repository | https://github.com/Mhmdrza/polynomialTSP |
+| snapshot commit | =0f8f69d1cdb0e93aec26281017cabd4cf6ec84e8= |
+| snapshot date | 2026-10-20 |
+| document date | 2026-10-20 |
+| scope | algorithm description, parameters, validation, reproduction |
+| language | Org mode |
+| license | The repository does not currently include a LICENSE file. |
+
+#+BEGIN_COMMENT
+End of archival note. If this document is exported, keep the commit hash and the
+"what is proven" section with the export; they are part of the provenance.
+#+END_COMMENT

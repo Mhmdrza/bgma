@@ -53,6 +53,7 @@ open hybrid_tsp.html                              # step-by-step hybrid, effort 
 | `validate_effort.js` | Checks every effort level against Held–Karp (n ≤ 22) |
 | `hybrid_tsp.html` | Animated step-by-step hybrid demo with Held–Karp / 1-tree comparison (n ≤ 30) |
 | `hybrid_vis.js` | Browser/Node core behind the demo: `makeInstance`, `buildSnapshots`, `effortOptions`, `heldKarp`, `hkBound` |
+| `ALGORITHM.org` | Archival Org-mode note for BGMA: design, pseudocode, effort ladder, validation |
 | `TUNING_NOTES.md` | observations from the tuning sweeps and future-work hypotheses |
 | `fri26_bench.js`, `dantzig42_bench.js`, `att48_bench.js` | TSPLIB runs |
 | `n22_bench.js` | n=22 greedy vs beam+tunnel vs exact (never executed) |

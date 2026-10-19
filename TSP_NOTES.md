@@ -69,6 +69,7 @@ Known limitations found:
 | `hybrid_tsp.js` | Beam-Guided Memetic Annealing: beam islands + ERX + nature anneal/kicks + elite base polish, with its own bench. |
 | `bgma.js` | Parameterised BGMA core: `hybrid(inst, seed, opts)`, `effortPreset(level, n)`, `runEffort(inst, seed, level)`. |
 | `effort_profiles.js` | Shared effort ladder (`low|mid|high|xhigh|max`) for the CLI and the browser demo. |
+| `ALGORITHM.org` | Archival algorithm note: design, pseudocode, effort ladder, validation, limitations. |
 | `hybrid_effort.js` | Tuned BGMA CLI: `--effort=low|mid|high|xhigh|max`, optional 1-tree bound, tour/JSON output. |
 | `tune_effort.js` | Effort/knob sweep: gap vs best-of-all, gap vs 1-tree bound, median time. |
 | `validate_effort.js` | Held–Karp check of every effort level at n ≤ 22. |

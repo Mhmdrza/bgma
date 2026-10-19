@@ -1,0 +1,31 @@
+<html lang="en" dir="ltr">
+  <head prefix="og: http://ogp.me/ns#">
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <title>p algo for tsp</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="index, follow" />
+    <style>
+      #chart {
+        border: 1px solid grey;
+        box-sizing: border-box;
+        width: 100%;
+        height: 550px;
+        transform: scaleY(-1);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>polynomial algorithm for tsp</h1>
+    <p>
+      p is not equal to np; but if we change the problem definition we can get a
+      pretty close to optmial solution by having a good heuristic in mind;
+      <button id=solush >draw solution</button>
+      <button id=circl >draw circle</button>
+      <button id=reset onclick="reset()">reset</button>
+      <button id=next style="float: right;">nextStep</button>
+      <canvas id="chart"></canvas>
+    </p>
+    <script src="./app.js"></script>
+  </body>
+</html>

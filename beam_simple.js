@@ -14,6 +14,9 @@
  * delta evaluation, Or-opt, typed arrays. Every list is an Array, every visited
  * set is a boolean array, every key is a string.
  *
+ * This file is the fixed reference implementation. The configurable knobs
+ * (score, starts, lag, dedupe, Or-opt, guards, epsilon, ...) live in beam_fast.js.
+ *
  * usage:  node beam_simple.js [n] [seeds] [K]
  *         node beam_simple.js 200 6 16
  */

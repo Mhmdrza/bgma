@@ -15,20 +15,174 @@
  * usage:
  *   node beam_fast.js --n=200 --seeds=6 --K=16 --refineB=16 --refineF=5
  *   node beam_fast.js --n=22 --seeds=4 --exact=1        # verify against Held-Karp
+ *   node beam_fast.js --n=200 --score=all                # score unvisited cities too
+ *   node beam_fast.js --n=200 --starts=random --startCount=8
  *
- * flags: --n=200 --seeds=6 --K=16 --refineB=16 --refineF=5 --near=10 --oropt=1 --exact=0
+ * flags (defaults in brackets). Every constant that changes the answer is exposed.
+ * Numeric flags also accept n-based expressions: --K=n/2, --K=n/3, --K=n,
+ * --near=n/10, --refineF=n/4, --startCount=n/10, --twoOptGuard=n, --epsilon=1/n,
+ * plus max(a,b)/min(a,b): --K=max(16,n/4) --near=max(10,n/10) ...
+ * (evaluated after --n is known; integer knobs are rounded to nearest, K/startCount min 1):
+ *   instance : --n=200 --seeds=6 --exact=0
+ *   beam     : --K=16 --starts=farthest|random|all|first --startCount=2 --startSeed=1
+ *              --score=visited|all --lag=3 --extraRank=2 --maxBranch=4
+ *              --dedupe=full|last|off
+ *              (score=all runs an O(n^2) MST bound per surviving candidate: much slower)
+ *   tunnel   : --refineF=16 --refineB=16 --near=10 --oropt=1 --oroptMaxL=3
+ *              --passes=2 --twoOptGuard=200 --oroptGuard=20 --sweepGuard=80
+ *              --epsilon=1e-9 --parity=0 --tunnelMode=fast|base
+ *   portfolio: --restarts=1   (r>0 reruns the beam from random poles)
+ *
+ * tuned all-n rule (see tune_knobs.js):
+ *   --K='max(16,n/3)' --near='max(10,n/10)' --refineF=n --oroptMaxL=5
+ *   --restarts=4 --tunnelMode=base
+ *   shorthand: --preset=tuned   (any explicit flag still overrides the preset)
  */
 'use strict';
 
-var CFG = { n: 200, seeds: 6, K: 16, refineB: 16, refineF: 16, near: 10, oropt: 1, parity: 0, exact: 0 };
+var CFG = {
+  /* instance / bench */
+  n: 200, seeds: 6, exact: 0,
+  /* beam */
+  K: 16, starts: 'farthest', startCount: 2, startSeed: 1,
+  score: 'visited', lag: 3, extraRank: 2, maxBranch: 4, dedupe: 'full',
+  /* tunnel */
+  refineB: 16, refineF: 16, near: 10, oropt: 1, oroptMaxL: 3, passes: 2,
+  twoOptGuard: 200, oroptGuard: 20, sweepGuard: 80, epsilon: 1e-9, parity: 0,
+  /* portfolio */
+  restarts: 1, tunnelMode: 'fast',
+  /* convenience preset ('' | tuned) */
+  preset: ''
+};
+var STRING_FLAGS = { starts: 1, score: 1, dedupe: 1, tunnelMode: 1, preset: 1 };
+
+/* ---------------------------------------------------------------------------
+ * n-based flag values: "n", "n/2", "n/3", "2n", "(n+1)/2", "1/n", "n*0.1".
+ * Tiny hand-written recursive-descent parser -- no eval, no arbitrary code.
+ * ------------------------------------------------------------------------- */
+function evalN(expr, n) {
+  var s = String(expr).replace(/\s+/g, '')
+    .replace(/(\d)n/g, '$1*n')
+    .replace(/(\d)\(/g, '$1*(')
+    .replace(/\)(?=[\dn(])/g, ')*');
+  if (!/^[0-9a-zA-Z+\-*/().,]+$/.test(s)) throw new Error('bad n-expression: ' + expr);
+  var i = 0;
+  function primary() {
+    var c = s[i];
+    if (c === '+') { i++; return primary(); }
+    if (c === '-') { i++; return -primary(); }
+    if (s.startsWith('max(', i) || s.startsWith('min(', i)) {
+      var fn = s.slice(i, i + 3);
+      i += 4;
+      var a1 = sum();
+      if (s[i] !== ',') throw new Error('bad n-expression: ' + expr);
+      i++;
+      var a2 = sum();
+      if (s[i] !== ')') throw new Error('bad n-expression: ' + expr);
+      i++;
+      return fn === 'max' ? Math.max(a1, a2) : Math.min(a1, a2);
+    }
+    if (c === '(') {
+      i++; var v = sum();
+      if (s[i] !== ')') throw new Error('bad n-expression: ' + expr);
+      i++; return v;
+    }
+    if (c === 'n') { i++; return n; }
+    var m = /^(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?/.exec(s.slice(i));
+    if (!m) throw new Error('bad n-expression: ' + expr);
+    i += m[0].length;
+    return +m[0];
+  }
+  function product() {
+    var v = primary(), c;
+    while ((c = s[i]) === '*' || c === '/') {
+      i++;
+      v = c === '*' ? v * primary() : v / primary();
+    }
+    return v;
+  }
+  function sum() {
+    var v = product(), c;
+    while ((c = s[i]) === '+' || c === '-') {
+      i++;
+      v = c === '+' ? v + product() : v - product();
+    }
+    return v;
+  }
+  var out = sum();
+  if (i !== s.length || !isFinite(out)) throw new Error('bad n-expression: ' + expr);
+  return out;
+}
+
+/* two passes: collect raw strings, resolve --n first, then every other value */
+var RAW = {};
 process.argv.slice(2).forEach(function (a) {
   var m = /^--([a-zA-Z]+)=(.*)$/.exec(a);
   if (!m) throw new Error('bad flag: ' + a);
   if (!(m[1] in CFG)) throw new Error('unknown flag: ' + m[1]);
-  CFG[m[1]] = +m[2];
+  RAW[m[1]] = m[2];
 });
+if (RAW.n != null) {
+  var nv = Number(RAW.n);
+  if (!isFinite(nv) || nv < 1 || Math.floor(nv) !== nv) throw new Error('--n must be a positive integer');
+  CFG.n = nv;
+}
+for (var strKey in RAW) if (STRING_FLAGS[strKey]) CFG[strKey] = RAW[strKey];
+for (var rawKey in RAW) {
+  if (rawKey === 'n' || STRING_FLAGS[rawKey]) continue;
+  var rawVal = RAW[rawKey], resolved;
+  if (/^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$/.test(rawVal)) {
+    resolved = +rawVal;
+  } else if (rawVal.indexOf('n') >= 0) {
+    resolved = evalN(rawVal, CFG.n);
+  } else {
+    throw new Error('--' + rawKey + ' needs a number or an n-expression: ' + rawVal);
+  }
+  /* epsilon is the only genuinely fractional knob; everything else is a count */
+  CFG[rawKey] = rawKey === 'epsilon' ? resolved : Math.max(rawKey === 'K' || rawKey === 'startCount' ? 1 : 0, Math.round(resolved));
+}
+
+/* --preset=tuned: the all-n rule found by tune_knobs.js; explicit flags still win */
+if (CFG.preset === 'tuned') {
+  var TUNED = {
+    K: 'max(16,n/3)', near: 'max(10,n/10)', refineF: 'n',
+    oroptMaxL: '5', restarts: '4', tunnelMode: 'base'
+  };
+  for (var pk in TUNED) {
+    if (RAW[pk] != null) continue;
+    if (pk === 'tunnelMode') { CFG[pk] = TUNED[pk]; continue; }
+    var pv = evalN(TUNED[pk], CFG.n);
+    CFG[pk] = Math.max(pk === 'K' ? 1 : 0, Math.round(pv));
+  }
+}
+
+/* aliases + validation: fail loudly instead of producing a silently different solver */
+if (CFG.preset !== '' && CFG.preset !== 'tuned') throw new Error('--preset must be empty|tuned');
+if (CFG.dedupe === 'none') CFG.dedupe = 'off';
+if (CFG.score !== 'visited' && CFG.score !== 'all') throw new Error('--score must be visited|all');
+if (['farthest', 'random', 'all', 'first'].indexOf(CFG.starts) < 0) throw new Error('--starts must be farthest|random|all|first');
+if (['full', 'last', 'off'].indexOf(CFG.dedupe) < 0) throw new Error('--dedupe must be full|last|off');
+if (CFG.K < 1) throw new Error('--K must be >= 1');
+if (CFG.lag < 0 || CFG.extraRank < 0) throw new Error('--lag/--extraRank must be >= 0');
+if (CFG.lag === 0 && CFG.extraRank === 0) throw new Error('no branch source: --lag and --extraRank are both 0');
+if (CFG.refineF < 0 || CFG.refineB < 0) throw new Error('--refineF/--refineB must be >= 0');
+if (CFG.restarts < 1) throw new Error('--restarts must be >= 1');
+if (CFG.tunnelMode !== 'fast' && CFG.tunnelMode !== 'base') throw new Error('--tunnelMode must be fast|base');
+
 var N = CFG.n, SEEDS = CFG.seeds, K = CFG.K;
-var RB = CFG.refineB, RF = CFG.refineF, KN = Math.min(CFG.near, N - 1), OROPT = !!CFG.oropt, PARITY = !!CFG.parity;
+var RB = CFG.refineB, RF = CFG.refineF, KN = Math.min(CFG.near, N - 1), PARITY = !!CFG.parity;
+
+/* every solver entry point takes an optional override object; CFG stays the default */
+function cfgWith(o) {
+  if (!o) return CFG;
+  var r = {}, k;
+  for (k in CFG) r[k] = CFG[k];
+  for (k in o) r[k] = o[k];
+  return r;
+}
+function branchCount(O) {
+  return O.maxBranch > 0 ? O.maxBranch : O.lag + (O.extraRank > 0 ? 1 : 0);
+}
 
 /* ============================== instance data ============================== */
 
@@ -58,8 +212,9 @@ function makePoints(n, seed, kind) {
   }
   return pts;
 }
-function buildInstance(n, seed, kind) {
+function buildInstance(n, seed, kind, nearK) {
   var pts = makePoints(n, seed, kind), i, j;
+  var kn = Math.min(nearK == null ? KN : nearK, n - 1);
   var D = new Float64Array(n * n), rows = [];
   for (i = 0; i < n; i++) {
     var x = pts[i][0], y = pts[i][1];
@@ -77,16 +232,61 @@ function buildInstance(n, seed, kind) {
     order.push(idx);
     for (j = 0; j < n - 1; j++) orderFlat[i * (n - 1) + j] = idx[j];
   }
-  var near = new Int32Array(n * KN);
-  for (i = 0; i < n; i++) for (j = 0; j < KN; j++) near[i * KN + j] = order[i][j];
+  var near = new Int32Array(n * kn);
+  for (i = 0; i < n; i++) for (j = 0; j < kn; j++) near[i * kn + j] = order[i][j];
   var fp = farthestPair(D, n);
-  return { D: D, rows: rows, order: order, orderFlat: orderFlat, near: near, fp: fp, n: n };
+  return { D: D, rows: rows, order: order, orderFlat: orderFlat, near: near, kn: kn, fp: fp, n: n };
 }
 function farthestPair(D, n) {
   var best = -1, p = 0, q = 1;
   for (var i = 0; i < n; i++) for (var j = i + 1; j < n; j++) if (D[i * n + j] > best) { best = D[i * n + j]; p = i; q = j; }
   return [p, q];
 }
+
+/* the poles / starting partial tours, chosen by --starts */
+function pickStarts(inst, O) {
+  var n = inst.n, i, out = [];
+  if (O.starts === 'farthest') return inst.fp.slice(0, 2);
+  if (O.starts === 'first') return [0];
+  if (O.starts === 'all') {
+    for (i = 0; i < n; i++) out.push(i);
+    return out;
+  }
+  /* random: deterministic given --startSeed */
+  var count = Math.max(1, Math.min(O.startCount | 0, n));
+  var r = rng((O.startSeed >>> 0) ^ 0x9E3779B9 ^ n), seen = new Uint8Array(n);
+  while (out.length < count) {
+    var c = Math.floor(r() * n);
+    if (!seen[c]) { seen[c] = 1; out.push(c); }
+  }
+  return out;
+}
+
+/* MST lower bound over unvisited ∪ {last, start}: O(V^2) Prim.
+ * Scratch arrays are passed in so scoring does not allocate per candidate. */
+function mstScratch(n) {
+  return { L: new Int32Array(n + 2), B: new Float64Array(n + 2), I: new Uint8Array(n + 2) };
+}
+function mstArray(D, n, vis, last, start, S) {
+  var L = S.L, B = S.B, I = S.I, m = 0, c, q;
+  for (c = 0; c < n; c++) if (!vis[c]) { L[m] = c; B[m] = Infinity; I[m] = 0; m++; }
+  var li = m; L[m] = last; B[m] = Infinity; I[m] = 0; m++;
+  if (start !== last) { L[m] = start; B[m] = Infinity; I[m] = 0; m++; }
+  if (m <= 1) return 0;
+  I[li] = 1;
+  var total = 0, added = 1;
+  for (q = 0; q < m; q++) if (!I[q]) B[q] = D[last][L[q]];
+  while (added < m) {
+    var bi = -1, bd = Infinity;
+    for (q = 0; q < m; q++) if (!I[q] && B[q] < bd) { bd = B[q]; bi = q; }
+    if (bi < 0) break;
+    I[bi] = 1; added++; total += bd;
+    var row = D[L[bi]];
+    for (q = 0; q < m; q++) if (!I[q]) { var dd = row[L[q]]; if (dd < B[q]) B[q] = dd; }
+  }
+  return total;
+}
+
 function tourLenRows(D, t) { var s = 0; for (var i = 0; i < t.length; i++) s += D[t[i]][t[(i + 1) % t.length]]; return s; }
 function tourLenFlat(D, t, n) { var s = 0; for (var i = 0; i < n; i++) s += D[t[i] * n + t[(i + 1) % n]]; return s; }
 function checkTour(t, n) {
@@ -111,17 +311,19 @@ function greedy(inst, start) {
 }
 
 /* ============================ baseline tunnel =============================
- * verbatim from the page; only D access is unchanged (array of rows)
+ * the page's refine(); D access unchanged (array of rows).
+ * Defaults reproduce the page exactly; --oropt / --oroptMaxL / --epsilon alter it.
  */
-function refineBase(D, tour) {
-  var n = tour.length, t = tour.slice(), improved = true, i, j, k, len;
+function refineBase(D, tour, o) {
+  var O = cfgWith(o), n = tour.length, t = tour.slice(), improved = true, i, j, k, len;
+  var eps = O.epsilon, maxL = Math.min(O.oroptMaxL, n - 1);
   while (improved) {
     improved = false;
     for (i = 0; i < n - 1 && !improved; i++) {
       for (j = i + 2; j < n; j++) {
         if (i === 0 && j === n - 1) continue;
         var a = t[i], b = t[i + 1], c = t[j], d = t[(j + 1) % n];
-        if (D[a][c] + D[b][d] - D[a][b] - D[c][d] < -1e-9) {
+        if (D[a][c] + D[b][d] - D[a][b] - D[c][d] < -eps) {
           var seg = t.slice(i + 1, j + 1).reverse();
           t = t.slice(0, i + 1).concat(seg, t.slice(j + 1));
           improved = true; break;
@@ -129,7 +331,7 @@ function refineBase(D, tour) {
       }
     }
     if (improved) continue;
-    for (len = 1; len <= 3 && !improved; len++) {
+    for (len = 1; O.oropt && len <= maxL && !improved; len++) {
       for (i = 0; i < n && !improved; i++) {
         var tt = t.slice(i).concat(t.slice(0, i));
         var sg = tt.slice(0, len), rest = tt.slice(len);
@@ -139,8 +341,8 @@ function refineBase(D, tour) {
         for (k = 0; k < rest.length - 1; k++) {
           var u = rest[k], v = rest[k + 1], base = D[u][v];
           var fwd = D[u][s0] + D[s1][v] - base, rev = D[u][s1] + D[s0][v] - base;
-          if (fwd < gain - 1e-9) { t = rest.slice(0, k + 1).concat(sg, rest.slice(k + 1)); improved = true; break; }
-          if (rev < gain - 1e-9) { t = rest.slice(0, k + 1).concat(sg.slice().reverse(), rest.slice(k + 1)); improved = true; break; }
+          if (fwd < gain - eps) { t = rest.slice(0, k + 1).concat(sg, rest.slice(k + 1)); improved = true; break; }
+          if (rev < gain - eps) { t = rest.slice(0, k + 1).concat(sg.slice().reverse(), rest.slice(k + 1)); improved = true; break; }
         }
       }
     }
@@ -149,45 +351,62 @@ function refineBase(D, tour) {
 }
 
 /* ============================ baseline beam ==============================
- * the page's quantum(), ported past the 32-bit bitmask (visited array + hashed key)
+ * the page's quantum(), ported past the 32-bit bitmask (visited array + hashed key).
+ * Honors the same knobs as beamFast so --score / --starts / --lag change both paths.
  */
-function beamBase(inst, K, doRefine) {
-  var D = inst.rows, order = inst.order, n = inst.n, poles = inst.fp, step;
+function beamBase(inst, K, doRefine, o) {
+  var O = cfgWith(o);
+  K = K == null ? O.K : K;
+  var D = inst.rows, order = inst.order, n = inst.n, poles = pickStarts(inst, O), step;
+  var MS = mstScratch(n);
   var states = poles.map(function (s) {
     var v = new Uint8Array(n); v[s] = 1;
     return { t: [s], vis: v, len: 0, s: s, f: 0 };
   });
+  var maxBranch = branchCount(O);
   for (step = 1; step < n; step++) {
-    var seen = new Map();
+    var seen = new Map(), plain = [];
     for (var si = 0; si < states.length; si++) {
       var st = states[si], m = st.t.length, cur = st.t[m - 1], cand = [];
-      for (var lag = 0; lag < Math.min(3, m); lag++) {
-        var v = st.t[m - 1 - lag], rank = lag + 1, k = 0, c = -1, o = order[v];
-        for (var q = 0; q < o.length; q++) if (!st.vis[o[q]]) { k++; if (k === rank) { c = o[q]; break; } }
+      for (var lag = 0; lag < Math.min(O.lag, m); lag++) {
+        var v = st.t[m - 1 - lag], rank = lag + 1, k = 0, c = -1, o2 = order[v];
+        for (var q = 0; q < o2.length; q++) if (!st.vis[o2[q]]) { k++; if (k === rank) { c = o2[q]; break; } }
         if (c >= 0 && cand.indexOf(c) < 0) cand.push(c);
       }
-      var k2 = 0, c2 = -1, o2 = order[cur];
-      for (var q2 = 0; q2 < o2.length; q2++) if (!st.vis[o2[q2]]) { k2++; if (k2 === 2) { c2 = o2[q2]; break; } }
-      if (c2 >= 0 && cand.indexOf(c2) < 0) cand.push(c2);
+      if (O.extraRank > 0) {
+        var k2 = 0, c2 = -1, o3 = order[cur];
+        for (var q2 = 0; q2 < o3.length; q2++) if (!st.vis[o3[q2]]) { k2++; if (k2 === O.extraRank) { c2 = o3[q2]; break; } }
+        if (c2 >= 0 && cand.indexOf(c2) < 0) cand.push(c2);
+      }
+      if (O.maxBranch > 0) cand = cand.slice(0, maxBranch);
       for (var ci = 0; ci < cand.length; ci++) {
         var cc = cand[ci], len = st.len + D[cur][cc];
         var nv = new Uint8Array(st.vis); nv[cc] = 1;
-        var h = 2166136261;
-        for (var w = 0; w < n; w++) h = Math.imul(h ^ nv[w], 16777619);
-        var key = (h ^ Math.imul(cc + 1, 2654435761) ^ Math.imul(st.s + 1, 40503)) >>> 0;
+        var f = len + (O.score === 'all' ? mstArray(D, n, nv, cc, st.s, MS) : D[cc][st.s]);
+        var state = { t: st.t.concat(cc), vis: nv, len: len, s: st.s, f: f };
+        if (O.dedupe === 'off') { plain.push(state); continue; }
+        var key;
+        if (O.dedupe === 'last') {
+          key = (Math.imul(cc + 1, 2654435761) ^ Math.imul(st.s + 1, 40503)) >>> 0;
+        } else {
+          var h = 2166136261;
+          for (var w = 0; w < n; w++) h = Math.imul(h ^ nv[w], 16777619);
+          key = (h ^ Math.imul(cc + 1, 2654435761) ^ Math.imul(st.s + 1, 40503)) >>> 0;
+        }
         var old = seen.get(key);
-        if (old === undefined || len < old.len) seen.set(key, { t: st.t.concat(cc), vis: nv, len: len, s: st.s, f: len + D[cc][st.s] });
+        if (old === undefined || len < old.len) seen.set(key, state);
       }
     }
-    states = Array.from(seen.values()).sort(function (a, b) { return a.f - b.f; }).slice(0, K);
+    var allStates = O.dedupe === 'off' ? plain : Array.from(seen.values());
+    states = allStates.sort(function (a, b) { return a.f - b.f; }).slice(0, K);
   }
   var finals = states.map(function (st) { return { t: st.t, len: st.len + D[st.t[n - 1]][st.s] }; })
     .sort(function (a, b) { return a.len - b.len; });
-  var best = finals[0];
-  for (var i = 0; i < Math.min(finals.length, doRefine ? RB : 0); i++) {
-    var rt = refineBase(D, finals[i].t);
+  var best = finals[0], eps = O.epsilon;
+  for (var i = 0; i < Math.min(finals.length, doRefine ? O.refineB : 0); i++) {
+    var rt = refineBase(D, finals[i].t, O);
     var post = tourLenRows(D, rt);
-    if (post < best.len - 1e-9) best = { t: rt, len: post };
+    if (post < best.len - eps) best = { t: rt, len: post };
   }
   return { tour: best.t, len: best.len, lenBeam: finals[0].len, finals: finals };
 }
@@ -195,10 +414,10 @@ function beamBase(inst, K, doRefine) {
 /* ============================== fast tunnel ============================== */
 
 /* candidate 2-opt: both endpoints' neighbour lists, don't-look bits, in-place reversal */
-function twoOptFast(D, t, pos, near, kn, n) {
+function twoOptFast(D, t, pos, near, kn, n, guardMul, eps) {
   var dlb = new Uint8Array(n), queue = [], i;
   for (i = 0; i < n; i++) queue.push(t[i]);
-  var guard = 0, limit = 200 * n;
+  var guard = 0, limit = guardMul * n;
 
   function apply(a, b, c, d) {
     var ia = pos[a], ic = pos[c];
@@ -206,7 +425,7 @@ function twoOptFast(D, t, pos, near, kn, n) {
     var ii = ia, jj = ic;
     if (jj < ii) { var sw = ii; ii = jj; jj = sw; }
     if (jj === ii + 1 || (ii === 0 && jj === n - 1)) return false;
-    if (!(D[a * n + c] + D[b * n + d] - D[a * n + b] - D[c * n + d] < -1e-9)) return false;
+    if (!(D[a * n + c] + D[b * n + d] - D[a * n + b] - D[c * n + d] < -eps)) return false;
     for (var lo = ii + 1, hi = jj; lo < hi; lo++, hi--) {
       var x = t[lo]; t[lo] = t[hi]; t[hi] = x;
       pos[t[lo]] = lo; pos[t[hi]] = hi;
@@ -248,16 +467,16 @@ function twoOptFast(D, t, pos, near, kn, n) {
 }
 
 /* full O(n^2) 2-opt sweep, in place, no restart -- parity mode */
-function sweep2opt(D, t, pos, n) {
+function sweep2opt(D, t, pos, n, guardMax, eps) {
   var improved = true, guard = 0;
-  while (improved && guard++ < 80) {
+  while (improved && guard++ < guardMax) {
     improved = false;
     for (var i = 0; i < n - 1; i++) {
       var a = t[i], b = t[i + 1];
       for (var j = i + 2; j < n; j++) {
         if (i === 0 && j === n - 1) continue;
         var c = t[j], d = t[(j + 1) % n];
-        if (D[a * n + c] + D[b * n + d] - D[a * n + b] - D[c * n + d] < -1e-9) {
+        if (D[a * n + c] + D[b * n + d] - D[a * n + b] - D[c * n + d] < -eps) {
           for (var lo = i + 1, hi = j; lo < hi; lo++, hi--) {
             var x = t[lo]; t[lo] = t[hi]; t[hi] = x;
             pos[t[lo]] = lo; pos[t[hi]] = hi;
@@ -270,10 +489,11 @@ function sweep2opt(D, t, pos, n) {
   }
 }
 
-/* Or-opt: move a segment of 1..3 cities, best move per position, apply by rebuild */
-function orOptFast(D, t, pos, near, kn, n, maxL) {
+/* Or-opt: move a segment of 1..maxL cities, best move per position, apply by rebuild */
+function orOptFast(D, t, pos, near, kn, n, maxL, guardMax, eps) {
+  maxL = Math.min(maxL, n - 1);
   var improved = true, guard = 0;
-  while (improved && guard++ < 20) {
+  while (improved && guard++ < guardMax) {
     improved = false;
     for (var L = 1; L <= maxL && !improved; L++) {
       for (var i = 0; i < n && !improved; i++) {
@@ -284,7 +504,7 @@ function orOptFast(D, t, pos, near, kn, n, maxL) {
         var save = D[prev * n + s0] + D[s1 * n + next] - D[prev * n + next];
         var inSeg = new Uint8Array(n);
         for (z = 0; z < L; z++) inSeg[seg[z]] = 1;
-        var best = -1e-9, bestU = -1, bestRev = false;
+        var best = -eps, bestU = -1, bestRev = false;
 
         for (var side = 0; side < 2; side++) {
           var base = (side ? s1 : s0) * kn;
@@ -311,16 +531,20 @@ function orOptFast(D, t, pos, near, kn, n, maxL) {
   }
 }
 
-function refineFast(D, tour, near, kn, n, parity) {
-  var t = Int32Array.from(tour), pos = new Int32Array(n), i;
+function refineFast(D, tour, near, kn, n, parity, o) {
+  var O = cfgWith(o), t = Int32Array.from(tour), pos = new Int32Array(n), i, p;
   for (i = 0; i < n; i++) pos[t[i]] = i;
-  twoOptFast(D, t, pos, near, kn, n);
-  orOptFast(D, t, pos, near, kn, n, 3);
-  twoOptFast(D, t, pos, near, kn, n);
+  /* --passes: 2-opt rounds, with one Or-opt pass squeezed in after the first.
+     passes=2 reproduces 2opt -> oropt -> 2opt. passes=0 skips 2-opt. */
+  if (O.passes > 0) {
+    twoOptFast(D, t, pos, near, kn, n, O.twoOptGuard, O.epsilon);
+    if (O.oropt && O.oroptMaxL > 0) orOptFast(D, t, pos, near, kn, n, O.oroptMaxL, O.oroptGuard, O.epsilon);
+    for (p = 1; p < O.passes; p++) twoOptFast(D, t, pos, near, kn, n, O.twoOptGuard, O.epsilon);
+  }
   if (parity) {                       // full O(n^2) sweeps: baseline-equivalent local optimum
-    sweep2opt(D, t, pos, n);
-    orOptFast(D, t, pos, near, kn, n, 3);
-    sweep2opt(D, t, pos, n);
+    sweep2opt(D, t, pos, n, O.sweepGuard, O.epsilon);
+    if (O.oropt && O.oroptMaxL > 0) orOptFast(D, t, pos, near, kn, n, O.oroptMaxL, O.oroptGuard, O.epsilon);
+    sweep2opt(D, t, pos, n, O.sweepGuard, O.epsilon);
   }
   var out = new Array(n);
   for (i = 0; i < n; i++) out[i] = t[i];
@@ -331,10 +555,16 @@ function refineFast(D, tour, near, kn, n, parity) {
  * Arena of persistent nodes: parent index, city, length, f, start, visited bits.
  * No per-candidate tour copy: O(W) bitset copy + O(1) bookkeeping.
  */
-function beamFast(inst, K) {
-  var n = inst.n, D = inst.D, orderFlat = inst.orderFlat, no = n - 1, poles = inst.fp;
+function beamFast(inst, K, o) {
+  var O = cfgWith(o);
+  K = K == null ? O.K : K;
+  var n = inst.n, D = inst.D, orderFlat = inst.orderFlat, no = n - 1;
+  var poles = pickStarts(inst, O);
   var W = (n + 31) >> 5;
-  var cap = 4 * K * (n + 1) + 16;
+  /* worst case: S seeds + (n-2) steps, each expanding <= K states into <= B children.
+     x2 leaves room for the "shorter duplicate rebuilt as a new node" path. */
+  var B = branchCount(O);
+  var cap = 2 * (poles.length + B * (poles.length + (n + 2) * K)) + 16;
 
   var AP = new Int32Array(cap), AC = new Int32Array(cap), AS = new Int32Array(cap);
   var AL = new Float64Array(cap), AF = new Float64Array(cap), AH = new Uint32Array(cap);
@@ -344,9 +574,33 @@ function beamFast(inst, K) {
   var Z = new Uint32Array(n), zr = rng(0x9E3779B9 ^ n);
   for (var i = 0; i < n; i++) Z[i] = (zr() * 4294967296) >>> 0;
 
-  function mkNode(parent, city, len, f, start) {
+  var MS = mstScratch(n);
+  /* MST over unvisited ∪ {last, start} using the node's bitset (score=all) */
+  function mstBits(base, last, start) {
+    var L = MS.L, Bd = MS.B, I = MS.I, m = 0, c, q;
+    for (c = 0; c < n; c++) {
+      if (!((AB[base + (c >> 5)] >>> (c & 31)) & 1)) { L[m] = c; Bd[m] = Infinity; I[m] = 0; m++; }
+    }
+    var li = m; L[m] = last; Bd[m] = Infinity; I[m] = 0; m++;
+    if (start !== last) { L[m] = start; Bd[m] = Infinity; I[m] = 0; m++; }
+    if (m <= 1) return 0;
+    I[li] = 1;
+    var total = 0, added = 1;
+    for (q = 0; q < m; q++) if (!I[q]) Bd[q] = D[last * n + L[q]];
+    while (added < m) {
+      var bi = -1, bd = Infinity;
+      for (q = 0; q < m; q++) if (!I[q] && Bd[q] < bd) { bd = Bd[q]; bi = q; }
+      if (bi < 0) break;
+      I[bi] = 1; added++; total += bd;
+      var row = L[bi] * n;
+      for (q = 0; q < m; q++) if (!I[q]) { var dd = D[row + L[q]]; if (dd < Bd[q]) Bd[q] = dd; }
+    }
+    return total;
+  }
+
+  function mkNode(parent, city, len, start) {
     var id = nn++;
-    AP[id] = parent; AC[id] = city; AL[id] = len; AF[id] = f; AS[id] = start;
+    AP[id] = parent; AC[id] = city; AL[id] = len; AS[id] = start;
     var b = id * W;
     if (parent >= 0) {
       var pb = parent * W;
@@ -356,6 +610,11 @@ function beamFast(inst, K) {
       AH[id] = Z[city];
     }
     AB[b + (city >> 5)] |= (1 << (city & 31));
+    /* the score is what survives the top-K cut, so it must be known per node */
+    if (parent < 0) AF[id] = 0;
+    else AF[id] = len + (O.score === 'all'
+      ? mstBits(b, city, start)
+      : D[city * n + start]);
     return id;
   }
   function nthU(v, rank, base) {
@@ -374,33 +633,41 @@ function beamFast(inst, K) {
     return out;
   }
 
-  var states = [mkNode(-1, poles[0], 0, 0, poles[0]), mkNode(-1, poles[1], 0, 0, poles[1])];
+  var states = poles.map(function (s) { return mkNode(-1, s, 0, s); });
+  var maxBranch = branchCount(O);
 
   for (var step = 1; step < n; step++) {
     var slotOf = new Map(), created = [];
     for (var si = 0; si < states.length; si++) {
       var sid = states[si], cur = AC[sid], base = sid * W, cand = [];
       var depth = step;
-      for (var lag = 0; lag < Math.min(3, depth); lag++) {
+      for (var lag = 0; lag < Math.min(O.lag, depth); lag++) {
         var v = sid;
         for (var up = 0; up < lag; up++) v = AP[v];
         var c = nthU(AC[v], lag + 1, base);
         if (c >= 0 && cand.indexOf(c) < 0) cand.push(c);
       }
-      var c2 = nthU(cur, 2, base);
-      if (c2 >= 0 && cand.indexOf(c2) < 0) cand.push(c2);
+      if (O.extraRank > 0) {
+        var c2 = nthU(cur, O.extraRank, base);
+        if (c2 >= 0 && cand.indexOf(c2) < 0) cand.push(c2);
+      }
+      if (O.maxBranch > 0) cand = cand.slice(0, maxBranch);
 
       for (var ci = 0; ci < cand.length; ci++) {
         var cc = cand[ci], len = AL[sid] + D[cur * n + cc];
-        var key = (AH[sid] ^ Z[cc] ^ Math.imul(cc + 1, 0x9E3779B1) ^ Math.imul(AS[sid] + 1, 0x85EBCA77)) >>> 0;
+        if (O.dedupe === 'off') { created.push(mkNode(sid, cc, len, AS[sid])); continue; }
+        var key = O.dedupe === 'full'
+          ? (AH[sid] ^ Z[cc] ^ Math.imul(cc + 1, 0x9E3779B1) ^ Math.imul(AS[sid] + 1, 0x85EBCA77)) >>> 0
+          /* last-city-only key: histories with the same end merge, visited sets need not match */
+          : (Math.imul(cc + 1, 0x9E3779B1) ^ Math.imul(AS[sid] + 1, 0x85EBCA77)) >>> 0;
         var slot = slotOf.get(key);
         if (slot === undefined) {
           slotOf.set(key, created.length);
-          created.push(mkNode(sid, cc, len, len + D[cc * n + AS[sid]], AS[sid]));
+          created.push(mkNode(sid, cc, len, AS[sid]));
         } else if (len < AL[created[slot]]) {
           /* the shorter path must be rebuilt, not just re-priced: its parent chain
              is what the tour is reconstructed from */
-          created[slot] = mkNode(sid, cc, len, len + D[cc * n + AS[sid]], AS[sid]);
+          created[slot] = mkNode(sid, cc, len, AS[sid]);
         }
       }
     }
@@ -414,14 +681,47 @@ function beamFast(inst, K) {
   return { finals: finals, lenBeam: finals[0].len };
 }
 
-function beamFastTunnel(inst, K, RF) {
-  var b = beamFast(inst, K), best = null;
+function refineOne(inst, tour, kn, O) {
+  if (O.tunnelMode === 'base') {
+    if (!inst.rows) throw new Error('tunnelMode=base needs inst.rows');
+    var t = refineBase(inst.rows, tour, O);
+    return { tour: t, len: tourLenRows(inst.rows, t) };
+  }
+  return refineFast(inst.D, tour, inst.near, kn, inst.n, !!O.parity, O);
+}
+
+function beamFastTunnelOnce(inst, K, RF, O) {
+  var b = beamFast(inst, K, O);
+  /* refineF=0 means "beam only": return the best wave without tunnelling */
+  if (RF <= 0) return { tour: b.finals[0].t, len: b.lenBeam, lenBeam: b.lenBeam };
+  var knMax = inst.kn != null ? inst.kn : inst.n - 1;
+  var kn = Math.min(O.near, knMax);
+  var best = null;
   var lim = Math.min(b.finals.length, RF);
   for (var i = 0; i < lim; i++) {
-    var r = refineFast(inst.D, b.finals[i].t, inst.near, KN, inst.n, PARITY);
-    if (!best || r.len < best.len - 1e-9) best = r;
+    var r = refineOne(inst, b.finals[i].t, kn, O);
+    if (!best || r.len < best.len - O.epsilon) best = r;
   }
   return { tour: best.tour, len: best.len, lenBeam: b.lenBeam };
+}
+
+function beamFastTunnel(inst, K, RF, o) {
+  var O = cfgWith(o);
+  if (RF == null) RF = O.refineF;
+  var R = Math.max(1, O.restarts | 0);
+  var best = null;
+  for (var r = 0; r < R; r++) {
+    /* run 0 uses --starts; later runs use fresh random pole pairs */
+    var oo = O;
+    if (r > 0) {
+      oo = cfgWith(O);
+      oo.starts = 'random';
+      oo.startSeed = (O.startSeed | 0) + r;
+    }
+    var res = beamFastTunnelOnce(inst, K, RF, oo);
+    if (!best || res.len < best.len - O.epsilon) best = res;
+  }
+  return best;
 }
 
 /* ============================ exact optimum (n<=26) ====================== */
@@ -478,8 +778,14 @@ var refIsExact = !!CFG.exact && N <= 22;
 
 console.log('');
 console.log('beam_fast   n=' + N + '  K=' + K + '  seeds=' + SEEDS + '/family  refineB=' + RB +
-            '  refineF=' + RF + '  near=' + KN + '  oropt=' + (OROPT ? 1 : 0) + '  parity=' + (PARITY ? 1 : 0) +
+            '  refineF=' + RF + '  near=' + KN + '  oropt=' + (CFG.oropt ? 1 : 0) + '  parity=' + (PARITY ? 1 : 0) +
             '  reference=' + (refIsExact ? 'heldKarp (exact)' : 'best of all methods'));
+console.log('knobs       score=' + CFG.score + '  starts=' + CFG.starts + '(' + CFG.startCount + ',seed ' + CFG.startSeed +
+            ')  lag=' + CFG.lag + '  extraRank=' + CFG.extraRank + '  maxBranch=' + CFG.maxBranch +
+            '  dedupe=' + CFG.dedupe + '  oroptMaxL=' + CFG.oroptMaxL + '  passes=' + CFG.passes +
+            '  guards=' + CFG.twoOptGuard + '/' + CFG.oroptGuard + '/' + CFG.sweepGuard + '  epsilon=' + CFG.epsilon +
+            '  restarts=' + CFG.restarts + '  tunnelMode=' + CFG.tunnelMode +
+            (CFG.preset ? '  preset=' + CFG.preset : ''));
 console.log('');
 console.log(padL('#', 3) + padR('kind', 9) + padL('greedy', 9) + padL('beamB', 9) + padL('tunB', 9) +
             padL('beamF', 9) + padL('tunF', 9) + padL('ref', 9) + padL('dBase', 8) + padL('dFast', 8) +
@@ -553,7 +859,8 @@ var mG = med(rows.map(function (r) { return r.tG; }));
 
 console.log('');
 console.log('-----------------------------------------------------------------------------------------------------------');
-console.log('SUMMARY   n=' + N + '  instances=' + rows.length + '  near=' + KN + '  oropt=' + (OROPT ? 1 : 0));
+console.log('SUMMARY   n=' + N + '  instances=' + rows.length + '  near=' + KN + '  oropt=' + (CFG.oropt ? 1 : 0) +
+            '  score=' + CFG.score + '  starts=' + CFG.starts + '  dedupe=' + CFG.dedupe);
 console.log('');
 console.log(padR('', 15) + padL('median', 10) + padL('mean', 10) + padL('worst', 10) + padL('best', 10));
 console.log(padR('greedy', 15) + padL(pcent(med(exG)), 10) + padL(pcent(mean(exG)), 10) + padL(pcent(mx(exG)), 10) + padL(pcent(Math.min.apply(null, exG)), 10));

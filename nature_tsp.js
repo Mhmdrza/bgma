@@ -27,7 +27,7 @@ const path = require('path');
 
 const CFG = { n: 200, seeds: 4, M: 48, iters: 150000, exact: 0 };
 process.argv.slice(2).forEach(a => {
-  const m = /^--([a-z]+)=(.*)$/.exec(a);
+  const m = /^--([a-zA-Z]+)=(.*)$/.exec(a);
   if (!m || !(m[1] in CFG)) throw new Error('bad flag: ' + a);
   CFG[m[1]] = +m[2];
 });
@@ -35,7 +35,8 @@ const N = CFG.n, SEEDS = CFG.seeds, M = CFG.M, ITERS = CFG.iters, EXACT = !!CFG.
 
 /* ------------------------------ baseline ------------------------------ */
 const core = fs.readFileSync(path.join(__dirname, 'beam_fast.js'), 'utf8')
-  .split('/* ================================= harness')[0];
+  .split('/* ================================= harness')[0]
+  .replace('process.argv.slice(2)', '[]');       // beam_fast's CLI must not see our flags
 eval(core + ';globalThis.TSP={buildInstance,beamFast,refineFast,heldKarp,greedy,KN};');
 const TSP = globalThis.TSP;
 

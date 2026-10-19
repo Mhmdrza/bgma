@@ -49,7 +49,8 @@ Known limitations found:
 
 - beam width is a hard top-K cut, not real amplitude;
 - `refine()` only accepts improving moves, so "tunnelling" never crosses a barrier;
-- the score `len + d(last, home)` is blind to unvisited cities.
+- the score `len + d(last, home)` is blind to unvisited cities (now selectable:
+  `--score=all` uses `len + MST(unvisited ∪ {last, start})`).
 
 ---
 
@@ -63,6 +64,16 @@ Known limitations found:
 | `nature_tsp.html` | Visual page for the nature solver: population drawn faint, best tour bold, second panel shows the exact optimum (n ≤ 22) or a proven bound (23–30). |
 | `merge_bench.js` | "Mix the wave, then contract": edge-vote assembly vs picking the best tour. |
 | `bench_dataset.js` | CSV dataset bench: greedy vs beam+tunnel vs nature, with 1-tree bound and optional Held–Karp check. |
+| `knob_bench.js` | Synthetic bench: greedy vs nature vs beam+tunnel across n-based knob presets; CSV output. |
+| `tune_knobs.js` | Knob sweeps against greedy/nature/random-start/merge heuristics; source of `--preset=tuned`. |
+| `hybrid_tsp.js` | Beam-Guided Memetic Annealing: beam islands + ERX + nature anneal/kicks + elite base polish, with its own bench. |
+| `bgma.js` | Parameterised BGMA core: `hybrid(inst, seed, opts)`, `effortPreset(level, n)`, `runEffort(inst, seed, level)`. |
+| `effort_profiles.js` | Shared effort ladder (`low|mid|high|xhigh|max`) for the CLI and the browser demo. |
+| `hybrid_effort.js` | Tuned BGMA CLI: `--effort=low|mid|high|xhigh|max`, optional 1-tree bound, tour/JSON output. |
+| `tune_effort.js` | Effort/knob sweep: gap vs best-of-all, gap vs 1-tree bound, median time. |
+| `validate_effort.js` | Held–Karp check of every effort level at n ≤ 22. |
+| `hybrid_tsp.html` | Animated hybrid demo: beam depth, island screening, ERX, kicks/anneal, selective polish; Held–Karp optimum for n≤20 and 1-tree bound for n=21..30. |
+| `hybrid_vis.js` | Isolated demo logic for `hybrid_tsp.html`: `makeInstance`, `buildSnapshots`, `effortOptions`, `heldKarp`, `hkBound` (browser global + CommonJS). |
 | `att48_bench.js` | TSPLIB att48 (ATT distances). |
 | `dantzig42_bench.js` | TSPLIB dantzig42 (explicit lower-diagonal matrix). |
 | `fri26_bench.js` | TSPLIB fri26 (explicit lower-diagonal matrix). |
@@ -163,6 +174,61 @@ unimplemented.
 - For 23–30 the page shows a **1-tree + subgradient lower bound** instead, and marks the tour
   "proven optimal" when it meets the bound.
 
+### 3.8 n-based knob sweep (`knob_bench.js`)
+
+12 synthetic instances (n=50/100/200, 2 seeds × uniform/cluster), gap vs the best method on
+each instance, all presets tunnel every final:
+
+| method | median gap | median time |
+|---|---|---|
+| greedy | +28.08% | 13 µs |
+| nature (M=48, auto iters) | **+0.50%** | 92 ms |
+| beam base (K=16, near=10) | +0.97% | 3.5 ms |
+| K=n/2, near=10 | +2.34% | 7.4 ms |
+| K=n/2, near=n/10, score=all | +0.99% | 164 ms |
+| K=n/2, near=n/10, score=all @ n=200 | **+0.43%** | 2.35 s |
+
+At n=200 the wider beam + MST score is the only beam variant that beats nature on the median
+(nature +2.24%, base beam +4.43%), but it costs ~12× nature and ~3000× greedy. At n≤100 the
+plain K=16 beam is already competitive and ~25× faster than nature. Very narrow tunnel lists
+(`near=n/10` at n=50 → 5) lose 1–2%, and `K=n` is not automatically better than K=16 — the
+hard top-K cut plus the visited-only score is not monotone in width.
+
+### 3.9 Tuned all-n rule (`tune_knobs.js`)
+
+28 instances, n = 40/75/100/150/200/300/400, 2 seeds × uniform/cluster. Reference is the
+best any method produced on each instance. The winning rule:
+
+```bash
+node beam_fast.js --n=200 --preset=tuned
+# equivalent explicit flags:
+# --K='max(16,n/3)' --near='max(10,n/10)' --refineF=n --oroptMaxL=5
+# --restarts=4 --tunnelMode=base
+```
+
+| method | median gap | mean | worst | wins | median time |
+|---|---|---|---|---|---|
+| **tuned beam+tunnel** | **+0.00%** | **+0.13%** | **+0.98%** | 17/28 | 318 ms |
+| fast-tunnel variant (K=n/3, 8 restarts, parity) | +0.34% | +0.50% | +2.27% | 6/28 | 192 ms |
+| 16 random starts + tunnel | +0.37% | +0.75% | +3.62% | 6/28 | 9.7 ms |
+| 16 random starts, mix + tunnel | +0.35% | +0.64% | +3.21% | 8/28 | 10.4 ms |
+| nature (M=48) | +0.66% | +7.47% | +54.71% | 6/28 | 126 ms |
+| greedy, best of all starts | +15.57% | +15.19% | +22.18% | 0/28 | 0.47 ms |
+| greedy | +24.40% | +26.06% | +42.53% | 0/28 | 0.01 ms |
+
+Median gap of the tuned rule by n: **0.00 / 0.12 / 0.28 / 0.14 / 0.01 / 0.00 / 0.00 %**
+(n = 40 … 400). It is the best method at every size in this set. Nature collapses beyond
+n=200 in this configuration (+19.9% at n=300, +51.0% at n=400) because the iteration cap
+(120k) and M=48 are too small.
+
+Quality costs time: ~68 ms at n=200 and ~5–7 s at n=400 per instance, because the base tunnel
+fully restarts after every accepted move and every final of 4 restarts is tunnelled. Drop to
+`--tunnelMode=fast --restarts=8 --parity=1` (the +0.34% row) for ~3× less time. `--parity` and
+`--passes` only affect `tunnelMode=fast`.
+
+Detailed observations, things that did not help, and future hypotheses are in
+**[TUNING_NOTES.md](TUNING_NOTES.md)**.
+
 ---
 
 ## 4. The nature model (`nature_tsp.js`, `nature_tsp.html`)
@@ -252,7 +318,11 @@ The nature model's edge appears only on larger/rugged instances (n ≥ 100 in th
 ```bash
 # fast solver + comparison bench
 node beam_fast.js --n=200 --seeds=6
+node beam_fast.js --n=200 --seeds=6 --preset=tuned    # best all-n rule
 node beam_fast.js --n=200 --seeds=6 --parity=1
+node beam_fast.js --n=40 --seeds=2 --score=all          # MST scoring over unvisited cities
+node beam_fast.js --n=200 --starts=random --startCount=8
+node beam_fast.js --n=200 --dedupe=last --lag=4 --oroptMaxL=2
 
 # readable version (quality/time trade)
 node beam_simple.js 200 6 16
@@ -261,8 +331,28 @@ node beam_simple.js 200 6 16
 node nature_tsp.js --n=200 --seeds=4
 node nature_tsp.js --n=15 --seeds=8 --exact=1
 
-# visual page (open in browser)
+# visual pages (open in browser)
 open nature_tsp.html
+open hybrid_tsp.html
+
+# n-based knob sweep vs greedy / nature
+node knob_bench.js --ns=50,100,200 --seeds=2
+node knob_bench.js --ns=200 --seeds=4 --out=knob_results.csv
+
+# full tuning sweep (greedy/nature/random-start/merge + knob configs)
+node tune_knobs.js --ns=40,75,100,150,200,300,400 --seeds=2
+node tune_knobs.js --ns=40,75,100,150,200,300,400 --seeds=2 --out=tune.csv
+
+# hybrid annealer (includes its own greedy/nature/tuned-beam bench)
+node hybrid_tsp.js --ns=50,100,200,300 --seeds=2
+node hybrid_tsp.js --ns=400 --seeds=2 --gens=8 --polish=6
+
+# effort dial (tuned hybrid): low/mid/high/xhigh/max
+node hybrid_effort.js --n=200 --effort=high
+node hybrid_effort.js --n=200 --effort=max --bound=1 --tour=tour.txt
+node hybrid_effort.js --ns=50,100,200 --efforts=low,mid,high,xhigh,max --seeds=2
+node tune_effort.js --ns=40,80,150 --seeds=2
+node validate_effort.js --ns=18,20,22 --seeds=3
 
 # mixing study
 node merge_bench.js --n=200 --seeds=6
@@ -279,12 +369,205 @@ node att48_bench.js
 node att48_bench.js --iters=400000 --M=96 --seeds=5
 ```
 
+### 8.1 Every beam + tunnel knob (`beam_fast.js`)
+
+| knob | default | meaning |
+|---|---|---|
+| `--K` | 16 | beam width |
+| `--starts` | `farthest` | poles: `farthest` \| `random` \| `all` \| `first` |
+| `--startCount`, `--startSeed` | 2, 1 | number / RNG seed for `--starts=random` |
+| `--score` | `visited` | `visited` = `len + d(last, home)`; `all` = `len + MST(unvisited ∪ {last, start})` (O(n²) per candidate, much slower) |
+| `--lag` | 3 | how many trailing cities nominate a neighbour (rank = lag+1) |
+| `--extraRank` | 2 | rank of the extra candidate from the current city (0 = off) |
+| `--maxBranch` | 4 | children per state after candidate dedupe (0 = unlimited) |
+| `--dedupe` | `full` | interference key: `full` (visited+last+start) \| `last` \| `off` |
+| `--refineF`, `--refineB` | 16, 16 | finals tunnelled on the fast / baseline path (0 = beam only) |
+| `--near` | 10 | candidate-neighbour list width for 2-opt / Or-opt |
+| `--oropt`, `--oroptMaxL` | 1, 3 | enable Or-opt; max segment length |
+| `--passes` | 2 | 2-opt rounds (0 = no 2-opt; 2 reproduces 2opt→oropt→2opt) |
+| `--twoOptGuard`, `--oroptGuard`, `--sweepGuard` | 200, 20, 80 | iteration caps (2-opt × n; Or-opt passes; sweeps) |
+| `--epsilon` | 1e-9 | minimum improving delta |
+| `--parity` | 0 | add full O(n²) sweeps (baseline-equivalent local optimum; fast mode only) |
+| `--tunnelMode` | `fast` | `fast` = candidate-list 2-opt/Or-opt; `base` = full-restart 2-opt + Or-opt on every final |
+| `--restarts` | 1 | independent beam runs; run 0 uses `--starts`, later runs use random pole pairs |
+| `--preset` | — | `--preset=tuned` applies the all-n rule below; explicit flags override it |
+
+**n-based values.** Every numeric knob also accepts an expression in `n`:
+`--K=n/2`, `--K=n/3`, `--K=n`, `--K=2n`, `--near=n/10`, `--refineF=n/4`,
+`--startCount=n/10`, `--lag=n`, `--oroptMaxL=n/20`, `--passes=n/20`,
+`--twoOptGuard=n`, `--epsilon=1/n`, `--K='max(16,n/3)'`, `--near='max(10,n/10)'`.
+Expressions are resolved after `--n` is known (so flag order does not matter), support
+`+ - * / ( )`, `max(a,b)`, `min(a,b)`, decimals and `2n` shorthand.
+Integer knobs are rounded to nearest; `--K` and `--startCount` have a floor of 1.
+`--epsilon` keeps its fractional value. Runtime caps still apply (`refineF` can never
+tunnel more than `K` finals, `near` is clamped to `n-1`).
+
+Every default reproduces the previous output bit-for-bit. `beam_simple.js` stays the fixed
+readable reference; the knobs live on the optimised solver.
+
 ---
 
-## 9. Open threads
+## 9. Beam-Guided Memetic Annealing (`hybrid_tsp.js`)
 
-- **EAX / AB-cycle recombination** instead of edge voting — the only mixing operator with a
-  demonstrated upside in the literature (edge voting on raw finals scored exactly 0).
+The new algorithm mixes all three lines of work:
+
+| stage | source | what it does |
+|---|---|---|
+| beam islands | `beam_fast.js` | 4 independent beams (`K=max(16,n/3)`) from the farthest pair and random pole pairs |
+| fast screen | `beam_fast.js` | candidate-list tunnel on every final (cheap) |
+| elite pool | — | canonical-cycle dedupe, keep the best 16 |
+| recombination | new | **edge recombination (ERX)** between elite tours |
+| mutation | `nature_tsp.js` | double-bridge avulsions + short simulated-annealing runs |
+| expensive polish | `beam_fast.js` | full-restart 2-opt + Or-opt only on the top few children per generation |
+| stagnation | `beam_fast.js` | inject a fresh random-start beam island after 2 flat generations |
+
+The key move is to stop base-tunnelling *every* final: the fast tunnel screens everything,
+the base tunnel polishes only contenders. That is the hybrid-tunnel idea from
+`TUNING_NOTES.md`, plus recombination and nature-style escapes.
+
+### Results (gap vs best-of-all methods on each instance)
+
+| n | hybrid | tuned beam | nature | greedy | hybrid ms | tuned ms |
+|---|---|---|---|---|---|---|
+| 40 | **+0.00%** | +0.00% | +0.00% | +26.1% | 20 | 14 |
+| 75 | **+0.07%** | +0.12% | +0.13% | +24.4% | 49 | 32 |
+| 100 | **+0.00%** | +0.87% | +0.72% | +34.6% | 64 | 78 |
+| 150 | **+0.00%** | +1.11% | +1.37% | +24.6% | 139 | 277 |
+| 200 | **+0.00%** | +0.44% | +2.43% | +34.6% | 251 | 656 |
+| 300 | **+0.00%** | +1.08% | +19.9% | +24.4% | 716 | 2398 |
+| 400 | **+0.00%** | +0.36% | +52.7% | +25.3% | 1223 | 6519 |
+| 500 | **+0.00%** | +1.41% | +50.8% | +30.0% | 2561 | 14798 |
+
+Across the n=40–400 runs: median +0.00%, mean +0.08%, worst +0.97%, 12/16 wins, and
+roughly 3–5× faster than the quality-first tuned beam at n≥300. The n=500 row is one seed
+per family, so treat it as a scaling signal, not a statistical result.
+
+Ablations at n=100/200 (2 seeds): removing the nature mutation (`--anneal=0`) gave mean
++0.09% and worst +0.76%; 6 islands with 4 generations was worse (+0.11% mean); a cheaper
+polish budget (`--polish=4`) was nearly identical (+0.01% worst) at slightly lower cost.
+So the recombination + anneal + selective polish combination is doing real work, while the
+exact island/generation split is not critical.
+
+Caveat: the reference is still best-of-all, not the optimum; TSPLIB/CSV validation of the
+hybrid is not done yet.
+
+`hybrid_tsp.html` animates the pipeline step by step (beam depth → island finals → initial
+polish → each ERX/kick/anneal child → selective polish), with the current pool, parents and
+child colour-coded. The right panel runs Held–Karp for n ≤ 20 (exact optimum); for n = 21..30
+Held–Karp is infeasible, so it shows a proven 1-tree lower bound instead and marks a tour
+“proven optimal” when the heuristic meets the bound.
+
+The demo logic is isolated in `hybrid_vis.js` (no DOM): it exposes
+`makeInstance(n, seed, kind)`, `buildSnapshots(inst, opts)`, `heldKarp(D)`,
+`hkBound(D, ub, iters)`, `tourLen`, `checkTour` and `greedy`. The HTML only owns
+drawing, playback and controls, so the same core can be required from Node (it exports
+CommonJS as well as `window.HybridTSP`).
+
+---
+
+## 10. Effort dial (`hybrid_effort.js`)
+
+The pipeline is unchanged; `--effort` chooses how much search budget to spend. The levels
+were tuned on synthetic uniform/cluster instances and then checked against Held–Karp at
+n ≤ 22. `max` is a portfolio: it runs the `xhigh` configuration and a heavier `max`
+configuration independently and keeps the shorter tour, so it cannot be worse than `xhigh`
+on the same instance.
+
+| effort | shape at n=200 | ~time n=200 | ~time n=400 |
+|---|---|---|---|
+| `low` | 2 islands, K=50, 10 elites, 4 gens, 4 children, polish 2 | 0.1 s | 0.6–0.8 s |
+| `mid` | 4 islands, K=67, 20 elites, 8 gens, 10 children, polish 6 | 0.3 s | 2.5 s |
+| `high` | 5 islands, K=80, 33 elites, 13 gens, 14 children, polish 13 | 0.8 s | 8.5 s |
+| `xhigh` | 6 islands, K=100, 67 elites, 25 gens, 18 children, polish 20 | 2.3 s | 20 s |
+| `max` | `xhigh` + 8 islands, K=100, 100 elites, 25 gens, polish 17, 2 restarts | 7 s | 63 s |
+
+The visualizer (`hybrid_tsp.html`) now exposes the same selector. It loads
+`effort_profiles.js` and calls `HybridTSP.effortOptions(level, n)`, which takes the real
+preset and applies playback caps (1/2/3/4/6 islands, 1/3/4/5/8 generations,
+2/3/4/5/6 children for low→max). The "demo budget" line under the controls shows the
+capped values; a `max` run produces ~240 snapshots instead of thousands. The CLI uses the
+full budgets above.
+
+### Measured quality
+
+12 instances (n=80,150,200; 2 seeds × uniform/cluster), reference = best tour found by
+any tested level or the tuned beam:
+
+| effort | median vs ref | mean vs ref | worst vs ref | median vs 1-tree bound | median time |
+|---|---|---|---|---|---|
+| `low` | +0.99% | +1.07% | +2.50% | +1.89% | 47 ms |
+| `mid` | +0.19% | +0.31% | +0.99% | +1.09% | 161 ms |
+| `high` | +0.01% | +0.13% | +0.50% | +0.87% | 363 ms |
+| `xhigh` | +0.00% | +0.02% | +0.23% | +0.71% | 941 ms |
+| `max` | +0.00% | +0.00% | +0.00% | +0.71% | 2.87 s |
+
+At n=300/400 (4 instances, one seed per family) the same ordering holds and the spread gets
+larger: mean vs best-of-all is +2.25% / +0.97% / +0.62% / +0.16% / +0.00% for
+low→max, and the gap to the 1-tree bound is +3.28% / +2.06% / +1.78% / +1.25% / +1.13%.
+The bound is not tight, so these are upper bounds on the true optimality gap.
+
+### Exact check
+
+Held–Karp at n=18 and n=20: **20/20 instances optimal for every level**, including `low`.
+At n=22: **6/6 optimal for every level** (the exact solve costs ~1.3–1.6 s per instance;
+the solver itself takes 2–60 ms). Effort only starts to matter above n≈40.
+
+### What the sweeps showed
+
+- **Generations are the dominant lever.** Raising `gens` from 6 to `n/5` cut mean gap vs
+  best-of-all from +0.31% to +0.03% at n=80/150, at ~2.4× time. Beyond `n/5` the curve
+  flattens.
+- **Children are the cheapest lever.** Going from 8 to 24 children improved mean gap from
+  +0.21% to +0.06% for ~1.5× time. Only the top `polish` children get the expensive base
+  tunnel, so extra children mostly buy cheap diversity.
+- **Polish saturates around 6.** `polish=6` was the best single cheap change
+  (mean +0.05%, worst +0.42%, 10/12 wins); 8, 10, `n/10`, and `n/5` did not improve on it.
+- **Elites alone do nothing.** `elites` = 8, 16, n/10, n/5, n/2, and n all landed within noise
+  (mean +0.16–0.24%) with a fixed generation budget. The user-observed
+  `elites=n/2 + gens=n/10` profile is good (+0.05% mean, +0.19% worst at n=80/150, 62 ms),
+  but it is dominated by adding children/polish at the same spend.
+- **Beam width and island count are secondary.** `K=n`, `K=n/2`, and 2–12 islands changed
+  less than the generation/children knobs once every final was screened. `K=n` was slower
+  and sometimes worse.
+- **Annealing is a small effect.** `anneal=0` cost ~0.1% mean and made the worst case
+  worse; a 3× larger cap or `annealRate=.6` gained little. Keep it, but do not scale it
+  as the main quality knob.
+- **Restarts are linear cost for sublinear gain.** 2–4 restarts improved the mean but never
+  beat spending the same time on generations/children. `max` still uses two restarts as
+  insurance, and the extra `xhigh` portfolio run is what makes it robust.
+- **Or-opt length is not the bottleneck.** `oroptMaxL` 5→8→10 was flat. The base tunnel is
+  already near its local optimum.
+- **A final polish of the pool is flat.** `finalPolish=10` alone did nothing; the pool was
+  already polished. It only earns its cost inside the heavy profiles.
+- **Remaining gap is probably bound looseness.** At n=80 every config, including very heavy
+  ones, converged to the same best tour; at n=150 the best-of-all plateaued around +0.9%
+  over the 1-tree bound. `max` matched the best-of-all tour on all 12 final instances.
+
+Reproduce:
+
+```bash
+node tune_effort.js --ns=40,80,150 --seeds=2
+node tune_effort.js --ns=150,200 --seeds=2 --only='L[1-7]|combo'
+node validate_effort.js --ns=18,20,22 --seeds=3
+node hybrid_effort.js --ns=80,150,200 --seeds=2 --kind=both \
+  --efforts=low,mid,high,xhigh,max --bound=1
+```
+
+---
+
+## 11. Open threads
+
+- **EAX / AB-cycle recombination** instead of ERX in `hybrid_tsp.js` — the natural next
+  step after ERX; edge voting on raw finals already scored ~0.
+- **Hybrid tuning and validation**: the effort ladder in section 10 is tuned in-sample on
+  synthetic instances. Re-run it on held-out seeds, TSPLIB, and the CSV dataset before
+  treating the level boundaries as universal.
+- **Tighter bound for n=60–120**: the 1-tree bound plateaus ~0.7–1.2% above the best tour,
+  which is larger than the differences between `high`, `xhigh`, and `max`. A tighter
+  Lagrangian/assignment bound, or exact branch-and-bound, is needed to tell whether the
+  remaining gap is search error or bound looseness.
+- **Parallel hybrid**: islands, children, and polishes are independent — workers should
+  make the 1.2 s at n=400 close to interactive.
 - **Nature solver cost**: 14 annealed tours is the whole budget at large n; dropping to 3–4
   and using a fast representation (bitsets / arena) would cut it 5–10×.
 - **Exact up to n≈30** via branch-and-bound with 1-tree bounds (Held–Karp cannot go past 22 in

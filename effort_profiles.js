@@ -1,0 +1,53 @@
+/* effort_profiles.js -- shared effort ladder for the CLI and the visualizer.
+ *
+ * Browser:  <script src="effort_profiles.js"></script>  -> window.EffortProfiles
+ * Node:     const { effortPreset } = require('./effort_profiles.js')
+ *
+ * `n` is the instance size. The values are the tuned BGMA budgets; the
+ * visualizer applies its own playback caps on top (see hybrid_vis.js).
+ */
+(function (global) {
+  'use strict';
+
+  var LEVELS = ['low', 'mid', 'high', 'xhigh', 'max'];
+
+  function effortPreset(level, n) {
+    var L = String(level || 'mid').toLowerCase();
+    var r = function (x) { return Math.max(1, Math.round(x)); };
+    if (L === 'low') {
+      return { islands: 2, K: Math.max(12, r(n / 4)), elites: Math.max(8, r(n / 20)),
+               gens: Math.max(2, r(n / 50)), children: 4, polish: 2,
+               kickRate: 0.3, anneal: 8000, annealRate: 0.25, inject: 1,
+               finalPolish: 0, restarts: 1 };
+    }
+    if (L === 'mid') {
+      return { islands: 4, K: Math.max(16, r(n / 3)), elites: Math.max(16, r(n / 10)),
+               gens: Math.max(4, r(n / 25)), children: 10, polish: 6,
+               kickRate: 0.35, anneal: 20000, annealRate: 0.35, inject: 1,
+               finalPolish: 2, restarts: 1 };
+    }
+    if (L === 'high') {
+      return { islands: 5, K: Math.max(20, r(n / 2.5)), elites: Math.max(24, r(n / 6)),
+               gens: Math.max(6, r(n / 15)), children: 14, polish: Math.max(6, r(n / 15)),
+               kickRate: 0.4, anneal: 30000, annealRate: 0.4, inject: 1,
+               finalPolish: 3, restarts: 1, polishOrOptMaxL: 6 };
+    }
+    if (L === 'xhigh') {
+      return { islands: 6, K: Math.max(24, r(n / 2)), elites: Math.max(32, r(n / 3)),
+               gens: Math.max(8, r(n / 8)), children: 18, polish: Math.max(10, r(n / 10)),
+               kickRate: 0.45, anneal: 50000, annealRate: 0.45, inject: 1,
+               finalPolish: 6, restarts: 1, polishOrOptMaxL: 8 };
+    }
+    if (L === 'max') {
+      return { islands: 8, K: Math.max(32, r(n / 2)), elites: Math.max(48, r(n / 2)),
+               gens: Math.max(10, r(n / 8)), children: 18, polish: Math.max(10, r(n / 12)),
+               kickRate: 0.5, anneal: 60000, annealRate: 0.5, inject: 1,
+               finalPolish: 8, restarts: 2, polishOrOptMaxL: 8 };
+    }
+    throw new Error('unknown effort level: ' + level + ' (low|mid|high|xhigh|max)');
+  }
+
+  var api = { LEVELS: LEVELS, effortPreset: effortPreset };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  global.EffortProfiles = api;
+})(typeof window !== 'undefined' ? window : globalThis);

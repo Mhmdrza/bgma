@@ -9,11 +9,12 @@ memory on an ordinary machine.
 
 | | Held–Karp (exact) | BGMA |
 |---|---|---|
-| time at n=20 | 354 ms | **1.6 ms** (`low`) · 77 ms (`max`) |
+| time at n=20 | 302 ms | **1.4 ms** (`low`) · 71 ms (`max`) |
 | time at n=22 | 1.3–1.6 s, 378 MiB | **2–60 ms** |
 | growth | doubles with every extra city | **≈ n²** (measured n^2.0–2.3) |
 | n=30 | ≈ 100 GiB of table | ≈ 13 ms (`low`) |
-| n=400 | impossible | 0.8 s (`low`) · 64 s (`max`) |
+| n=400 | impossible | 0.7 s (`low`) · 64 s (`max`) |
+| quality guarantee | exact | none proven (empirical, +0.1–2% at n ≤ 400) |
 
 ### n ≤ 22: matched the exact optimum, every time
 
@@ -88,9 +89,18 @@ node src/hybrid/hybrid_effort.js --n=200 --effort=max --bound=1
 node src/hybrid/hybrid_effort.js --ns=50,100,200 --efforts=low,mid,high,xhigh,max --seeds=2
 node tuning/tune_effort.js --ns=40,80,150 --seeds=2      # learn the effort knobs
 node tuning/validate_effort.js --ns=18,20,22 --seeds=5   # exact Held-Karp check
+node tuning/validate_christofides.js                     # matching vs brute force, Christofides <= 1.5x
 open web/nature_tsp.html                              # visual page (nature solver)
 open web/hybrid_tsp.html                              # step-by-step hybrid, effort dial + Held–Karp
 ```
+
+### A proven guarantee, for comparison
+
+Christofides' algorithm (`src/christofides/christofides.js`) is the classic polynomial-time method
+with a proof: on any metric instance its tour is at most **1.5× the optimum**. It is implemented
+here with a real minimum-weight perfect matching (Edmonds' blossom algorithm), checked against
+brute force and against Held–Karp. Its measured excess is **+10–13%** at every n, while BGMA's
+`low` level is within +0.1–2.2% of the best tour from n=50 to 400 and BGMA gives up the proof.
 
 ## Runtime
 
@@ -100,17 +110,18 @@ exponent in time ∝ n^k between n=20 and n=400.
 
 | method | n=20 | n=50 | n=100 | n=200 | n=400 | scaling ~ n^k |
 |---|---:|---:|---:|---:|---:|---:|
-| greedy nearest-neighbour | 4 us | 11 us | 13 us | 26 us | 54 us | 0.88 |
-| beam only (K=n/3) | 231 us | 547 us | 2.2 ms | 9.7 ms | 44 ms | 1.75 |
-| beam + tunnel (tuned) | 2.0 ms | 10 ms | 72 ms | 688 ms | 6.61 s | 2.71 |
-| nature (population + anneal) | 12 ms | 72 ms | 91 ms | 189 ms | 572 ms | 1.30 |
-| BGMA low | 1.6 ms | 5.0 ms | 18 ms | 118 ms | 770 ms | 2.05 |
-| BGMA mid | 5.9 ms | 19 ms | 56 ms | 317 ms | 2.51 s | 2.02 |
-| BGMA high | 12 ms | 41 ms | 124 ms | 851 ms | 8.27 s | 2.19 |
-| BGMA xhigh | 20 ms | 69 ms | 297 ms | 2.27 s | 19.8 s | 2.30 |
-| BGMA max | 77 ms | 261 ms | 914 ms | 6.85 s | 63.8 s | 2.24 |
-| 1-tree lower bound | 142 us | 3.7 ms | 14 ms | 66 ms | 270 ms | 2.52 |
-| Held-Karp exact | 354 ms | — | — | — | — | — |
+| greedy nearest-neighbour | 3 µs | 6 µs | 12 µs | 24 µs | 52 µs | 0.94 |
+| beam only (K=n/3) | 194 µs | 517 µs | 2.1 ms | 9.5 ms | 43 ms | 1.81 |
+| beam + tunnel (tuned) | 1.7 ms | 9.2 ms | 66 ms | 664 ms | 6.41 s | 2.75 |
+| nature (population + anneal) | 11 ms | 68 ms | 87 ms | 179 ms | 561 ms | 1.32 |
+| Christofides (1.5-approx) | 195 µs | 628 µs | 1.1 ms | 11 ms | 30 ms | 1.68 |
+| BGMA low | 1.4 ms | 4.9 ms | 16 ms | 115 ms | 732 ms | 2.10 |
+| BGMA mid | 5.1 ms | 17 ms | 51 ms | 281 ms | 2.46 s | 2.06 |
+| BGMA high | 10 ms | 36 ms | 113 ms | 776 ms | 8.38 s | 2.24 |
+| BGMA xhigh | 18 ms | 64 ms | 276 ms | 2.21 s | 19.5 s | 2.33 |
+| BGMA max | 71 ms | 232 ms | 864 ms | 6.79 s | 64.1 s | 2.27 |
+| 1-tree lower bound | 98 µs | 3.5 ms | 14 ms | 64 ms | 267 ms | 2.64 |
+| Held-Karp exact | 302 ms | — | — | — | — | — |
 
 Mean excess over the best tour any method found on the same instance:
 
@@ -120,6 +131,7 @@ Mean excess over the best tour any method found on the same instance:
 | beam only (K=n/3) | +14.94% | +32.13% | +32.43% | +37.63% | +38.88% |
 | beam + tunnel (tuned) | +0.00% | +0.04% | +0.69% | +1.53% | +2.22% |
 | nature (population + anneal) | +0.00% | +0.07% | +0.69% | +3.39% | +35.39% |
+| Christofides (1.5-approx) | +10.50% | +10.07% | +13.07% | +13.48% | +13.02% |
 | BGMA low | +0.00% | +0.12% | +0.52% | +1.69% | +2.21% |
 | BGMA mid | +0.00% | +0.00% | +0.03% | +0.69% | +1.13% |
 | BGMA high | +0.00% | +0.00% | +0.02% | +0.31% | +0.59% |
@@ -129,13 +141,17 @@ Mean excess over the best tour any method found on the same instance:
 What it shows:
 
 - Each BGMA effort level costs about **3×** the previous one and roughly **halves** the gap
-  (n=400: +2.21% → +1.13% → +0.59% → +0.12% → 0.00%, in 0.77 s → 2.5 s → 8.3 s → 20 s → 64 s).
-- `low` matches the tuned beam + tunnel at n=400 (+2.21% vs +2.22%) in **0.77 s instead of 6.6 s**;
-  at n=100 `mid` is both faster and better (56 ms, +0.03% vs 72 ms, +0.69%).
+  (n=400: +2.21% → +1.13% → +0.59% → +0.12% → 0.00%, in 0.73 s → 2.5 s → 8.4 s → 19.5 s → 64 s).
+- `low` matches the tuned beam + tunnel at n=400 (+2.21% vs +2.22%) in **0.73 s instead of 6.4 s**;
+  at n=100 `mid` is both faster and better (51 ms, +0.03% vs 66 ms, +0.69%).
 - BGMA grows like n^2.0–2.3, the tuned beam + tunnel like n^2.7 (it polishes every beam final).
 - Greedy and beam-only cost microseconds to milliseconds but stay 26–39% above the best tour.
-- Nature looks cheap at n=400 (0.57 s) only because its annealing budget is capped; it is +35% there.
-- The 1-tree bound costs about 35–55% of a `low` run; Held–Karp needs 0.35 s at n=20 and doubles per city.
+- Nature looks cheap at n=400 (0.56 s) only because its annealing budget is capped; it is +35% there.
+- **Christofides** is the only method here with a proof: its tour is at most 1.5× optimal on any metric instance.
+  In practice it lands 10–13% above the best tour at every n, and it runs in 30 ms at n=400.
+  On the n ≤ 20 instances checked against Held–Karp it averaged 1.07× optimal, worst 1.18×, never above 1.5×.
+  From n=50 up, BGMA `low` has a 6 to 80 times smaller excess, at 8 to 24 times the runtime.
+- The 1-tree bound costs about 35–55% of a `low` run; Held–Karp needs 0.30 s at n=20 and doubles per city.
 
 Reproduce (about ten minutes): `node bench/runtime_bench.js --json=docs/runtime.json --web=web/runtime_data.js`.
 The same data drives the runtime table in both pages under `web/`; the pages also show the live
@@ -153,6 +169,8 @@ runtime of each panel. Analysis and caveats: [docs/gerdal.md](docs/gerdal.md) (s
 | `bench/bench_dataset.js` | dataset bench (greedy / beam+tunnel / nature) |
 | `bench/runtime_bench.js` | wall-clock runtime and quality of every algorithm; writes `docs/runtime.json` and `web/runtime_data.js` |
 | `web/runtime_table.js` | renders the measured-runtime table inside both pages |
+| `src/christofides/christofides.js` | Christofides 1.5-approximation: MST, blossom minimum-weight perfect matching, Euler tour |
+| `tuning/validate_christofides.js` | checks the matching against brute force and the tour against Held–Karp (≤ 1.5×) |
 | `bench/knob_bench.js` | greedy vs nature vs beam+tunnel under n-based knob presets |
 | `tuning/tune_knobs.js` | knob sweep against greedy/nature/random-start heuristics; finds `--preset=tuned` |
 | `src/hybrid/hybrid_tsp.js` | Beam-Guided Memetic Annealing: beam islands + ERX + nature anneal + selective base polish |

@@ -378,17 +378,18 @@ Node v22.23.2, measured 2026-10-19. The raw results are in =docs/runtime.json=.
 #+CAPTION: Median wall time per instance. The last column is the empirical exponent $k$ in the growth $t \propto n^k$ between n=20 and n=400.
 | algorithm | n=20 | n=50 | n=100 | n=200 | n=400 | ~n^k~ |
 |---+---+---+---+---+---+---|
-| greedy nearest-neighbour | 4 µs | 11 µs | 13 µs | 26 µs | 54 µs | 0.88 |
-| beam only (K=n/3) | 231 µs | 547 µs | 2.2 ms | 9.7 ms | 44 ms | 1.75 |
-| beam + tunnel (tuned) | 2.0 ms | 10 ms | 72 ms | 688 ms | 6.61 s | 2.71 |
-| nature (population + anneal) | 12 ms | 72 ms | 91 ms | 189 ms | 572 ms | 1.30 |
-| =BGMA low= | 1.6 ms | 5.0 ms | 18 ms | 118 ms | 770 ms | 2.05 |
-| =BGMA mid= | 5.9 ms | 19 ms | 56 ms | 317 ms | 2.51 s | 2.02 |
-| =BGMA high= | 12 ms | 41 ms | 124 ms | 851 ms | 8.27 s | 2.19 |
-| =BGMA xhigh= | 20 ms | 69 ms | 297 ms | 2.27 s | 19.8 s | 2.30 |
-| =BGMA max= | 77 ms | 261 ms | 914 ms | 6.85 s | 63.8 s | 2.24 |
-| 1-tree lower bound | 142 µs | 3.7 ms | 14 ms | 66 ms | 270 ms | 2.52 |
-| Held-Karp exact | 354 ms | — | — | — | — | — |
+| greedy nearest-neighbour | 3 µs | 6 µs | 12 µs | 24 µs | 52 µs | 0.94 |
+| beam only (K=n/3) | 194 µs | 517 µs | 2.1 ms | 9.5 ms | 43 ms | 1.81 |
+| beam + tunnel (tuned) | 1.7 ms | 9.2 ms | 66 ms | 664 ms | 6.41 s | 2.75 |
+| nature (population + anneal) | 11 ms | 68 ms | 87 ms | 179 ms | 561 ms | 1.32 |
+| Christofides (1.5-approx) | 195 µs | 628 µs | 1.1 ms | 11 ms | 30 ms | 1.68 |
+| =BGMA low= | 1.4 ms | 4.9 ms | 16 ms | 115 ms | 732 ms | 2.10 |
+| =BGMA mid= | 5.1 ms | 17 ms | 51 ms | 281 ms | 2.46 s | 2.06 |
+| =BGMA high= | 10 ms | 36 ms | 113 ms | 776 ms | 8.38 s | 2.24 |
+| =BGMA xhigh= | 18 ms | 64 ms | 276 ms | 2.21 s | 19.5 s | 2.33 |
+| =BGMA max= | 71 ms | 232 ms | 864 ms | 6.79 s | 64.1 s | 2.27 |
+| 1-tree lower bound | 98 µs | 3.5 ms | 14 ms | 64 ms | 267 ms | 2.64 |
+| Held-Karp exact | 302 ms | — | — | — | — | — |
 
 #+CAPTION: Mean excess over the best tour any method found on the same instance (=BGMA max= reads 0.00% at every size because it found the best tour on every instance).
 | algorithm | n=20 | n=50 | n=100 | n=200 | n=400 |
@@ -397,6 +398,7 @@ Node v22.23.2, measured 2026-10-19. The raw results are in =docs/runtime.json=.
 | beam only (K=n/3) | +14.94% | +32.13% | +32.43% | +37.63% | +38.88% |
 | beam + tunnel (tuned) | +0.00% | +0.04% | +0.69% | +1.53% | +2.22% |
 | nature (population + anneal) | +0.00% | +0.07% | +0.69% | +3.39% | +35.39% |
+| Christofides (1.5-approx) | +10.50% | +10.07% | +13.07% | +13.48% | +13.02% |
 | =BGMA low= | +0.00% | +0.12% | +0.52% | +1.69% | +2.21% |
 | =BGMA mid= | +0.00% | +0.00% | +0.03% | +0.69% | +1.13% |
 | =BGMA high= | +0.00% | +0.00% | +0.02% | +0.31% | +0.59% |
@@ -435,25 +437,32 @@ a few passes, so the practical growth is close to quadratic.
 *** What the measurements show
 
 - *Each effort level costs about 3x the previous one, and about halves the gap.* At n=200
-  the ladder runs 118 ms, 317 ms, 851 ms, 2.27 s, 6.85 s (ratios 2.7, 2.7, 2.7, 3.0); at
-  n=400 it is 0.77 s, 2.51 s, 8.27 s, 19.8 s, 63.8 s (3.3, 3.3, 2.4, 3.2). The gap to
+  the ladder runs 115 ms, 281 ms, 776 ms, 2.21 s, 6.79 s (ratios 2.4, 2.8, 2.8, 3.1); at
+  n=400 it is 0.73 s, 2.46 s, 8.38 s, 19.5 s, 64.1 s (3.4, 3.4, 2.3, 3.3). The gap to
   the best-known tour at n=400 falls +2.21%, +1.13%, +0.59%, +0.12%, 0.00%.
   Returns per second diminish quickly past =high=.
 - *=low= replaces the tuned beam + tunnel at large n.* At n=400 the two reach the same
-  quality (+2.21% vs +2.22%) but =low= takes 0.77 s against 6.61 s, 8.6x faster. At
-  n=100 =mid= (56 ms, +0.03%) is both faster and better than beam + tunnel (72 ms, +0.69%).
+  quality (+2.21% vs +2.22%) but =low= takes 0.73 s against 6.41 s, 8.8x faster. At
+  n=100 =mid= (51 ms, +0.03%) is both faster and better than beam + tunnel (66 ms, +0.69%).
   Below n=50 everything finds the optimum in a few milliseconds and the levels are
   indistinguishable.
+- *Christofides is the guarantee.* MST, a minimum-weight perfect matching on the odd-degree
+  vertices (Edmonds' blossom algorithm, the O(k^3) formulation with dual variables), an Euler
+  tour and shortcutting. It guarantees a tour at most 1.5 times the optimum on any metric
+  instance, and it runs in 30 ms at n=400. Its measured excess is 10–13% at every n. On the
+  n ≤ 20 instances checked against Held–Karp it averaged 1.07 times the optimum, worst 1.18.
+  From n=50 up, BGMA's `low` level has a 6 to 80 times smaller excess, at 8 to 24 times the runtime.
+  The matching was checked against brute force on 28 random sets (error below 1e-15).
 - *Greedy and beam-only are fast and poor.* Microseconds to tens of milliseconds, but
   26--39% above the best tour at every n >= 50. Greedy's time is a scan of precomputed
   neighbour lists (setup excluded), so its n^0.88 is not the O(n^2) of building them.
 - *Nature is cheap at large n only because it is under-budgeted.* Its annealing budget is
-  capped at 120 000 proposals per tour, so its time grows slowly (n^1.3, 0.57 s at
+  capped at 120 000 proposals per tour, so its time grows slowly (n^1.3, 0.56 s at
   n=400) while quality collapses (+35% at n=400). At n=20--50 it costs 12--72 ms, more than
   =BGMA low= or =BGMA mid= (1.6--19 ms), because its budget 1500 + 45 n^2 proposals is large for small n.
 - *The reference computations.* The 1-tree bound (400 subgradient steps, each a dense
-  O(n^2) Prim) costs 66 ms at n=200 and 270 ms at n=400, about 35--55% of a
-  =low= run, and much less than =max=. Held--Karp is exact but exponential: 354 ms at
+  O(n^2) Prim) costs 64 ms at n=200 and 267 ms at n=400, about 35--55% of a
+  =low= run, and much less than =max=. Held--Karp is exact but exponential: 302 ms at
   n=20, and the notes record 1.3--1.6 s at n=22; it needs (n-1) 2^(n-1) table entries
   and is not run beyond n=22 (this benchmark stops at n=20).
 

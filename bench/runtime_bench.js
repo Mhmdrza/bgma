@@ -22,6 +22,7 @@ const os = require('os');
 const path = require('path');
 const { B, NAT, runEffort } = require('../src/hybrid/bgma.js');
 const { hkBound } = require('../src/hybrid/hybrid_vis.js');
+const { christofides } = require('../src/christofides/christofides.js');
 
 const CFG = {
   ns: '20,50,100,200,400', seeds: 2, kinds: 'uniform,cluster',
@@ -50,7 +51,8 @@ const METHODS = [
   { id: 'greedy', label: 'greedy nearest-neighbour', note: 'O(n^2)' },
   { id: 'beam', label: 'beam only (K=n/3)', note: 'O(n K log K)' },
   { id: 'tuned', label: 'beam + tunnel (tuned)', note: 'beam + 2-opt/Or-opt on n finals x4 restarts' },
-  { id: 'nature', label: 'nature (population + anneal)', note: 'M=48 wave, 8+6 anneals' }
+  { id: 'nature', label: 'nature (population + anneal)', note: 'M=48 wave, 8+6 anneals' },
+  { id: 'christofides', label: 'Christofides (1.5-approx)', note: 'MST + blossom matching on odd vertices + Euler tour' }
 ].concat(LEVELS.map(l => ({ id: 'bgma-' + l, label: 'BGMA ' + l, note: 'effort level', level: l })))
  .concat([
   { id: 'bound', label: '1-tree lower bound', note: CFG.boundIters + ' subgradient iterations', ref: true },
@@ -92,6 +94,11 @@ function run(method, n, seed, kind) {
       : { near, oroptMaxL: 5, restarts: 4, tunnelMode: 'base' };
     const [t, r] = clock(() => B.beamFastTunnel(inst, K, method.id === 'beam' ? 0 : n, o));
     return { ms: t, len: r.len, tour: r.tour };
+  }
+  if (method.id === 'christofides') {
+    const inst = B.buildInstance(n, seed, kind, rnd(n / 10, 10));
+    const [t, tour] = clock(() => christofides(inst.rows, n));
+    return { ms: t, len: B.tourLenRows(inst.rows, tour), tour: tour };
   }
   if (method.id === 'nature') {
     const inst = B.buildInstance(n, seed, kind, n - 1);

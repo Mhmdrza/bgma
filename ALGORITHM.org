@@ -1,6 +1,7 @@
 #+TITLE: Beam-Guided Memetic Annealing (BGMA)
 #+SUBTITLE: An archival algorithm note for the polynomialTSP repository
-#+AUTHOR: Mhmdrza
+#+AUTHOR: Mohammadreza Aala
+#+EMAIL: mrala@ut.ac.ir
 #+DATE: 2026-10-20
 #+FILETAGS: :tsp:heuristic:bgma:
 #+OPTIONS: toc:3 num:t
@@ -481,6 +482,8 @@ budgets so a =max= run stays watchable; it is not the exact Node code path.
 | field | value |
 |-------+-------|
 | title | Beam-Guided Memetic Annealing (BGMA) |
+| author | Mohammadreza Aala |
+| contact | mrala@ut.ac.ir |
 | repository | https://github.com/Mhmdrza/polynomialTSP |
 | snapshot commit | =0f8f69d1cdb0e93aec26281017cabd4cf6ec84e8= |
 | snapshot date | 2026-10-20 |

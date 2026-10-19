@@ -148,7 +148,7 @@ ERX preserves edges that both parents agree on and repairs the rest. It is
 cheaper and simpler than EAX; the repository notes flag EAX/AB-cycle
 recombination as future work.
 
-** Mutation: double bridge and short annealing**
+** Mutation: double bridge and short annealing
 
 Each child may be perturbed by two independent operators:
 
@@ -166,7 +166,7 @@ The two events are checked independently with probabilities =kickRate= and
 =annealRate=, so a child may receive a kick, an anneal, or both. They are modest
 by design: the operators are escape mechanisms, not the main search.
 
-** Selective full-restart polish**
+** Selective full-restart polish
 
 The base tunnel is =refineBase= in =src/beam/beam_fast.js=: first-improvement 2-opt over
 the full distance matrix, followed by Or-opt segment relocation of lengths
@@ -182,14 +182,14 @@ BGMA applies it only to:
 This is the central cost-control idea: use the fast screen as a filter, then
 spend the full-restart search on contenders only.
 
-** Stagnation injection**
+** Stagnation injection
 
 If the best tour has not improved for two consecutive generations, the search
 runs a fresh beam island from a new random pole pair, fast-screens its finals,
 and merges them into the pool. The stagnation counter resets. This prevents the
 population from collapsing onto one basin without paying for a full restart.
 
-** Restarts and the effort portfolio**
+** Restarts and the effort portfolio
 
 The public =hybrid()= entry point runs $R$ independent copies of the pipeline
 with seed offsets and keeps the shortest tour. For =max= effort, the CLI also
@@ -315,14 +315,14 @@ tour, so it costs the sum of the two runs.
 
 ** What the tuning showed
 
-- *Generations dominate.* Raising =gens= from 6 to ~n/5 cut the mean gap to the
+- *Generations dominate.* Raising =gens= from 6 to ~n/5~ cut the mean gap to the
   best-of-all reference from +0.31% to +0.03% at n=80/150, at about 2.4x the
-  time. Beyond ~n/5 the curve flattens.
+  time. Beyond ~n/5~ the curve flattens.
 - *Children are the cheapest diversity.* 8 to 24 children moved the mean gap
   from +0.21% to +0.06% for about 1.5x the time, because only the top =polish=
   children receive the expensive base tunnel.
-- *Polish saturates around 6.* ~polish=6~ gave a mean gap of +0.05% and a worst
-  case of +0.42% at roughly the same cost as ~polish=2~. Values 8, 10, n/10,
+- *Polish saturates around 6.* ~--polish=6~ gave a mean gap of +0.05% and a worst
+  case of +0.42% at roughly the same cost as ~--polish=2~. Values 8, 10, n/10,
   and n/5 did not improve on it.
 - *Elites alone are noise.* Elite sizes from 8 to n landed within +0.16–0.24%
   mean with a fixed generation budget. Elites are capacity for the generation
@@ -349,7 +349,7 @@ At these sizes the exact solve costs about 0.06–0.4 s for n=18/20 and 1.3–1.
 for n=22; the heuristic itself takes milliseconds. Effort levels only begin to
 separate above roughly n=40.
 
-**Relative quality, n=80/150/200**
+** Relative quality, n=80/150/200
 
 12 instances (2 seeds x uniform/cluster). The reference is the best tour found
 by any tested effort level or the tuned beam on that instance, not the optimum.
@@ -362,7 +362,7 @@ by any tested effort level or the tuned beam on that instance, not the optimum.
 | =xhigh= | +0.00% | +0.02% | +0.23% | +0.71% | 941 ms |
 | =max= | +0.00% | +0.00% | +0.00% | +0.71% | 2.87 s |
 
-**Large-n check, n=300/400**
+** Large-n check, n=300/400
 
 4 instances (one seed x uniform/cluster). Mean gap vs the best-of-all reference:
 +2.25% / +0.97% / +0.62% / +0.16% / +0.00% for low→max. Gap to the 1-tree
@@ -375,8 +375,8 @@ the project files and times only the solve (wall clock, =process.hrtime=). Each 
 is the median over 4 instances (2 seeds x uniform/cluster) on Apple M3 Pro,
 Node v22.23.2, measured 2026-10-19. The raw results are in =docs/runtime.json=.
 
-#+CAPTION: Median wall time per instance. The last column is the empirical exponent k in time ~ n^k between n=20 and n=400.
-| algorithm | n=20 | n=50 | n=100 | n=200 | n=400 | ~n^k |
+#+CAPTION: Median wall time per instance. The last column is the empirical exponent $k$ in the growth $t \propto n^k$ between n=20 and n=400.
+| algorithm | n=20 | n=50 | n=100 | n=200 | n=400 | ~n^k~ |
 |---+---+---+---+---+---+---|
 | greedy nearest-neighbour | 4 µs | 11 µs | 13 µs | 26 µs | 54 µs | 0.88 |
 | beam only (K=n/3) | 231 µs | 547 µs | 2.2 ms | 9.7 ms | 44 ms | 1.75 |

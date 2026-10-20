@@ -369,3 +369,158 @@ node src/hybrid/hybrid_effort.js --ns=80,150,200 --seeds=2 --kind=both \
 # one run
 node src/hybrid/hybrid_effort.js --n=200 --effort=max --bound=1 --tour=tour.txt
 ```
+
+---
+
+## 8. Nature knobs and the nature effort ladder
+
+Last run: 2026-10-20. Harness: `tuning/tune_nature.js`,
+`src/nature/nature_core.js`, `src/nature/nature_effort.js`.
+
+### 8.1 Method
+
+- **Core:** the parameterised extraction of the page solver. Defaults reproduce the page and
+  the old bench bit-for-bit (verified on n=20..60, both point families).
+- **Sweep instances:** n = 50/100/150, 2 seeds × uniform/cluster (12 instances) for the
+  one-factor study; n = 50/100/200/300, 2 seeds × both families (16 instances) for the final
+  ladder. Large-n check: n=400, one seed × both families.
+- **Reference:** best tour produced by any tested configuration or the tuned beam on that
+  instance. Second reference: 1-tree bound (`hkBound`, 400–500 subgradient iterations).
+- **Exact check:** Held–Karp at n = 18, 20, 22, 3 seeds × both families (18 instances).
+- **Caveat:** synthetic instances only, in-sample tuning, single-seed n=400. Treat the ordering
+  of levels as robust at n=50–300 and the last 0.1% as noise.
+
+### 8.2 The population is smaller than it looks
+
+At the end of the wave the `M`-state population contains very few **distinct** tours:
+
+| setting (n=100) | distinct tours at the end |
+|---|---:|
+| defaults (M=48, selT=0.25) | 6 |
+| M=16 | 2 |
+| M=192 | 6 |
+| selT=0.05 | 1 |
+| selT=0.1 | 1 |
+| selT=0.5 | 8 |
+| selT=1 | 12 |
+| flow only (no fitness pressure) | 24 |
+
+Systematic resampling copies existing states, so `M` acts as a flow reservoir, not as a
+diversity knob. `survivors` saturates at the number of distinct tours: 4, 8, 16, and 24
+survivors gave the same median in every run (the only differences were isolated instances
+where one setting drew a luckier lineage; at n=100/cluster, 4 survivors beat 8 by 0.6).
+`selT` is the real diversity knob, but more lineages is not automatically better:
+`selT=0.5` beat both 0.25 and 1.
+
+### 8.3 One-factor results (12 instances, gap vs best-of-all)
+
+Base is the page configuration: median **+0.48%**, mean +0.53%, worst +1.76%, 133 ms.
+The reference is the best tour found anywhere in the sweep, so these gaps are comparable
+within this table, not across runs: every configuration added to `tune_nature.js` can lower
+the reference and push all rows up by a few tenths of a percent. With 12 instances the
+median is coarse; do not read single-row rank changes below ~0.5% as signal.
+
+| knob | values that matter | result |
+|---|---|---|
+| `iters` | ×0.25 / ×0.5 / ×1 / ×2 / ×4 | **+8.74% / +2.18% / +0.48% / +0.60% / +0.30%** — dominant lever, strong knee at ×1 |
+| `restarts` | 1 / 2 / 4 | **+0.48% / +0.36% / +0.03%** — second lever; linear cost, sublinear gain after 4 |
+| `polish` | none / fast×3 / base×3 | **+0.48% / +0.00% / +0.00%** at 133→134 ms — best quality per ms |
+| `selT` | 0.05 / 0.1 / 0.25 / 0.5 / 1 / flow | **+2.04 / +2.19 / +0.48 / +0.27 / +0.80 / +0.40%** |
+| `M` | 16 / 32 / 48 / 96 / 192 | +1.18 / +0.62 / +0.48 / +0.73 / +0.71% — bigger is not better |
+| `survivors` | 2 / 4 / 8 / 16 / 24 | +0.91 / +0.36 / +0.48 / +0.48 / +0.48% — saturates at distinct-tour count |
+| `children` | 0 / 4 / 8 / 16 / 24 | +0.57 / +0.57 / +0.48 / +0.48 / +0.36% — small |
+| `parents` | 2 / 4 / 8 | +0.45 / +0.48 / +0.57% — noise |
+| `pLocal` | 0.5 / 0.7 / 0.85 / 0.95 / 1 | +1.34 / +0.73 / +0.48 / +0.69 / +0.66% — 0.85 is fine |
+| `stallK` | 0 / 10 / 20 / 50 / 100 / 200 | +0.72 / +4.32 / +1.72 / +0.48 / +0.47 / +0.48% — below 50 is harmful |
+| `reheat` | 0 / 0.2 / 0.4 / 0.7 / 1 | +0.58 / +0.58 / +0.48 / +0.68 / +0.68% — flat |
+| `coolRate` | 0.9999 / 0.99998 / 0.999995 | +0.94 / +0.48 / **+8.41%** — too slow a cool never converges |
+| `T0` | .005n / .01n / .03n / .06n / .1n | +1.73 / +1.31 / +0.48 / +0.61 / **+3.49%** |
+| `branchLag` | 1 / 2 / 3 / 4 | +0.45 / +0.88 / +0.48 / +0.45% — 2 is an outlier, rest noise |
+| `extraRank` | 0 / 2 / 3 | +1.02 / +0.48 / +0.61% — keep the extra candidate |
+| `maxBranch` | 2 / 3 / 4 / 6 / all | +0.42 / +0.41 / +0.48 / +0.48 / +0.48% — saturated at 4 |
+| `nearK` | 5 / 10 / 15 / 20 | +0.37 / +0.48 / +0.75 / +0.65% — narrow is fine |
+
+### 8.4 The fixed cap was the large-n failure
+
+`I = min(120000, 1500 + 45n²)` stops growing at n≈51. At n=300 the old config is **+23.95%**
+above the 1-tree bound; a `20n²` budget brings that to **+3.3%** for 2.1 s. At n=100–300 the
+knee is around `20n²` per tour: 45n² and 90n² buy <0.5% more for 2–4× the time. A final polish
+on top of the `45n²` run was the best large-n configuration in the scaling sweep.
+
+### 8.5 Restarts vs longer runs
+
+At a fixed total proposal budget, independent restarts beat one long run:
+
+| shape (24 tours, polish×5) | restarts | total iters | med vs bound |
+|---|---:|---|---:|
+| n=200/300, 24 tours | 1 | 40n² | +2.22% |
+| same | 2 | 2×20n² | +2.11% |
+| same | 3 | 3×14n² | +1.59% |
+| same | 4 | 4×10n² | **+1.70%** |
+
+With 18 tours the sweet spot is 2 restarts (`+1.80%` vs `+1.82%` for 4 and `+2.34%` for 1);
+with 24 tours it is 3–4. Beyond 4–6 restarts the population overhead dominates the gain.
+That motivated `high=2`, `xhigh=3`, `max=4` restarts rather than one long anneal.
+
+### 8.6 The final ladder
+
+| effort | M | iters | survivors | children | restarts | polish |
+|---|---:|---|---:|---:|---:|---|
+| `low` | 24 | `max(8k, 4n²)` | 3 | 2 | 1 | fast ×2 |
+| `mid` | 32 | `max(10k, 7.5n²)` | 5 | 6 | 1 | fast ×2 |
+| `high` | 48 | `max(12k, 6.5n²)` | 8 | 10 | 2 | fast ×3 |
+| `xhigh` | 64 | `max(15k, 10n²)` | 10 | 14 | 3 | fast ×5 |
+| `max` | 96 | `max(20k, 12n²)` | 12 | 16 | 4 | base ×8 (+ `xhigh` portfolio) |
+
+All levels use `selT=0.5`; `nearK` runs from 6 at `low` to `min(20, n/10)` at `max`, and
+`parents` 2→5. The floors exist only
+to keep small n well searched (without them `max` spent a second at n=20 for no gain). `max` is
+a two-configuration portfolio: the `xhigh` run and the `max` run are independent, so `max` is
+monotone over `xhigh` by construction at the cost of the sum of both runs.
+
+Results (16 instances, n=50/100/200/300, 2 seeds × uniform/cluster):
+
+| effort | med vs ref | mean vs ref | worst vs ref | med vs bound | wins | med ms |
+|---|---:|---:|---:|---:|---:|---:|
+| `low` | +0.57% | +0.58% | +1.32% | +1.55% | 1/16 | 127 ms |
+| `mid` | +0.26% | +0.38% | +1.13% | +1.49% | 4/16 | 353 ms |
+| `high` | +0.17% | +0.20% | +1.14% | +1.35% | 5/16 | 1.03 s |
+| `xhigh` | +0.00% | +0.11% | +0.78% | +1.08% | 11/16 | 2.80 s |
+| `max` | +0.00% | +0.01% | +0.14% | +1.02% | 15/16 | 8.36 s |
+| tuned beam | +0.94% | +0.76% | +1.41% | +1.89% | 3/16 | 818 ms |
+
+Per-n median time (n=50/100/200/300): `low` 9/35/142/309 ms, `mid` 22/86/361/896 ms,
+`high` 68/263/1.06/2.83 s, `xhigh` 180/681/3.07/7.42 s, `max` 499/2.05/8.79/22.5 s.
+Per-n median gap vs bound: `low` 1.43/1.27/1.55/3.41%, `mid` 1.49/0.75/1.64/3.13%,
+`high` 1.25/1.06/1.35/2.57%, `xhigh` 1.08/0.74/1.37/2.53%, `max` 1.08/0.74/1.02/2.43%.
+
+At n=400 (single seed per family) the ordering is not reliable: `low` (0.52 s) beat `mid`
+(1.37 s) and `high` (3.98 s) on the uniform instance, and `xhigh` (11 s) drew a bad basin on
+the cluster instance (+4.5% vs the best) while `max` (44 s) recovered. The portfolio is what
+makes `max` safe; do not read the n=400 rows as a monotone curve.
+
+### 8.7 Exact check
+
+Held–Karp at n=18, 20, 22, 3 seeds × both families: **18/18 instances optimal for every
+level**, including `low` (mean 5 ms). Effort only starts to matter above n≈40, exactly as in
+the BGMA ladder.
+
+### 8.8 Reproduction
+
+```bash
+# one-factor sweep (12 instances, ~2.5 min)
+node tuning/tune_nature.js --ns=50,100,150 --seeds=2 --boundIters=500
+
+# scaling / ladder (16 instances, ~4 min)
+node tuning/tune_nature.js --ns=50,100,200,300 --seeds=2 --only='effort'
+
+# exact check
+node tuning/validate_nature_effort.js --ns=18,20,22 --seeds=3
+
+# final ladder
+node src/nature/nature_effort.js --ns=50,100,200,300 --seeds=2 --kind=both \
+  --efforts=low,mid,high,xhigh,max --bound=1
+
+# one run
+node src/nature/nature_effort.js --n=200 --effort=max --bound=1 --tour=tour.txt
+```

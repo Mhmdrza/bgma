@@ -256,6 +256,104 @@ Cost: 27 ms at n=20, 95 ms at n=50, 136 ms at n=100, 281 ms at n=200 (median).
 Complexity: **O(M·n² + R·I·n)** time, **O(n² + M·n)** memory, with
 `I = min(120000, 1500 + 45n²)`, `R ≤ 14`.
 
+### 4.1 Every nature knob (`src/nature/nature_core.js`)
+
+`nature_core.js` is the parameterised extraction of the page solver: `nature(inst, seed, opts)`
+runs the pipeline, `runEffort(inst, seed, level)` applies an effort preset. Defaults reproduce
+the page and the old bench bit-for-bit. The visual page (`docs/nature_tsp.html`) keeps those
+page defaults; the effort dial lives in the CLI.
+
+| knob | default | meaning |
+|---|---|---|
+| `M` | 48 | foragers / flow units in the population wave |
+| `branchLag` | 3 | trailing cities allowed to nominate (rank = lag+1) |
+| `extraRank` | 2 | extra candidate rank from the current city (0 = off) |
+| `maxBranch` | 4 | children per state after candidate dedupe (0 = unlimited) |
+| `selMode` | `soft` | `soft` = flow·exp(−(f−fmin)/T); `hard` = top-M cut; `flow` = flow only |
+| `selT` | 0.25 | soft-selection temperature as a fraction of the colony spread |
+| `poles`, `startCount`, `startSeed` | farthest, 2, 0 | starting cities (restart 0 uses the farthest pair) |
+| `iters` | 0 | proposals per tour; 0 → `min(120000, 1500+45n²)` |
+| `T0` | 0 | initial temperature; 0 → `0.03n` |
+| `coolRate`, `Tmin` | 0.99998, 1e-7 | geometric cooling |
+| `pLocal` | 0.85 | fraction of informed (candidate-list) proposals |
+| `stallK` | 50 | avulsion after `stallK·n` non-improving proposals (0 = never) |
+| `reheat` | 0.4 | temperature is raised to at least `reheat·T0` on avulsion |
+| `nearK` | 0 | proposal candidate-list width; 0 → `min(10, n−1)` |
+| `survivors` | 8 | distinct population survivors annealed |
+| `children` | 8 | ordered-crossover children annealed |
+| `parents` | 4 | top parents used for crossover |
+| `restarts` | 1 | independent runs; best tour wins |
+| `polish`, `polishTop`, `polishOrOptMaxL` | 0, 3, 3 | optional final 2-opt/Or-opt on the top tours (`0|fast|base`) |
+
+### 4.2 What the knobs actually do
+
+Measured on n=50/100/150, 2 seeds × uniform/cluster, gap vs best-of-all. Full detail is in
+[TUNING_NOTES.md](TUNING_NOTES.md) §8.
+
+- **The population collapses; `M` is not diversity.** At n=100 the default wave ends with
+  **6 distinct tours** out of M=48; M=192 still ends with 6, M=16 with 2. `survivors` above
+  the distinct-tour count (4–6) changes nothing on the median unless `selT` is raised;
+  individual instances can still flip by luck of the lineage draw. `selT` sets lineage
+  count: 0.05/0.1 → 1, 0.25 → 6, 0.5 → 8, 1 → 12, flow-only → 24. Too little selection
+  kills quality (+2.0–2.2%).
+- **Iterations are the dominant lever.** Quartering the budget costs ~9%, halving costs ~2%;
+  doubling/quadrupling moves the median by <0.2%. The default `120k` cap stops scaling above
+  n≈51 — the historical collapse at n=300–400. The effort ladder uses `c·n²` instead.
+- **Restarts are the second lever.** 4 restarts moved the 12-instance median from +0.48% to
+  +0.03%. At a fixed total proposal budget, 2–4 restarts beat one long run; 8–12 have
+  diminishing returns.
+- **Polish is the best quality per millisecond.** A final fast 2-opt/Or-opt on the top 3 tours
+  moved the median from +0.48% to about zero for a fraction of a millisecond at n=100 (a few
+  ms at n=300). It is present at every effort level.
+- **Branch shape, proposal mix, and temperature are already tuned.** `branchLag=1/3/4` and
+  `maxBranch=2/3/6` are within noise; `extraRank=0` costs ~0.5%. `pLocal<0.85`, `stallK<50`,
+  `coolRate=0.999995`, and `T0=0.1n` are all clearly worse. `reheat` 0.2–1 stays within
+  ~0.6% of the default; keep 0.4.
+- **`nearK` is secondary.** 5–10 is fine; 15–20 is slower without a gain.
+
+### 4.3 Nature effort ladder (`src/nature/nature_effort.js`)
+
+| effort | M | iters | survivors | children | restarts | polish |
+|---|---:|---|---:|---:|---:|---|
+| `low` | 24 | `max(8k, 4n²)` | 3 | 2 | 1 | fast ×2 |
+| `mid` | 32 | `max(10k, 7.5n²)` | 5 | 6 | 1 | fast ×2 |
+| `high` | 48 | `max(12k, 6.5n²)` | 8 | 10 | 2 | fast ×3 |
+| `xhigh` | 64 | `max(15k, 10n²)` | 10 | 14 | 3 | fast ×5 |
+| `max` | 96 | `max(20k, 12n²)` | 12 | 16 | 4 | base ×8 (+ `xhigh` portfolio) |
+
+All levels use `selT=0.5`; `nearK` runs from 6 at `low` up to `min(20, n/10)` at `max`. `max` runs the `xhigh` configuration
+and the heavier `max` configuration independently and keeps the shorter tour, so it cannot be
+worse than `xhigh` on the same instance.
+
+16 instances (n=50/100/200/300; 2 seeds × uniform/cluster), reference = best tour of any method,
+second reference = 1-tree bound (400 subgradient iterations):
+
+| effort | med vs ref | mean vs ref | worst vs ref | med vs bound | wins | med time |
+|---|---:|---:|---:|---:|---:|---:|
+| `low` | +0.57% | +0.58% | +1.32% | +1.55% | 1/16 | 127 ms |
+| `mid` | +0.26% | +0.38% | +1.13% | +1.49% | 4/16 | 353 ms |
+| `high` | +0.17% | +0.20% | +1.14% | +1.35% | 5/16 | 1.03 s |
+| `xhigh` | +0.00% | +0.11% | +0.78% | +1.08% | 11/16 | 2.80 s |
+| `max` | +0.00% | +0.01% | +0.14% | +1.02% | 15/16 | 8.36 s |
+| tuned beam | +0.94% | +0.76% | +1.41% | +1.89% | 3/16 | 818 ms |
+
+Median time by n: **9 / 35 / 142 / 309 ms** for `low`, **22 / 86 / 361 / 896 ms** for `mid`,
+**68 / 263 / 1.06 / 2.83 s** for `high`, **180 / 681 / 3.07 / 7.42 s** for `xhigh`, and
+**499 / 2.05 / 8.79 / 22.5 s** for `max` (n=50/100/200/300). At n ≤ 22 all five levels matched
+Held–Karp on **18/18 instances**.
+
+Caveat: at n=400 (one seed per family) the ordering is no longer reliable — `xhigh` drew a bad
+basin on the cluster instance and `low` beat it, while the `max` portfolio recovered. Treat the
+ladder as tuned on n=50–300 and use `max` when n≥400.
+
+```bash
+node src/nature/nature_effort.js --n=200 --effort=mid
+node src/nature/nature_effort.js --n=200 --effort=max --bound=1 --tour=tour.txt
+node src/nature/nature_effort.js --ns=50,100,200 --efforts=low,mid,high,xhigh,max --seeds=2 --kind=both --bound=1
+node tuning/tune_nature.js --ns=50,100,150 --seeds=2
+node tuning/validate_nature_effort.js --ns=18,20,22 --seeds=3
+```
+
 ---
 
 ## 5. Dataset bench (`~/Downloads/tsp_dataset.csv`)

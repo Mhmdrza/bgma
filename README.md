@@ -56,8 +56,8 @@ n ≤ 22 (26 instances); beyond that the evidence is the lower bound. Details an
 
 Experiments around a quantum-inspired TSP demo: a fast beam + tunnelling solver, a readable
 reference implementation, a nature-model rewrite (weighted population, soft selection,
-annealing with kicks, recombination), a tuned hybrid with an `--effort` dial, and benchmarks
-against TSPLIB instances and a CSV dataset.
+annealing with kicks, recombination), and two tuned solvers with `--effort` dials — BGMA and
+the nature solver — plus benchmarks against TSPLIB instances and a CSV dataset.
 
 Read **[docs/TSP_NOTES.md](docs/TSP_NOTES.md)** first — it holds the findings, measured numbers,
 known pitfalls, and every command. Knob-tuning observations and future ideas are in
@@ -69,7 +69,7 @@ known pitfalls, and every command. Knob-tuning observations and future ideas are
 index.html, app.js      original polynomial-TSP canvas demo (untouched)
 src/
   beam/                 beam + tunnel solvers          (beam_fast, beam_simple)
-  nature/               population / annealing solver  (nature_tsp)
+  nature/               population / annealing solver  (nature_tsp, nature_core, nature_effort)
   hybrid/               BGMA: solver, effort ladder, CLI, demo core
 bench/                  TSPLIB, dataset and comparison benchmarks
 tuning/                 knob / effort sweeps and Held-Karp validation
@@ -95,6 +95,11 @@ node src/beam/beam_fast.js --n=40 --seeds=2 --score=all   # score unvisited citi
 node src/beam/beam_fast.js --n=200 --K=n/2 --near=n/10    # n-based knob values
 # every beam/tunnel knob is documented in src/beam/beam_fast.js's header
 node src/nature/nature_tsp.js --n=200 --seeds=4
+node src/nature/nature_effort.js --n=200 --effort=mid       # tuned nature, 5 effort levels
+node src/nature/nature_effort.js --n=200 --effort=max --bound=1
+node src/nature/nature_effort.js --ns=50,100,200 --efforts=low,mid,high,xhigh,max --seeds=2
+node tuning/tune_nature.js --ns=50,100,150 --seeds=2        # learn the nature knobs
+node tuning/validate_nature_effort.js --ns=18,20,22 --seeds=3  # exact Held-Karp check
 node bench/runtime_bench.js                          # runtime + quality of every algorithm
 node bench/bench_dataset.js --per-n=3                   # CSV dataset
 node bench/knob_bench.js --ns=50,100,200 --seeds=2      # greedy vs nature vs knob presets
@@ -168,7 +173,26 @@ What it shows:
   From n=50 up, BGMA `low` has a 6 to 80 times smaller excess, at 8 to 24 times the runtime.
 - The 1-tree bound costs about 35–55% of a `low` run; Held–Karp needs 0.30 s at n=20 and doubles per city.
 
-Reproduce (about ten minutes): `node bench/runtime_bench.js --json=docs/runtime.json --web=docs/runtime_data.js`.
+### Nature, with an effort dial
+
+The nature solver (`src/nature/nature_core.js`) now exposes the same five-level ladder. Its
+old fixed 120k-proposal budget stopped scaling above n≈51, which is why the historical nature
+column collapses at n=400. The ladder scales proposals with `n²` and adds independent restarts:
+
+| effort | median gap vs 1-tree bound | n=50 | n=100 | n=200 | n=300 |
+|---|---:|---:|---:|---:|---:|
+| `low` | +1.55% | 9 ms | 35 ms | 142 ms | 309 ms |
+| `mid` | +1.49% | 22 ms | 86 ms | 361 ms | 896 ms |
+| `high` | +1.35% | 68 ms | 263 ms | 1.06 s | 2.83 s |
+| `xhigh` | +1.08% | 180 ms | 681 ms | 3.07 s | 7.42 s |
+| `max` | +1.02% | 499 ms | 2.05 s | 8.79 s | 22.5 s |
+
+16 synthetic instances (n=50/100/200/300; 2 seeds × uniform/cluster), 1-tree bound with 400
+subgradient iterations. `max` is a portfolio of the `xhigh` run and a heavier run, so it can
+never be worse than `xhigh` on the same instance. At n ≤ 22 every level matched Held–Karp on
+**18/18 instances**. Reproduce: `node src/nature/nature_effort.js --ns=50,100,200 --efforts=low,mid,high,xhigh,max --seeds=2 --kind=both --bound=1`.
+
+Reproduce the runtime table above (about ten minutes): `node bench/runtime_bench.js --json=docs/runtime.json --web=docs/runtime_data.js`.
 The same data drives the runtime table in both pages under `docs/`; the pages also show the live
 runtime of each panel. Analysis and caveats: [docs/gerdal.md](docs/gerdal.md) (section "Measured runtime").
 
@@ -179,6 +203,11 @@ runtime of each panel. Analysis and caveats: [docs/gerdal.md](docs/gerdal.md) (s
 | `src/beam/beam_fast.js` | optimised beam + tunnel (arena, bitsets, DLB 2-opt, Or-opt) |
 | `src/beam/beam_simple.js` | same solver written for reading |
 | `src/nature/nature_tsp.js` | population + annealing + recombination solver |
+| `src/nature/nature_core.js` | Parameterised nature core (`nature`, `runEffort`, all knobs); defaults reproduce the page |
+| `src/nature/nature_effort_profiles.js` | Shared `low|mid|high|xhigh|max` nature budgets |
+| `src/nature/nature_effort.js` | Tuned nature CLI with `--effort`, `--bound`, `--tour`, `--json` |
+| `tuning/tune_nature.js` | Nature knob sweep (quality vs 1-tree bound vs runtime) |
+| `tuning/validate_nature_effort.js` | Checks every nature effort level against Held–Karp (n ≤ 22) |
 | `docs/nature_tsp.html` | visual page with optimum / bound panel |
 | `bench/merge_bench.js` | "mix the wave, then contract" comparison |
 | `bench/bench_dataset.js` | dataset bench (greedy / beam+tunnel / nature) |

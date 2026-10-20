@@ -466,6 +466,10 @@ a few passes, so the practical growth is close to quadratic.
   capped at 120 000 proposals per tour, so its time grows slowly (n^1.3, 0.56 s at
   n=400) while quality collapses (+35% at n=400). At n=20–50 it costs 12–72 ms, more than
   `BGMA low` or `BGMA mid` (1.6–19 ms), because its budget 1500 + 45 n^2 proposals is large for small n.
+  The tuned ladder in [TSP_NOTES.md](TSP_NOTES.md) §4.3 replaces that cap with `c*n^2`
+  budgets and independent restarts: its median gap to the 1-tree bound at n=50–300 is
+  +1.55% / +1.49% / +1.35% / +1.08% / +1.02% for `low`→`max`, whereas the fixed cap is
+  +23.95% at n=300 and +35% against the best tour at n=400.
 - **The reference computations.** The 1-tree bound (400 subgradient steps, each a dense
   O(n^2) Prim) costs 64 ms at n=200 and 267 ms at n=400, about 35–55% of a
   `low` run, and much less than `max`. Held–Karp is exact but exponential: 302 ms at

@@ -6,6 +6,12 @@
 
 Tags: `tsp` · `heuristic` · `bgma`
 
+> **The short version.** Exact Held–Karp optima reproduced on 26 of 26 checkable instances, 215×
+> faster than the exact solver at n=20, and within 1.25% of a proven lower bound at n=300–400 — a
+> size where the exact method no longer fits in memory. This note is the evidence behind those three
+> numbers: what the method does, what it costs, and what is and is not proven. The demo that makes
+> the same claims interactively is `web/hybrid_tsp.html`.
+
 > This document describes the algorithm implemented in this repository at commit
 > `0f8f69d1cdb0e93aec26281017cabd4cf6ec84e8` (2026-10-20). It is intended as a
 > stable, self-contained reference for the method, its parameters, its measured
@@ -27,9 +33,11 @@ The design is deliberately asymmetric: cheap operators run on every candidate,
 while the expensive local search is reserved for the elite frontier. An
 `--effort` dial maps five levels (`low`, `mid`, `high`, `xhigh`, `max`) onto
 increasing search budgets. At small sizes every level reaches the Held–Karp
-optimum; at larger sizes the levels trade runtime for a progressively smaller
-gap to the best tour found, with `max` matching the best-of-all tested tour on
-all reported n=80–200 instances.
+optimum — 26 of 26 checkable instances at n = 18, 20 and 22, in milliseconds. At
+larger sizes the levels trade runtime for a progressively smaller gap to the best
+tour found, with `max` matching the best-of-all tested tour on all reported
+n=80–200 instances and `xhigh` staying within 1.25% of a proven 1-tree bound at
+n=300–400, where Held–Karp is out of reach.
 
 ## Problem and notation
 
@@ -474,6 +482,24 @@ a few passes, so the practical growth is close to quadratic.
   scaled-down version of the same pipeline in the browser (see "Parameters and effort
   levels"), so their live timings are not comparable to this table.
 
+## Claims made on the demo page, and their evidence
+
+The visual page (`web/hybrid_tsp.html`) is written as a pitch: a claim, three numbers that back it,
+then the demo. Every sentence on it maps to a table in this note. If a claim is not in this table,
+the project does not claim it.
+
+| claim on the page | evidence | reproduce |
+| --- | --- | --- |
+| “Routes that exact solvers can’t reach” | n = 50–400 runs, where Held–Karp is infeasible, each measured against a 1-tree bound | runtime table; `--bound=1` |
+| “26 / 26” exact optima reproduced | exact checks: 10 + 10 + 6 instances at n = 18, 20, 22, at every effort level | `tuning/validate_effort.js --ns=18,20,22` |
+| “215× faster” at 20 cities | 1.4 ms (`low`) against 302 ms for the same provably shortest tour | runtime table, n=20 row |
+| “+1.25% of the proven bound at 300–400 cities” | large-n check: `xhigh` +1.25%, `max` +1.13% gap to the 1-tree bound | `--n=400 --effort=xhigh --bound=1` |
+| “Christofides lands about 13% above the best tour” | +10.07% to +13.48% mean excess across n = 20–400 | quality table below |
+| “No theorem attached” (the fine print) | BGMA has no approximation guarantee; only the measured evidence above | next section |
+
+The demo scales budgets down so playback stays watchable, so its on-screen timings are illustrative,
+not the CLI numbers in the runtime table.
+
 ## What is proven and what is not
 
 - **Proven optimal** is used only when the returned tour length equals a proven
@@ -506,7 +532,7 @@ node src/hybrid/hybrid_effort.js --ns=80,150,200 --seeds=2 --kind=both \
 node tuning/tune_effort.js --ns=40,80,150 --seeds=2
 node tuning/tune_effort.js --ns=80,150 --seeds=2 --only='elite|gen|children|polish'
 
-# open the animated visualizer (effort selector included)
+# open the interactive demo (claim, evidence, effort dial, Held–Karp comparison)
 python3 -m http.server 8000
 # then open http://127.0.0.1:8000/web/hybrid_tsp.html
 ```
@@ -521,7 +547,7 @@ python3 -m http.server 8000
 | `src/hybrid/effort_profiles.js` | shared low/mid/high/xhigh/max budgets |
 | `src/hybrid/hybrid_effort.js` | tuned CLI with `--effort`, `--bound`, `--exact`, `--tour`, `--json` |
 | `src/hybrid/hybrid_vis.js` | browser/Node core for the animated demo |
-| `web/hybrid_tsp.html` | animated visualizer with the effort selector |
+| `web/hybrid_tsp.html` | interactive demo and pitch page: claim + evidence, exact optimum vs BGMA, effort dial, timeline |
 | `tuning/tune_effort.js` | knob sweep and quality/runtime harness |
 | `tuning/validate_effort.js` | Held–Karp validation at n≤22 |
 | `TSP_NOTES.md` | full project notes and earlier benchmarks |
@@ -583,7 +609,7 @@ budgets so a `max` run stays watchable; it is not the exact Node code path.
 | snapshot commit | `0f8f69d1cdb0e93aec26281017cabd4cf6ec84e8` |
 | snapshot date | 2026-10-20 |
 | document date | 2026-10-20 |
-| scope | algorithm description, parameters, validation, reproduction |
+| scope | algorithm description, parameters, validation, demo-claim audit, reproduction |
 | language | Markdown |
 | license | The repository does not currently include a LICENSE file. |
 

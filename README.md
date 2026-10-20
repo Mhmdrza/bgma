@@ -1,13 +1,20 @@
 # tsp-lab
 
-**A polynomial-time TSP solver that matches the exact optimum up to n = 22 and beats Christofides'
-1.5-approximation by a wide margin beyond it.**
+**Routes exact solvers can’t reach — in milliseconds.**
 
-Beam-Guided Memetic Annealing (BGMA) found the **true optimum on every instance we could check against
-Held–Karp**, in milliseconds. Held–Karp, the classic exact method, doubles its cost with every city, and
-past n ≈ 22 its table no longer fits in memory on an ordinary machine. Christofides' algorithm is the
-classic polynomial method with a proof (at most 1.5× optimal), but in practice it sits 10–13% above the
-best tour, while BGMA's `low` level is within 0.1–2.2% of it from n = 50 to 400.
+Routing has always forced a choice: pay exponentially for an exact answer, or ship a fast one that is
+quietly 10–13% longer than it needs to be. Beam-Guided Memetic Annealing (BGMA) ends that trade-off:
+it reproduces the exact Held–Karp optimum wherever that answer can still be computed, then keeps
+closing on the best possible tour long after the exact method runs out of memory.
+
+- **26/26 exact optima reproduced** at n = 18, 20 and 22, at *every* effort level, including the cheapest.
+- **215× faster than the exact solver** at 20 cities: 1.4 ms against 302 ms for the identical, provably
+  shortest tour.
+- **+1.25% of the proven bound at 300–400 cities**, where Christofides’ classic 1.5-approximation lands
+  about 13% above the best tour.
+
+**[Open the interactive demo →](web/hybrid_tsp.html)** — 18 cities with the exact optimum side by side.
+Drag the effort dial, roll a new seed, and watch the gap.
 
 | | Held–Karp (exact) | BGMA |
 |---|---|---|
@@ -34,15 +41,16 @@ never be below it, so the reported gap is a guarantee, not an estimate.
   trusting any reference answer.
 - At n = 80–200 the median tour is within **+0.71%** of the bound at `xhigh`/`max`. The bound is
   loose, so the true gap is smaller still.
-- At n = 300–400 the best tours stay within **+1.13%** of the bound, and `low` finishes
-  n=400 in under a second.
+- At n = 300–400 `xhigh` stays within **+1.25%** of the bound and `max` within **+1.13%**, while
+  `low` finishes n=400 in under a second.
 
 ### Honest fine print
 
-BGMA is a heuristic. "Optimal" above means *matched on every instance we could verify*, not a
-proof that it always is, and no polynomial-time algorithm is known to guarantee TSP optima.
-The exact check covers n ≤ 22 (26 instances); beyond that the evidence is the lower bound.
-Details and caveats: [docs/gerdal.md](docs/gerdal.md).
+Every number here comes from a run you can reproduce — nothing is a marketing estimate. BGMA is a
+heuristic. "Optimal" above means *matched on every instance we could verify*, not a proof that it
+always is, and no polynomial-time algorithm is known to guarantee TSP optima. The exact check covers
+n ≤ 22 (26 instances); beyond that the evidence is the lower bound. Details and caveats:
+[docs/gerdal.md](docs/gerdal.md).
 
 ---
 
@@ -94,7 +102,7 @@ node tuning/tune_effort.js --ns=40,80,150 --seeds=2      # learn the effort knob
 node tuning/validate_effort.js --ns=18,20,22 --seeds=5   # exact Held-Karp check
 node tuning/validate_christofides.js                     # matching vs brute force, Christofides <= 1.5x
 open web/nature_tsp.html                              # visual page (nature solver)
-open web/hybrid_tsp.html                              # step-by-step hybrid, effort dial + Held–Karp
+open web/hybrid_tsp.html                              # the pitch: exact optimum vs BGMA, live
 ```
 
 ### A proven guarantee, for comparison
@@ -182,9 +190,9 @@ runtime of each panel. Analysis and caveats: [docs/gerdal.md](docs/gerdal.md) (s
 | `src/hybrid/hybrid_effort.js` | Tuned BGMA CLI with `--effort=low|mid|high|xhigh|max`, `--bound`, `--tour`, `--json` |
 | `tuning/tune_effort.js` | Sweep harness for the effort knobs (quality vs 1-tree bound vs runtime) |
 | `tuning/validate_effort.js` | Checks every effort level against Held–Karp (n ≤ 22) |
-| `web/hybrid_tsp.html` | Animated step-by-step hybrid demo with Held–Karp / 1-tree comparison (n ≤ 30) |
+| `web/hybrid_tsp.html` | interactive demo and pitch page: exact optimum vs BGMA, effort dial, timeline, live stats (n ≤ 30) |
 | `src/hybrid/hybrid_vis.js` | Browser/Node core behind the demo: `makeInstance`, `buildSnapshots`, `effortOptions`, `heldKarp`, `hkBound` |
-| `docs/gerdal.md` | Archival algorithm note for BGMA: design, pseudocode, effort ladder, validation |
+| `docs/gerdal.md` | Archival algorithm note for BGMA: design, pseudocode, effort ladder, validation, demo-claim audit |
 | `docs/TUNING_NOTES.md` | observations from the tuning sweeps and future-work hypotheses |
 | `bench/fri26_bench.js`, `bench/dantzig42_bench.js`, `bench/att48_bench.js` | TSPLIB runs |
 | `bench/n22_bench.js` | n=22 greedy vs beam+tunnel vs exact (never executed) |

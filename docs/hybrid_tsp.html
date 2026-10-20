@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Routes exact solvers can’t reach — BGMA, a new TSP solver</title>
-<meta name="description" content="BGMA reproduces the exact Held–Karp optimum in milliseconds and stays within 1.25% of a proven bound at 400 cities — where exact methods run out of memory.">
+<meta name="description" content="BGMA reproduces the exact Held–Karp optimum in milliseconds, stays within 1.13% of a proven bound at 400 cities and within 2.16% at 1000 — where exact methods run out of memory.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --ink:#16181d; --muted:#6b7280; --line:#e2e2de;
@@ -48,6 +48,19 @@
   .detail h3 { font-family:var(--mono); font-size:11.5px; margin:0 0 4px; color:var(--algo); letter-spacing:.02em; }
   .detail p { margin:0; font-size:12.5px; line-height:1.5; color:var(--muted); }
   .detail code { font-size:11.5px; }
+
+  .stress { margin-top:18px; background:var(--panel); border:1px solid var(--line);
+            border-radius:10px; padding:16px 18px; }
+  .stress h2 { font-size:13px; margin:0 0 8px; }
+  .stress table { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:12px;
+                  margin-top:12px; }
+  .stress th, .stress td { text-align:right; padding:5px 6px; border-bottom:1px solid var(--line); }
+  .stress th:first-child, .stress td:first-child { text-align:left; }
+  .stress th { color:var(--muted); font-weight:400; font-size:10.5px; text-transform:uppercase;
+               letter-spacing:.05em; }
+  .stress td.best { color:var(--algo); }
+  .stress .note { margin-top:10px; }
+  .stress code { font-size:11.5px; }
   .closing { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between;
              gap:12px 20px; margin-top:18px; background:var(--panel); border:1px solid var(--line);
              border-radius:10px; padding:14px 16px; }
@@ -125,9 +138,10 @@
   <p class="lede">
     Routing has always forced a choice: pay exponentially for an exact answer, or ship a fast one that
     is quietly 10–13% longer than it needs to be. BGMA ends that trade-off. It reproduced the exact
-    Held–Karp optimum every time the two could be compared — in 1.4&nbsp;ms — and at 300–400 cities
-    it holds within 1.25% of a proven lower bound, a size where the exact method no longer fits in
-    memory.
+    Held–Karp optimum every time the two could be compared — in 1.4&nbsp;ms — at 400 cities it holds
+    within 1.13% of a proven lower bound, and at 1000, where the exact method is long gone, within
+    2.16%. On every 1000-city instance whose optimum is known by construction, it returns that
+    optimum exactly.
   </p>
   <div class="evidence">
     <div class="ev"><span class="ev-n">26 / 26</span>
@@ -136,9 +150,9 @@
     <div class="ev"><span class="ev-n">215× faster</span>
       <span class="ev-l">than the exact solver at 20 cities: 1.4&nbsp;ms against 302&nbsp;ms for the
         identical, provably shortest route</span></div>
-    <div class="ev"><span class="ev-n">+1.25%</span>
-      <span class="ev-l">of the proven bound at 300–400 cities, where the classic 1.5-approximation
-        (Christofides) lands about 13% above the best tour</span></div>
+    <div class="ev"><span class="ev-n">+1.13% / +2.16%</span>
+      <span class="ev-l">of the proven bound at 400 and 1000 cities — where the classic
+        1.5-approximation (Christofides) lands about 13% above the best tour</span></div>
   </div>
   <div class="cta">
     <button id="tryCta" class="primary">Try it on your own map ↓</button>
@@ -232,6 +246,29 @@
 
   <section id="runtimeTable"></section>
 
+  <section class="stress">
+    <h2>Past 400 cities: the gap grows, and the top of the ladder stops paying</h2>
+    <p class="sub">Gap to a <em>converged</em> 1-tree lower bound (600 subgradient iterations,
+      re-checked at 6000, which moved it by 0.002 percentage points). Times above 400 were measured
+      with several runs in flight, so they are upper bounds; the clean sequential points are 64 s at
+      400, 147 s at 500 and 341 s at 600.</p>
+    <table>
+      <thead><tr><th>cities</th><th>low</th><th>mid</th><th>high</th><th>xhigh</th><th>max</th></tr></thead>
+      <tbody>
+        <tr><td>400</td><td>+3.70%</td><td>+2.01%</td><td>+1.78%</td><td>+1.24%</td><td class="best">+1.11%</td></tr>
+        <tr><td>600</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="best">+1.33%</td></tr>
+        <tr><td>800</td><td>—</td><td>—</td><td>—</td><td>—</td><td class="best">+1.59%</td></tr>
+        <tr><td>1000</td><td>+3.72%</td><td>+3.06%</td><td>+2.57%</td><td class="best">+2.16%</td><td class="best">+2.16%</td></tr>
+      </tbody>
+    </table>
+    <p class="note">At 1000 cities <code>xhigh</code> and <code>max</code> returned the identical tour
+      (2176.903 — <code>max</code> in 72 min against 16 min). For n ≥ 80 the two presets already share the
+      same beam width (n/2) and generation count (n/8), so the extra budget buys restarts and elite
+      capacity only — here, nothing. The same sweep solved every instance with a provable optimum
+      exactly (convex position at 1000; collinear and grid at 400), with no invalid tour, length
+      mismatch or bound violation in ~160 runs. Cost at this scale grows like n<sup>4</sup>, not n<sup>2</sup>.</p>
+  </section>
+
   <section class="closing">
     <p><b>Still skeptical?</b> Good — that is the right instinct for a solver with no theorem
       attached. Drop the effort to <code>low</code>, roll a new seed, and watch the gap anyway.</p>
@@ -244,8 +281,11 @@
   here is a marketing estimate. BGMA is a heuristic, and confidence should scale with evidence, not with
   adjectives. “Optimal” means <em>matched on every instance we could verify</em>, not a theorem. Up to
   20 cities the target comes from Held–Karp, which needs (n−1)·2^(n−1) states and stops there; beyond that a
-  1-tree + subgradient lower bound takes over, so every reported gap is a guarantee rather than a guess.
-  The demo runs scaled-down effort budgets to stay watchable; the full <code>--effort</code> ladder lives in
+  1-tree + subgradient lower bound takes over, so every reported gap is a guarantee rather than a guess —
+  but it is a <em>loose</em> guarantee, and how loose depends on the geometry: on a collinear instance at
+  400 cities the bound sits 69% below a tour that is provably optimal. The +2.16% at 1000 cities is
+  therefore an upper bound on the true gap, not a measured excess over the optimum. The demo runs
+  scaled-down effort budgets to stay watchable; the full <code>--effort</code> ladder lives in
   <code>hybrid_effort.js</code>.
 </footer>
 

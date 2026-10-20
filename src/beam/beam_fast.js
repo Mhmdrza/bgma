@@ -314,40 +314,57 @@ function greedy(inst, start) {
  * the page's refine(); D access unchanged (array of rows).
  * Defaults reproduce the page exactly; --oropt / --oroptMaxL / --epsilon alter it.
  */
+/* Allocation-free rewrite. Same scan order, same first-improvement rule and the
+ * same output frame as the original slice/concat version, so the resulting tour
+ * is bit-identical -- it just stops allocating O(n) arrays inside the loops.
+ * A doubled scratch array (t2[x] = t[x % n]) removes the modulo from the hot
+ * path; it is refreshed once per accepted move, which is already O(n). */
 function refineBase(D, tour, o) {
-  var O = cfgWith(o), n = tour.length, t = tour.slice(), improved = true, i, j, k, len;
+  var O = cfgWith(o), n = tour.length, t = Int32Array.from(tour);
   var eps = O.epsilon, maxL = Math.min(O.oroptMaxL, n - 1);
+  var t2 = new Int32Array(2 * n), tmp = new Int32Array(n), i, j, k, len, z, lo, hi;
+  function refresh() { for (var q = 0; q < n; q++) { t2[q] = t[q]; t2[n + q] = t[q]; } }
+  refresh();
+  var improved = true;
   while (improved) {
     improved = false;
     for (i = 0; i < n - 1 && !improved; i++) {
+      var a = t2[i], b = t2[i + 1], Da = D[a];
       for (j = i + 2; j < n; j++) {
         if (i === 0 && j === n - 1) continue;
-        var a = t[i], b = t[i + 1], c = t[j], d = t[(j + 1) % n];
-        if (D[a][c] + D[b][d] - D[a][b] - D[c][d] < -eps) {
-          var seg = t.slice(i + 1, j + 1).reverse();
-          t = t.slice(0, i + 1).concat(seg, t.slice(j + 1));
-          improved = true; break;
+        var c = t2[j], d = t2[j + 1];
+        if (Da[c] + D[b][d] - Da[b] - D[c][d] < -eps) {
+          for (lo = i + 1, hi = j; lo < hi; lo++, hi--) { var x = t[lo]; t[lo] = t[hi]; t[hi] = x; }
+          refresh(); improved = true; break;
         }
       }
     }
     if (improved) continue;
     for (len = 1; O.oropt && len <= maxL && !improved; len++) {
+      var restLen = n - len;
       for (i = 0; i < n && !improved; i++) {
-        var tt = t.slice(i).concat(t.slice(0, i));
-        var sg = tt.slice(0, len), rest = tt.slice(len);
-        var prev = rest[rest.length - 1], next = rest[0];
-        var s0 = sg[0], s1 = sg[len - 1];
+        var s0 = t2[i], s1 = t2[i + len - 1];
+        var prev = t2[i - 1 + n], next = t2[i + len];
         var gain = D[prev][s0] + D[s1][next] - D[prev][next];
-        for (k = 0; k < rest.length - 1; k++) {
-          var u = rest[k], v = rest[k + 1], base = D[u][v];
+        for (k = 0; k < restLen - 1; k++) {
+          var u = t2[i + len + k], v = t2[i + len + k + 1], base = D[u][v];
           var fwd = D[u][s0] + D[s1][v] - base, rev = D[u][s1] + D[s0][v] - base;
-          if (fwd < gain - eps) { t = rest.slice(0, k + 1).concat(sg, rest.slice(k + 1)); improved = true; break; }
-          if (rev < gain - eps) { t = rest.slice(0, k + 1).concat(sg.slice().reverse(), rest.slice(k + 1)); improved = true; break; }
+          if (fwd < gain - eps || rev < gain - eps) {
+            var w = 0;
+            for (z = 0; z <= k; z++) tmp[w++] = t2[i + len + z];          // rest[0..k]
+            if (fwd < gain - eps) { for (z = 0; z < len; z++) tmp[w++] = t2[i + z]; }
+            else { for (z = len - 1; z >= 0; z--) tmp[w++] = t2[i + z]; } // reversed segment
+            for (z = k + 1; z < restLen; z++) tmp[w++] = t2[i + len + z]; // rest[k+1..]
+            for (z = 0; z < n; z++) t[z] = tmp[z];
+            refresh(); improved = true; break;
+          }
         }
       }
     }
   }
-  return t;
+  var out = new Array(n);
+  for (i = 0; i < n; i++) out[i] = t[i];
+  return out;
 }
 
 /* ============================ baseline beam ==============================
@@ -492,18 +509,19 @@ function sweep2opt(D, t, pos, n, guardMax, eps) {
 /* Or-opt: move a segment of 1..maxL cities, best move per position, apply by rebuild */
 function orOptFast(D, t, pos, near, kn, n, maxL, guardMax, eps) {
   maxL = Math.min(maxL, n - 1);
-  var improved = true, guard = 0;
+  var improved = true, guard = 0, z, q2, w;
+  /* scratch, reused for every scan position: the old version allocated a fresh
+   * Uint8Array(n) per (length, position), i.e. O(n) zeroing inside an O(n^2)
+   * loop, plus two arrays per accepted move. Same moves, same order. */
+  var inSeg = new Uint8Array(n), seg = new Int32Array(maxL), arr = new Int32Array(n);
   while (improved && guard++ < guardMax) {
     improved = false;
     for (var L = 1; L <= maxL && !improved; L++) {
       for (var i = 0; i < n && !improved; i++) {
-        var seg = [], z;
-        for (z = 0; z < L; z++) seg.push(t[(i + z) % n]);
+        for (z = 0; z < L; z++) { var sc = t[(i + z) % n]; seg[z] = sc; inSeg[sc] = 1; }
         var s0 = seg[0], s1 = seg[L - 1];
         var prev = t[(i - 1 + n) % n], next = t[(i + L) % n];
         var save = D[prev * n + s0] + D[s1 * n + next] - D[prev * n + next];
-        var inSeg = new Uint8Array(n);
-        for (z = 0; z < L; z++) inSeg[seg[z]] = 1;
         var best = -eps, bestU = -1, bestRev = false;
 
         for (var side = 0; side < 2; side++) {
@@ -519,12 +537,21 @@ function orOptFast(D, t, pos, near, kn, n, maxL, guardMax, eps) {
             if (dR < best) { best = dR; bestU = u; bestRev = true; }
           }
         }
-        if (bestU < 0) continue;
+        if (bestU < 0) { for (z = 0; z < L; z++) inSeg[seg[z]] = 0; continue; }
 
-        var arr = [], q2;
-        for (q2 = 0; q2 < n; q2++) if (!inSeg[t[q2]]) arr.push(t[q2]);
-        arr.splice(arr.indexOf(bestU) + 1, 0, ...(bestRev ? seg.slice().reverse() : seg));
+        /* rebuild in one pass: cities outside the segment in tour order, with the
+         * segment (optionally reversed) spliced in right after bestU */
+        w = 0;
+        for (q2 = 0; q2 < n; q2++) {
+          var cc = t[q2];
+          if (!inSeg[cc]) arr[w++] = cc;
+          if (cc === bestU) {
+            if (bestRev) { for (z = L - 1; z >= 0; z--) arr[w++] = seg[z]; }
+            else { for (z = 0; z < L; z++) arr[w++] = seg[z]; }
+          }
+        }
         for (q2 = 0; q2 < n; q2++) { t[q2] = arr[q2]; pos[t[q2]] = q2; }
+        for (z = 0; z < L; z++) inSeg[seg[z]] = 0;
         improved = true;
       }
     }

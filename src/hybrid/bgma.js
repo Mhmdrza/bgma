@@ -15,6 +15,7 @@
 const fs = require('fs');
 const path = require('path');
 const { effortPreset } = require('./effort_profiles.js');
+const { instanceFromSpec } = require('./instance.js');
 
 /* --------------------------- load implementations ------------------------ */
 
@@ -266,4 +267,48 @@ function runEffort(inst, seed, level, overrides) {
   return hybrid(inst, seed, withO(effortPreset(L, inst.n)));
 }
 
-module.exports = { B, NAT, DEFAULTS, hybrid, hybridOnce, runEffort, erx, doubleBridge, effortPreset, tourKey };
+/* ------------------------- parallel work units ---------------------------
+ * `max` is a portfolio of three independent, deterministic hybrid runs:
+ *   arm 0: xhigh at `seed`
+ *   arm 1: max restart 0 at seed+104729
+ *   arm 1: max restart 1 at seed+2*104729
+ * Splitting them across threads is result-identical to runEffort(), because
+ * each unit is the exact call hybridOnce() would have made, in any order.
+ */
+function unitsFor(level, n, seed) {
+  const L = String(level || 'mid').toLowerCase();
+  if (L === 'max') {
+    const s2 = (seed + 104729) >>> 0;
+    return [
+      { level: 'xhigh', seed, restart: 0, arm: 0, preset: effortPreset('xhigh', n) },
+      { level: 'max', seed: s2, restart: 0, arm: 1, preset: effortPreset('max', n) },
+      { level: 'max', seed: s2, restart: 1, arm: 1, preset: effortPreset('max', n) }
+    ];
+  }
+  return [{ level: L, seed, restart: 0, arm: 0, preset: effortPreset(L, n) }];
+}
+
+/* Run one unit in this thread. Used by the worker pool; also callable directly. */
+function hybridUnit(instSpec, seed, preset, restart) {
+  const inst = instanceFromSpec(B, instSpec);
+  const P = Object.assign({}, DEFAULTS, preset || {});
+  const nearK = P.near ? P.near : rnd(inst.n / 10, 10);
+  const base = inst.base || B.buildInstance(inst.n, inst.seed, inst.kind, nearK);
+  const t0 = process.hrtime.bigint();
+  const res = hybridOnce(inst, base, (seed + ((restart | 0) * 104729)) >>> 0, P);
+  return { len: res.len, tour: res.tour, ms: Number(process.hrtime.bigint() - t0) / 1e6 };
+}
+
+/* Fold unit results back into exactly what runEffort(level) would have returned. */
+function combineUnits(level, results) {
+  if (String(level || 'mid').toLowerCase() !== 'max') return results[0];
+  let a = null, b = null;
+  for (const r of results) {
+    if (r.arm === 0) a = r;
+    else if (!b || r.len < b.len - 1e-9) b = r;
+  }
+  return b.len <= a.len ? b : a;
+}
+
+module.exports = { B, NAT, DEFAULTS, hybrid, hybridOnce, runEffort, erx, doubleBridge,
+  effortPreset, tourKey, unitsFor, hybridUnit, combineUnits };

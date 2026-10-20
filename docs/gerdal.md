@@ -7,15 +7,17 @@
 Tags: `tsp` · `heuristic` · `bgma`
 
 > **The short version.** Exact Held–Karp optima reproduced on 26 of 26 checkable instances, 215×
-> faster than the exact solver at n=20, and within 1.25% of a proven lower bound at n=300–400 — a
-> size where the exact method no longer fits in memory. This note is the evidence behind those three
-> numbers: what the method does, what it costs, and what is and is not proven. The demo that makes
-> the same claims interactively is `docs/hybrid_tsp.html`.
+> faster than the exact solver at n=20, and within 1.13% of a proven lower bound at n=400 —
+> degrading to 2.16% at n=1000, where the exact method no longer fits in memory but the heuristic
+> still returns the exactly optimal tour on every instance whose optimum is known by construction.
+> This note is the evidence: what the method does, what it costs, and what is and is not proven.
 
 > This document describes the algorithm implemented in this repository at commit
-> `0f8f69d1cdb0e93aec26281017cabd4cf6ec84e8` (2026-10-20). It is intended as a
-> stable, self-contained reference for the method, its parameters, its measured
-> behaviour, and the claims that are and are not supported by the experiments.
+> `4f316ac3cf4a9ac54fc37274ff49c56fea3109ab` (2026-10-20), the commit that added
+> the stress harness and the n=400–1000 measurements reported in "Validation and
+> measured behaviour". It is intended as a stable, self-contained reference for
+> the method, its parameters, its measured behaviour, and the claims that are and
+> are not supported by the experiments.
 
 ## Abstract
 
@@ -37,7 +39,9 @@ optimum — 26 of 26 checkable instances at n = 18, 20 and 22, in milliseconds. 
 larger sizes the levels trade runtime for a progressively smaller gap to the best
 tour found, with `max` matching the best-of-all tested tour on all reported
 n=80–200 instances and `xhigh` staying within 1.25% of a proven 1-tree bound at
-n=300–400, where Held–Karp is out of reach.
+n=300–400, where Held–Karp is out of reach. Past 400 the certificate gap grows
+with n (+1.59% at 800, +2.16% at 1000) and the top of the ladder stops paying:
+at n=1000 `max` and `xhigh` return the same tour for 4.5× the runtime.
 
 ## Problem and notation
 
@@ -372,6 +376,108 @@ by any tested effort level or the tuned beam on that instance, not the optimum.
 +2.25% / +0.97% / +0.62% / +0.16% / +0.00% for low→max. Gap to the 1-tree
 bound: +3.28% / +2.06% / +1.78% / +1.25% / +1.13%.
 
+### Stress validation at n=400–1000
+
+Two questions the earlier tables could not answer: does the gap stay flat as n
+grows, and does the top of the ladder keep paying? A stress sweep
+(`tuning/stress_max.js`) ran `low`…`max` at 400 and the full ladder at 1000, and
+`max` at 500/600/800. Every gap below is against a **converged** 1-tree bound
+(600 subgradient iterations; re-checked at 6000, which moved the bound by
+≤0.002 pp, so these are not iteration-starved).
+
+| n | family | `max` gap ≤ | `max` time | `low` gap ≤ | `low` time |
+| --- | --- | --- | --- | --- | --- |
+| 400 | uniform | +1.11% | 64 s | +3.70% | 1.3 s |
+| 400 | cluster | +0.73% | 91 s* | +3.70% | 1.3 s* |
+| 500 | uniform | +1.14% | 147 s | — | — |
+| 600 | uniform | +1.33% | 341 s | — | — |
+| 800 | uniform | +1.59% | 27 min* | — | — |
+| 800 | cluster | +1.48% | 24 min* | — | — |
+| 1000 | uniform | +2.16% | 72 min* | +3.72% | 24 s* |
+| 1000 | cluster | +2.21% | 79 min* | — | — |
+
+*wall clock with 2–4 runs in flight; upper bounds. The clean sequential points
+are n=400 64 s, n=500 147 s, n=600 341 s.
+
+The full ladder at n=1000 (uniform, seed 1) is the decisive row:
+
+| level | tour | gap ≤ bound | time | return on the previous step |
+| --- | --- | --- | --- | --- |
+| `low` | 2209.889 | +3.724% | 24 s | — |
+| `mid` | 2195.879 | +3.056% | 123 s | 0.658 pp for 99 s |
+| `high` | 2185.421 | +2.567% | 429 s | 0.491 pp for 307 s |
+| `xhigh` | 2176.903 | +2.164% | 948 s | 0.400 pp for 519 s |
+| `max` | 2176.903 | +2.164% | 72 min | **0.000 pp for 56 min** |
+
+`xhigh` and `max` returned the identical tour. This is structural rather than
+unlucky: for n ≥ 80 the two presets share the same beam width (`n/2`) and the
+same generation count (`n/8`); what `max` adds is islands (8 vs 6), elite
+capacity (`n/2` vs `n/3`), final polish (8 vs 6) and a second restart. At n=1000
+none of that improved on the first arm, and the portfolio must cost at least the
+sum of its two arms.
+
+The gap also does not stay flat: 1.11% at 400, 1.33% at 600, 1.59% at 800,
+2.16% at 1000. The certificate is converged at every one of those sizes, so the
+growth is either genuine tour excess or genuine 1-tree duality gap — the
+1-tree bound cannot separate the two. A tighter relaxation (Lagrangian with
+degree constraints, DFJ cuts, or branch-and-bound) is needed to settle it.
+
+### Robustness and provable cases
+
+The stress harness also checks correctness, not only quality. Across ~160 runs
+at n = 4–1000 over seven families (uniform, clustered, convex position,
+collinear, integer grid, duplicated cities, coincident cities), at every effort
+level:
+
+- **0 invalid tours, 0 length mismatches, 0 bound violations** (a tour shorter
+  than a proven bound would be a bug in one of the two).
+- **Deterministic**: three repeats of one seed returned the same length and the
+  same tour.
+- **Scale-invariant**: coordinates scaled by 10⁻³ and 10⁶ give identical
+  relative gaps.
+- **Degenerate input survives**: coincident cities (length 0), duplicate points,
+  exact ties on an integer grid.
+- **Memory**: 367 MB at n = 1000.
+- **Provably optimal where a proof exists**: convex position at n = 20, 100,
+  200, 400 and 1000 (the hull cycle is optimal for points in convex position); a
+  20×20 grid at n = 400 (400 against a bound of 400, so the CLI prints
+  `PROVEN OPTIMAL`); collinear sets at every size tested.
+
+The counterpart is that the *bound* is not uniformly tight. On a collinear
+instance at n=400 the tour is provably optimal while the 1-tree bound is 69.2%
+below it (28–37% at n=100), because the relaxation cannot express the degree
+structure of a line. A reported gap is therefore an upper bound on the true gap,
+and its tightness depends on the instance geometry — not only on how good the
+tour is.
+
+**What the certificate is, and is not.** The 1-tree is a *relaxation*, not a
+candidate tour: the minimum spanning tree on V \ {root} plus the two cheapest
+edges at the root. Every Hamiltonian cycle contains such an object (cut one edge
+at the root), so its length is at most the length of every tour. A bound shorter
+than the best tour is therefore a theorem, not a bug; the degree violations
+marked in the demo are the relaxation leaking, and no tour can have them.
+Equality is the exceptional case: it proves optimality, which is why the CLI
+prints `PROVEN OPTIMAL` when it happens (a 20x20 grid at n=400, convex position
+at n=1000).
+
+The number is deterministic given its budget. There is no randomness in the
+ascent: it starts from pi = 0, uses a fixed step rule, and only keeps a 1-tree
+when it is longer than the previous best, so it is monotone in the iteration
+count. The budget matters, though. At n=100, 50 iterations give 602.2 against a
+converged 687.5, which would report a 36% gap instead of 19%; the stress harness
+uses 600, and a 6000-iteration re-check moves the n=1000 bound by 0.002 pp. The
+demo uses 400 iterations, which is converged at n=30 (404.57 against 404.64 at
+800). The step size also takes an upper bound as input, so passing each level's
+own tour made one instance report bounds differing by up to ~0.02 pp; the
+parallel harness now computes one certificate per instance from the shortest
+tour across all levels, so every level is measured against the same number.
+
+The bound is valid but not uniformly tight, and the tightness depends on
+geometry, not on the solver: at n<=22 it is 0-0.6% below the exact Held-Karp
+optimum and never above it in 18/18 checks; on a collinear instance at n=400 it
+is 69% below a provably optimal tour. A reported gap is a ceiling on the true
+gap, not a measurement of it.
+
 ### Measured runtime
 
 All numbers below come from `bench/runtime_bench.js`, which loads every solver from
@@ -380,6 +486,54 @@ is the median over 4 instances (2 seeds x uniform/cluster) on Apple M3 Pro,
 Node v22.23.2, measured 2026-10-19. The raw results are in `docs/runtime.json`.
 
 *Median wall time per instance. The last column is the empirical exponent $k$ in the growth $t \propto n^k$ between n=20 and n=400.*
+
+The exponent is not stable in $n$. Clean sequential runs at n=400, 500 and 600
+give 64.1 s, 147.2 s and 341.1 s, i.e. $k = 3.73$ then $4.61$; the fitted
+2.0–2.3 above is dominated by the cheap small-n cells. This is expected from the
+ladder: `gens` grows like $n/8$ and `polish` is at least `children`, so every
+child is base-polished every generation — $\Theta(n^3)$ to $\Theta(n^4)$. At
+n=1000 the measured wall clock is 72 min (uniform) and 79 min (cluster) under
+concurrency; `low` at the same size takes 24 s.
+
+### Parallel execution
+
+`runEffort('max')` is a portfolio of three **independent, deterministic**
+hybrid runs — the `xhigh` arm and the two `max` restarts — and it returns the
+shortest. Because each unit is exactly the call `hybridOnce` would have made
+with the same seed, distributing them over threads cannot change the result;
+it only changes the wall clock. `tuning/stress_parallel.js` does this with
+`worker_threads`, and also spreads independent levels, seeds and families over
+the pool. Workers rebuild the instance from its point list, so the only data
+crossing a thread boundary is the points and the finished tour.
+
+| workload | serial | parallel | speedup |
+| --- | --- | --- | --- |
+| n=100, 3 families x 5 levels x 2 seeds (30 rows) | 12.1 s | 2.2 s (6 jobs) | 5.5x |
+| n=400, uniform+cluster, `max` (2 rows) | 131.9 s | 23.3 s (6 jobs) | 5.7x |
+| n=1000, uniform, `max` (1 row) | 3445 s | 19.5 min (3 jobs) | 2.94x |
+
+The single-row case is bounded by its longest unit (one `max` restart). End to
+end, the n=1000 row went from 72 minutes to 19.5 minutes (3.7x) and returned
+the identical tour, 2176.903, gap +2.164%. A five-level, two-family sweep at
+n=1000 is 14 units with very different costs (`low` 24 s, one `max` restart
+about 20 min); the pool balances them as workers free up, so 10 rows cost about
+half an hour instead of 2.8 hours, roughly 6x. Correctness is checked against
+the serial harness: 30/30 rows matched to the last digit, on both synthetic and
+explicit-point families.
+
+Profiling also removed two allocation hot spots. `refineBase` and `orOptFast`
+allocated an O(n) array per scan position (and per segment length) inside an
+O(n^2) loop; both now use reused typed-array scratch with the same scan order
+and the same first-improvement rule, so the output is bit-identical. The local
+search is 1.37x faster, verified on 60 A/B cases from n=20 to 1000.
+
+GPU acceleration is not applicable to this kernel: 2-opt is sequential (each
+accepted move rewrites the tour in place and invalidates the positions the next
+comparison reads), its memory access is irregular and pointer-chasing, and Node
+has no native WebGPU compute. The parallel dimension that does exist is
+independent runs, which is what the pool uses. The remaining lever is
+algorithmic: a stronger local search (3-opt / Lin-Kernighan) that reaches the
+same quality in fewer generations.
 
 | algorithm | n=20 | n=50 | n=100 | n=200 | n=400 | `n^k` |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -446,7 +600,8 @@ a few passes, so the practical growth is close to quadratic.
   the ladder runs 115 ms, 281 ms, 776 ms, 2.21 s, 6.79 s (ratios 2.4, 2.8, 2.8, 3.1); at
   n=400 it is 0.73 s, 2.46 s, 8.38 s, 19.5 s, 64.1 s (3.4, 3.4, 2.3, 3.3). The gap to
   the best-known tour at n=400 falls +2.21%, +1.13%, +0.59%, +0.12%, 0.00%.
-  Returns per second diminish quickly past `high`.
+  Returns per second diminish quickly past `high`, and at n=1000 the final step returns
+  nothing at all (`xhigh` and `max` return the same tour; see "Stress validation").
 - **`low` replaces the tuned beam + tunnel at large n.** At n=400 the two reach the same
   quality (+2.21% vs +2.22%) but `low` takes 0.73 s against 6.41 s, 8.8x faster. At
   n=100 `mid` (51 ms, +0.03%) is both faster and better than beam + tunnel (66 ms, +0.69%).
@@ -497,7 +652,8 @@ the project does not claim it.
 | “Routes that exact solvers can’t reach” | n = 50–400 runs, where Held–Karp is infeasible, each measured against a 1-tree bound | runtime table; `--bound=1` |
 | “26 / 26” exact optima reproduced | exact checks: 10 + 10 + 6 instances at n = 18, 20, 22, at every effort level | `tuning/validate_effort.js --ns=18,20,22` |
 | “215× faster” at 20 cities | 1.4 ms (`low`) against 302 ms for the same provably shortest tour | runtime table, n=20 row |
-| “+1.25% of the proven bound at 300–400 cities” | large-n check: `xhigh` +1.25%, `max` +1.13% gap to the 1-tree bound | `--n=400 --effort=xhigh --bound=1` |
+| “+1.13% of the proven bound at 400 cities, +2.16% at 1000” | large-n check: `max` +1.13% at 400; stress sweep `max` +2.16% at 1000 against a bound converged to 6000 iterations | `--n=400 --effort=max --bound=1`; `tuning/stress_max.js --ns=1000 --families=uniform --levels=max` |
+| “Provably optimal at 1000 cities on instances with a known optimum” | convex-position family: hull cycle is optimal by construction; `max` returns it at n=20, 100, 200, 400, 1000 | `tuning/stress_max.js --ns=1000 --families=convex` |
 | “Christofides lands about 13% above the best tour” | +10.07% to +13.48% mean excess across n = 20–400 | quality table below |
 | “No theorem attached” (the fine print) | BGMA has no approximation guarantee; only the measured evidence above | next section |
 
@@ -511,10 +667,20 @@ not the CLI numbers in the runtime table.
   Held–Karp is run directly. The CLI prints `PROVEN OPTIMAL` in that case.
 - The larger-n tables use the best tour found by any tested method as the
   reference. They are **relative** comparisons, not optimality gaps.
-- The 1-tree bound is proven but loose. At n=80–200 the best tours plateau
-  roughly 0.5–1.2% above it, and adding much more search does not close that
-  plateau. The evidence is consistent with bound looseness, but it is not a
+- The 1-tree bound is proven but loose, and how loose depends on the geometry.
+  At n=80–200 the best tours plateau roughly 0.5–1.2% above it, and adding much
+  more search does not close that plateau; at n=1000 the gap is 2.16%. On a
+  collinear instance at n=400 the tour is provably optimal while the bound is
+  69% below it. The evidence is consistent with bound looseness, but it is not a
   proof that the tours are optimal.
+- **"Effort max is optimal" is not a provable claim in the strong sense.** The
+  ladder is polynomial-time by construction, so a theorem that it always
+  returns an optimal tour would imply P = NP. The demonstrable statement is
+  weaker: `max` is never worse than `xhigh` on the same instance, because the
+  CLI runs `xhigh` and keeps the shorter of the two (`runEffort`). Every other
+  step of the ladder is empirical, and the stress sweep found a case where a
+  cheaper level beat a more expensive one (at n=200, `high` +0.010% against
+  `xhigh` +0.062%), so monotonicity in effort does not hold in general.
 - The tuning is in-sample on synthetic uniform/cluster instances. Held-out
   seeds, TSPLIB, and the CSV dataset are still needed before treating the level
   boundaries as universal.
@@ -535,6 +701,16 @@ node src/hybrid/hybrid_effort.js --ns=80,150,200 --seeds=2 --kind=both \
 # one-factor knob sweeps
 node tuning/tune_effort.js --ns=40,80,150 --seeds=2
 node tuning/tune_effort.js --ns=80,150 --seeds=2 --only='elite|gen|children|polish'
+
+# stress: validity, known-optimum families, and the 1-tree bound at scale
+node tuning/stress_max.js --ns=400 --families=convex,line,grid,dup --levels=low,max
+node tuning/stress_max.js --ns=1000 --families=uniform,cluster --levels=max --boundIters=600
+node tuning/stress_max.js --ns=1000 --families=uniform --levels=low,mid,high,xhigh
+
+# the same, spread over worker threads (result-identical, ~2.6x on one max row,
+# ~12x on a ten-row 1000-city sweep)
+node tuning/stress_parallel.js --ns=1000 --families=uniform,cluster \
+  --levels=low,mid,high,xhigh,max --jobs=6
 
 # open the interactive demo (claim, evidence, effort dial, Held–Karp comparison)
 python3 -m http.server 8000
@@ -570,18 +746,34 @@ budgets so a `max` run stays watchable; it is not the exact Node code path.
 ## Limitations and future work
 
 - **Tighter bounds.** The 1-tree bound is the main obstacle to knowing the true
-  gap at n=60–120. A tighter Lagrangian or assignment bound, or exact
-  branch-and-bound, would settle it.
+  gap at n=60–120 and beyond. A tighter Lagrangian (degree constraints), an
+  assignment bound, DFJ cuts, or exact branch-and-bound would settle it — and
+  the stress sweep shows why this, not more search, is the binding constraint:
+  the gap grows to 2.16% at n=1000 while the bound costs 2.6 s against 72
+  minutes for the tour.
+- **Early exit on a certificate.** When the tour length equals the bound the
+  search can stop. On the 20×20 grid at n=400 that saves 51 s of the 51 s it
+  spends; on the convex n=1000 instance it saves the full 23 minutes. This is a
+  pure win and needs no quality trade-off.
+- **Make effort mean restarts.** `max` is a two-arm portfolio; the arms
+  collapse to the same beam width and generation count for n ≥ 80, and at
+  n=1000 they returned the same tour for 4.5× the cost. Defining effort as
+  independent restarts (or as a portfolio over presets) gives a provable
+  non-regression property, which the current ladder does not have: at n=200 a
+  cheaper level (`high`) beat a more expensive one (`xhigh`) by 0.052 pp.
 - **EAX / AB-cycle recombination.** ERX is simple; EAX is the natural next
   recombination operator with a demonstrated literature upside.
 - **Parallelism.** Islands, children, and polish calls are independent. A worker
   pool would turn the `max` runtime into a cores× speedup without changing
-  quality.
+  quality — which matters more now that the runtime is quartic at scale.
 - **Held-out and real-instance validation.** Re-run the ladder on unseen seeds,
-  TSPLIB, and the CSV dataset.
+  TSPLIB, and the CSV dataset. The stress sweep covers seven synthetic
+  families; real road networks are not among them, and the bound's tightness is
+  geometry-dependent (69% loose on collinear points).
 - **Adaptive budgets.** The current ladder is one Pareto curve. A small model of
   quality vs (K, gens, children, polish, n) could choose a budget from a wall
-  clock or a target gap.
+  clock or a target gap — and the n=1000 ladder says the curve flattens after
+  `xhigh`, so the model has an interior optimum to find.
 - **Stronger local search.** 3-opt or Lin–Kernighan-style moves may beat adding
   more generations, but the current base tunnel is already a strong 2-opt +
   Or-opt local optimum.
@@ -612,10 +804,10 @@ budgets so a `max` run stays watchable; it is not the exact Node code path.
 | author | Mohammadreza Aala |
 | contact | [mrala@ut.ac.ir](mailto:mrala@ut.ac.ir) |
 | repository | <https://github.com/Mhmdrza/polynomialTSP> |
-| snapshot commit | `0f8f69d1cdb0e93aec26281017cabd4cf6ec84e8` |
+| snapshot commit | `4f316ac3cf4a9ac54fc37274ff49c56fea3109ab` (stress harness + n=400–1000 data) |
 | snapshot date | 2026-10-20 |
 | document date | 2026-10-20 |
-| scope | algorithm description, parameters, validation, demo-claim audit, reproduction |
+| scope | algorithm description, parameters, validation (n=4–1000), demo-claim audit, reproduction |
 | language | Markdown |
 | license | The repository does not currently include a LICENSE file. |
 

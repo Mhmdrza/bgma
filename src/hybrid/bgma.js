@@ -237,7 +237,9 @@ function hybrid(inst, seed, opts) {
   const P = Object.assign({}, DEFAULTS, opts || {});
   const n = inst.n;
   const nearK = P.near ? P.near : rnd(n / 10, 10);
-  const base = B.buildInstance(n, inst.seed, inst.kind, nearK);
+  /* a caller may supply a prepared instance (custom geometry); otherwise rebuild
+   * it from n/seed/kind exactly as before. */
+  const base = inst.base || B.buildInstance(n, inst.seed, inst.kind, nearK);
   let best = null, pool = 0;
   const R = Math.max(1, P.restarts | 0);
   for (let r = 0; r < R; r++) {

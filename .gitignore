@@ -1,2 +1,4 @@
 .DS_Store
 results.csv
+stress_*.json
+stress_*.log

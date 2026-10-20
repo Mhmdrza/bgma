@@ -184,7 +184,7 @@ runtime of each panel. Analysis and caveats: [docs/gerdal.md](docs/gerdal.md) (s
 | `tuning/validate_effort.js` | Checks every effort level against Held–Karp (n ≤ 22) |
 | `web/hybrid_tsp.html` | Animated step-by-step hybrid demo with Held–Karp / 1-tree comparison (n ≤ 30) |
 | `src/hybrid/hybrid_vis.js` | Browser/Node core behind the demo: `makeInstance`, `buildSnapshots`, `effortOptions`, `heldKarp`, `hkBound` |
-| `docs/gerdal.md` | Archival Org-mode note for BGMA: design, pseudocode, effort ladder, validation |
+| `docs/gerdal.md` | Archival algorithm note for BGMA: design, pseudocode, effort ladder, validation |
 | `docs/TUNING_NOTES.md` | observations from the tuning sweeps and future-work hypotheses |
 | `bench/fri26_bench.js`, `bench/dantzig42_bench.js`, `bench/att48_bench.js` | TSPLIB runs |
 | `bench/n22_bench.js` | n=22 greedy vs beam+tunnel vs exact (never executed) |

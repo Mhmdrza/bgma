@@ -137,16 +137,17 @@
   <h1>Routes that exact solvers can’t reach —<br>in milliseconds.</h1>
   <p class="lede">
     Routing has always forced a choice: pay exponentially for an exact answer, or ship a fast one that
-    is quietly 10–13% longer than it needs to be. BGMA ends that trade-off. It reproduced the exact
-    Held–Karp optimum every time the two could be compared — in 1.4&nbsp;ms. It reaches the published
-    optimum on 9 of 14 TSPLIB instances, and where it does not, the true gap is measured: +1.05% at 783
-    cities and +2.10% at 1002. On every 1000-city instance whose optimum is known by construction, it
-    returns that optimum exactly.
+    is quietly 10–13% longer than it needs to be. BGMA ends that trade-off. It returned the published
+    optimum on <strong>35 of 40</strong> instances where one is known — 26/26 in the Held–Karp range (in
+    1.4&nbsp;ms) and 9/14 TSPLIB instances up to n=417 — and where it does not, the true gap is measured:
+    +1.05% at 783 cities and +2.10% at 1002. Where both references exist the 1-tree ceiling
+    was never below the truth and was up to 5.3 percentage points above it — so the real excess is
+    smaller than the earlier bound-based numbers suggested.
   </p>
   <div class="evidence">
-    <div class="ev"><span class="ev-n">26 / 26</span>
-      <span class="ev-l">Held–Karp optima reproduced at 18, 20 and 22 cities — on the cheapest setting,
-        not just the expensive one</span></div>
+    <div class="ev"><span class="ev-n">35 / 40</span>
+      <span class="ev-l">instances with a known optimum reproduced exactly — 26/26 at 18, 20 and 22
+        cities on the cheapest setting, plus 9/14 TSPLIB instances up to n=417</span></div>
     <div class="ev"><span class="ev-n">215× faster</span>
       <span class="ev-l">than the exact solver at 20 cities: 1.4&nbsp;ms against 302&nbsp;ms for the
         identical, provably shortest route</span></div>

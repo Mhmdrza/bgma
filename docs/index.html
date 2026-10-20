@@ -63,16 +63,16 @@
   <h1>Routes that exact solvers can’t reach — in milliseconds.</h1>
   <p class="lede">
     Routing has always forced a choice: pay exponentially for an exact answer, or ship a fast one that
-    is quietly 10–13% longer than it needs to be. BGMA ends that trade-off. It reproduces the exact
-    Held–Karp optimum wherever that answer can still be computed and returns the provably optimal tour
-    on every 1000-city instance whose optimum is known by construction — long after the exact method
-    runs out of memory.
+    is quietly 10–13% longer than it needs to be. BGMA ends that trade-off. It returned the published
+    optimum on <strong>35 of 40</strong> instances where one is known — 26/26 in the Held–Karp range and
+    9/14 TSPLIB instances up to n=417 — and at 1002 cities it is within <strong>+2.10%</strong> of the
+    true optimum, long after the exact method runs out of memory.
   </p>
 
   <div class="evidence">
-    <div class="ev"><span class="ev-n">26 / 26</span>
-      <span class="ev-l">exact Held–Karp optima reproduced at 18, 20 and 22 cities — on the cheapest
-        setting, not just the expensive one</span></div>
+    <div class="ev"><span class="ev-n">35 / 40</span>
+      <span class="ev-l">instances with a known optimum reproduced exactly: 26/26 at 18, 20 and 22
+        cities on the cheapest setting, and 9/14 TSPLIB instances up to n=417</span></div>
     <div class="ev"><span class="ev-n">215× faster</span>
       <span class="ev-l">than the exact solver at 20 cities: 1.4&nbsp;ms against 302&nbsp;ms for the
         identical, provably shortest route</span></div>

@@ -6,11 +6,11 @@
 
 Tags: `tsp` · `heuristic` · `bgma`
 
-> **The short version.** Exact Held–Karp optima reproduced on 26 of 26 checkable instances, 215×
-> faster than the exact solver at n=20, and within 1.13% of a proven lower bound at n=400 —
-> 2.16% at n=1000 against that bound, which is a *ceiling*. Measured against published TSPLIB
-> optima the true gap is 0.00% on 9 of 14 instances (through n=417) and +2.10% at 1002 cities, so
-> the large-n residual is real tour quality, not only certificate slack.
+> **The short version.** Published optima reproduced exactly on **35 of 40** instances where one
+> exists — 26 of 26 checkable instances at n=18–22 and 9 of 14 TSPLIB instances up to n=417 — and
+> 215× faster than the exact solver at n=20. Against published optima the true gap is +2.10% at 1002
+> cities and +1.45% at 1060; the 2.16% figure at n=1000 is a *ceiling* from the 1-tree bound, which
+> was pessimistic (on `fl417` it claims 5.64% for an optimal tour).
 > This note is the evidence: what the method does, what it costs, and what is and is not proven.
 
 > This document describes the algorithm implemented in this repository at commit
@@ -700,7 +700,7 @@ the project does not claim it.
 | claim on the page | evidence | reproduce |
 | --- | --- | --- |
 | “Routes that exact solvers can’t reach” | n = 50–400 runs, where Held–Karp is infeasible, each measured against a 1-tree bound | runtime table; `--bound=1` |
-| “26 / 26” exact optima reproduced | exact checks: 10 + 10 + 6 instances at n = 18, 20, 22, at every effort level | `tuning/validate_effort.js --ns=18,20,22` |
+| “35 / 40” instances with a known optimum reproduced exactly | exact checks: 10 + 10 + 6 instances at n = 18, 20, 22, at every effort level; plus 9 of 14 TSPLIB instances (n=51–417) against published optima | `tuning/validate_effort.js --ns=18,20,22`; `tuning/tsplib_bench.js --file=fl417.tsp --opt=11861 --levels=max` |
 | “215× faster” at 20 cities | 1.4 ms (`low`) against 302 ms for the same provably shortest tour | runtime table, n=20 row |
 | “+1.13% of the proven bound at 400 cities, +2.16% at 1000” | large-n check: `max` +1.13% at 400; stress sweep `max` +2.16% at 1000 against a bound converged to 6000 iterations. These are **ceilings**: on `pr1002` the same bound was +3.02% against a true +2.10% | `--n=400 --effort=max --bound=1`; `tuning/stress_max.js --ns=1000 --families=uniform --levels=max` |
 | “True gap +2.10% at 1002 cities, +1.45% at 1060” | TSPLIB published optima: `pr1002` 259045 vs `max` 264473; `u1060` 224094 vs 227345. 9 of the 14 (all at n=51–417) hit the optimum exactly | `tuning/tsplib_bench.js --file=pr1002.tsp --opt=259045 --levels=max` |

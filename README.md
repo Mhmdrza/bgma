@@ -7,14 +7,17 @@ quietly 10–13% longer than it needs to be. Beam-Guided Memetic Annealing (BGMA
 it reproduces the exact Held–Karp optimum wherever that answer can still be computed, then keeps
 finding tours the exact method could never reach.
 
-- **26/26 exact optima reproduced** at n = 18, 20 and 22, at *every* effort level, including the cheapest.
+- **35 of 40 instances with a known optimum returned it exactly** — 26/26 at n = 18, 20 and 22
+  (Held–Karp, at *every* effort level including the cheapest) and 9/14 published TSPLIB instances up
+  to n = 417.
 - **215× faster than the exact solver** at 20 cities: 1.4 ms against 302 ms for the identical, provably
   shortest tour.
-- **+1.13% of the proven bound at 400 cities, +2.16% at 1000** — and exactly optimal on every
-  1000-city instance whose optimum is known by construction (convex position).
-- **9 of 14 published-optimum TSPLIB instances solved exactly**, and the rest measured against the
-  real optimum rather than a bound: +0.33% at n=574, +1.05% at n=783, +2.10% at n=1002, +1.45% at
-  n=1060. The bound-based figure is a *ceiling*; these are true gaps.
+- **+2.10% true gap at 1002 cities, +1.45% at 1060** — measured against published optima, not a bound.
+  Through n = 417 the TSPLIB tours are exactly optimal, so the earlier bound-based numbers were
+  pessimistic almost everywhere.
+- **The 1-tree bound was a pessimistic ceiling.** It reports +2.16% at n=1000; on `pr1002` the same
+  bound claimed +3.02% for a tour that is actually +2.10% long, and on `fl417` it claims +5.64% for a
+  tour that is optimal.
 
 **[Open the interactive demo →](docs/hybrid_tsp.html)** — 18 cities with the exact optimum side by side.
 Drag the effort dial, roll a new seed, and watch the gap.
@@ -28,7 +31,7 @@ Drag the effort dial, roll a new seed, and watch the gap.
 | n=400 | impossible | 0.7 s (`low`) · 64 s (`max`) |
 | n=1000 | impossible | 24 s (`low`) · 72 min (`max`) |
 | tour excess vs best, n=400 | 0 (exact, n ≤ 22 only) | `low` +2.21% · `max` 0.00% (Christofides: +13.02%) |
-| tour gap vs bound, n=1000 | impossible | `low` +3.72% · `xhigh`/`max` +2.16% (single instance) |
+| tour gap vs bound, n=1000 (*ceiling*) | impossible | `low` +3.72% · `xhigh`/`max` +2.16% (single instance) |
 | **true gap vs optimum**, n≈1000 | 0 (exact, n ≤ 22 only) | **+2.10%** (`pr1002`, 1002 cities) · **+1.45%** (`u1060`) |
 | quality guarantee | exact | none proven; Christofides has a proven 1.5× but is 6–80× worse in practice |
 
@@ -37,20 +40,24 @@ Drag the effort dial, roll a new seed, and watch the gap.
 Every effort level, from `low` to `max`, hit the Held–Karp optimum on **26 of 26 instances**
 (n = 18, 20, 22; uniform and clustered). Even the cheapest level never missed.
 
-### n > 22: Held–Karp is out, so we measured against a proof instead
+### n > 22: a proven bound, and published optima
 
-Past n=22 there is nothing exact left to compare with. Rather than stop there, every run is
-measured against a **proven 1-tree (Held–Karp–style subgradient) lower bound**. The optimum can
-never be below it, so the reported gap is a guarantee, not an estimate.
+Past n=22 there is nothing exact left to compare with. Synthetic families are measured against a
+**proven 1-tree (Held–Karp–style subgradient) lower bound**; because the optimum can never be below
+it, that gap is a guarantee — but a one-sided one, so it can only *overstate* the excess. Real
+instances are therefore also scored against **published TSPLIB optima**, which give the true gap.
 
 - On **fri26** the tour meets the bound exactly (937 = 937), so it is **proven optimal** without
   trusting any reference answer.
-- At n = 80–200 the median tour is within **+0.71%** of the bound at `xhigh`/`max`. The bound is
-  loose, so the true gap is smaller still.
+- Against published optima, **9 of 14 TSPLIB instances up to n=417 are exactly optimal** — including
+  `fl417`, where the bound claims a 5.64% gap for that optimal tour.
+- At n = 80–200 the median tour is within **+0.71%** of the bound at `xhigh`/`max`. That is a ceiling:
+  wherever an optimum exists the true gap is smaller, and through n=417 it is zero.
 - At n = 300–400 `xhigh` stays within **+1.25%** of the bound and `max` within **+1.13%**, while
   `low` finishes n=400 in under a second.
-- The gap is not flat in n: it grows to **+1.33%** at 600, **+1.59%** at 800 and **+2.16%** at 1000.
-  "+1.25% at 300–400" is where the curve is lowest, not a scaling law.
+- The *bound* gap is not flat in n: +1.33% at 600, +1.59% at 800, +2.16% at 1000. Measured against
+  real optima, the true gap is **+0.33% at 574, +1.05% at 783, +2.10% at 1002** — noticeably better
+  than the ceiling suggested.
 
 ### n = 800–1000: where the curve bends
 
@@ -95,7 +102,7 @@ collinear, integer grid, duplicated cities, coincident cities), at every effort 
 - **Memory**: 367 MB at n = 1000.
 - **Provably optimal wherever a proof exists**: convex position at n = 20, 100, 200, 400 and
   **1000** (the hull cycle), a 20×20 grid at n = 400 (400 against a bound of 400), collinear sets at
-  every size tested.
+  every size tested, and 9 of 14 published TSPLIB instances up to n = 417.
 
 What does not survive is the certificate's *tightness*: on a collinear instance at n = 400 the tour is
 provably optimal while the 1-tree bound sits **69% below it** (28–37% at n = 100). A gap to that bound

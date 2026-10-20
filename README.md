@@ -256,7 +256,7 @@ node src/hybrid/hybrid_effort.js --ns=50,100,200 --efforts=low,mid,high,xhigh,ma
 node tuning/tune_effort.js --ns=40,80,150 --seeds=2      # learn the effort knobs
 node tuning/validate_effort.js --ns=18,20,22 --seeds=5   # exact Held-Karp check
 node experiments/beam-screen-only/bench.js               # ablation: beam + fast screen only vs BGMA
-node experiments/beam-screen-only/tune.js --ns=100,200,300 --seeds=2  # learn the two-step knobs
+node experiments/beam-screen-only/tune_nscale.js --ns=100,200,300,400 --seeds=2  # n-scaled two-step knobs
 node tuning/stress_parallel.js --ns=1000 --families=uniform,cluster --levels=max --jobs=3
 node tuning/stress_max.js --ns=1000 --families=uniform --levels=max   # serial reference
 node tuning/validate_christofides.js                     # matching vs brute force, Christofides <= 1.5x

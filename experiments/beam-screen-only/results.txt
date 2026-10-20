@@ -1,9 +1,9 @@
 # Recorded 2026-10-20, Apple M3 Pro, Node v22.
-# The run was made before these files moved into experiments/; the command was
+# Command:
 #   node experiments/beam-screen-only/bench.js --seeds=2 --csv=experiments/beam-screen-only/bench_results.csv
 #
 
-beam+screen bench   n=50/100/150/200/250/300  seeds=2  uniform+cluster  levels=low/mid/high/xhigh/max
+beam+screen bench   n=50/100/150/200/250/300/350/400  seeds=2  uniform+cluster  levels=low/mid/high/xhigh/max
 
 n=50 s=1 uniform      ref=    524.8  bound=    521.6  gap<=+0.61%
 n=50 s=1 cluster      ref=    376.4  bound=    370.9  gap<=+1.50%
@@ -29,51 +29,59 @@ n=300 s=1 uniform     ref=   1202.2  bound=   1185.4  gap<=+1.42%
 n=300 s=1 cluster     ref=    742.6  bound=    737.0  gap<=+0.76%
 n=300 s=2 uniform     ref=   1218.8  bound=   1201.8  gap<=+1.41%
 n=300 s=2 cluster     ref=    705.2  bound=    694.9  gap<=+1.49%
+n=350 s=1 uniform     ref=   1247.2  bound=   1230.4  gap<=+1.37%
+n=350 s=1 cluster     ref=    812.5  bound=    801.3  gap<=+1.40%
+n=350 s=2 uniform     ref=   1273.7  bound=   1261.7  gap<=+0.95%
+n=350 s=2 cluster     ref=    700.3  bound=    694.3  gap<=+0.87%
+n=400 s=1 uniform     ref=   1379.7  bound=   1364.2  gap<=+1.13%
+n=400 s=1 cluster     ref=    922.6  bound=    915.5  gap<=+0.78%
+n=400 s=2 uniform     ref=   1360.6  bound=   1340.5  gap<=+1.50%
+n=400 s=2 cluster     ref=    773.6  bound=    764.6  gap<=+1.18%
 
-SUMMARY  (24 instances; gap vs best-of-all per instance)
+SUMMARY  (32 instances; gap vs best-of-all per instance)
 
 method                         median     mean    worst     best   wins  vs bound    med ms
-greedy nearest-neighbour      +27.60%  +28.77%  +40.38%  +14.79%   0/24   +28.69%     29 us
-beam only (K=n/3)             +35.51%  +35.26%  +45.64%  +22.67%   0/24   +36.46%    7.2 ms
-beam+screen (low budget)       +3.08%   +2.88%   +6.42%   +0.00%   4/24    +3.76%     30 ms
-beam+screen (8x beam)          +1.63%   +1.68%   +3.80%   +0.00%   5/24    +2.46%    222 ms
-beam+screen (8x, r2)           +1.22%   +1.44%   +3.44%   +0.00%   5/24    +1.81%    441 ms
-beam + tunnel (tuned)          +1.05%   +1.18%   +2.82%   +0.00%   3/24    +2.05%    330 ms
-BGMA low                       +1.40%   +1.29%   +2.79%   +0.00%   3/24    +1.96%     57 ms
-BGMA mid                       +0.38%   +0.45%   +1.86%   +0.00%   5/24    +1.08%    170 ms
-BGMA high                      +0.06%   +0.16%   +0.63%   +0.00%   9/24    +0.89%    449 ms
-BGMA xhigh                     +0.00%   +0.06%   +0.51%   +0.00%  15/24    +0.84%    1.27 s
-BGMA max                       +0.00%   +0.00%   +0.00%   +0.00%  24/24    +0.77%    3.85 s
+greedy nearest-neighbour      +27.18%  +28.01%  +40.38%  +14.79%   0/32   +28.69%     35 us
+beam only (K=n/3)             +36.41%  +36.05%  +45.64%  +22.67%   0/32   +37.86%     12 ms
+beam+screen (low budget)       +3.85%   +3.62%   +6.57%   +0.00%   4/32    +4.71%     48 ms
+beam+screen (fixed rule)       +2.41%   +2.46%   +5.59%   +0.00%   5/32    +3.30%    361 ms
+beam+screen (n-scaled)         +2.56%   +2.28%   +5.05%   +0.00%   5/32    +3.33%    370 ms
+beam + tunnel (tuned)          +1.56%   +1.50%   +3.14%   +0.00%   3/32    +2.45%    624 ms
+BGMA low                       +1.71%   +1.60%   +3.17%   +0.00%   3/32    +2.93%    108 ms
+BGMA mid                       +0.50%   +0.60%   +1.86%   +0.00%   5/32    +1.49%    338 ms
+BGMA high                      +0.16%   +0.27%   +1.04%   +0.00%   9/32    +1.15%    927 ms
+BGMA xhigh                     +0.00%   +0.07%   +0.51%   +0.00%  19/32    +0.95%    2.56 s
+BGMA max                       +0.00%   +0.00%   +0.00%   +0.00%  32/32    +0.90%    8.08 s
 
 MEDIAN GAP BY n
-method                            n=50     n=100     n=150     n=200     n=250     n=300
-greedy nearest-neighbour       +28.07%   +31.35%   +24.60%   +30.99%   +28.36%   +25.83%
-beam only (K=n/3)              +30.39%   +32.19%   +34.40%   +37.49%   +39.55%   +37.39%
-beam+screen (low budget)        +0.00%    +1.84%    +2.87%    +2.85%    +4.27%    +4.40%
-beam+screen (8x beam)           +0.00%    +1.37%    +1.21%    +2.04%    +2.57%    +3.04%
-beam+screen (8x, r2)            +0.00%    +0.73%    +0.78%    +1.86%    +2.57%    +2.92%
-beam + tunnel (tuned)           +0.00%    +0.76%    +0.89%    +1.50%    +1.35%    +2.10%
-BGMA low                        +0.00%    +0.25%    +1.63%    +1.09%    +2.32%    +1.77%
-BGMA mid                        +0.00%    +0.03%    +0.17%    +0.50%    +0.76%    +0.90%
-BGMA high                       +0.00%    +0.00%    +0.09%    +0.08%    +0.20%    +0.45%
-BGMA xhigh                      +0.00%    +0.00%    +0.00%    +0.00%    +0.01%    +0.15%
-BGMA max                        +0.00%    +0.00%    +0.00%    +0.00%    +0.00%    +0.00%
+method                            n=50     n=100     n=150     n=200     n=250     n=300     n=350     n=400
+greedy nearest-neighbour       +28.07%   +31.35%   +24.60%   +30.99%   +28.36%   +25.83%   +26.15%   +26.19%
+beam only (K=n/3)              +30.39%   +32.19%   +34.40%   +37.49%   +39.55%   +37.39%   +39.02%   +38.00%
+beam+screen (low budget)        +0.00%    +1.84%    +2.87%    +2.85%    +4.27%    +4.40%    +5.82%    +5.95%
+beam+screen (fixed rule)        +0.00%    +1.37%    +1.21%    +2.04%    +2.57%    +3.04%    +4.44%    +5.04%
+beam+screen (n-scaled)          +0.00%    +0.67%    +1.34%    +1.69%    +2.96%    +3.02%    +3.86%    +4.17%
+beam + tunnel (tuned)           +0.00%    +0.76%    +0.89%    +1.50%    +1.35%    +2.10%    +2.81%    +2.01%
+BGMA low                        +0.00%    +0.25%    +1.63%    +1.09%    +2.32%    +1.77%    +2.75%    +2.55%
+BGMA mid                        +0.00%    +0.03%    +0.17%    +0.50%    +0.76%    +0.90%    +1.05%    +0.94%
+BGMA high                       +0.00%    +0.00%    +0.09%    +0.08%    +0.20%    +0.45%    +0.62%    +0.62%
+BGMA xhigh                      +0.00%    +0.00%    +0.00%    +0.00%    +0.01%    +0.15%    +0.03%    +0.06%
+BGMA max                        +0.00%    +0.00%    +0.00%    +0.00%    +0.00%    +0.00%    +0.00%    +0.00%
 
 MEDIAN TIME BY n
-method                            n=50     n=100     n=150     n=200     n=250     n=300
-greedy nearest-neighbour          8 us     23 us     26 us     40 us     34 us     38 us
-beam only (K=n/3)               507 us    2.2 ms    5.2 ms    9.3 ms     15 ms     23 ms
-beam+screen (low budget)        2.3 ms    7.9 ms     21 ms     40 ms     60 ms     94 ms
-beam+screen (8x beam)            15 ms     56 ms    154 ms    290 ms    480 ms    641 ms
-beam+screen (8x, r2)             30 ms    108 ms    306 ms    575 ms    908 ms    1.32 s
-beam + tunnel (tuned)           6.0 ms     44 ms    174 ms    438 ms    826 ms    1.51 s
-BGMA low                        3.9 ms     11 ms     32 ms     85 ms    132 ms    227 ms
-BGMA mid                         15 ms     41 ms    122 ms    246 ms    516 ms    854 ms
-BGMA high                        32 ms     80 ms    270 ms    648 ms    1.26 s    2.34 s
-BGMA xhigh                       56 ms    217 ms    723 ms    1.83 s    3.41 s    6.19 s
-BGMA max                        209 ms    687 ms    2.17 s    5.50 s    10.9 s    19.7 s
+method                            n=50     n=100     n=150     n=200     n=250     n=300     n=350     n=400
+greedy nearest-neighbour          8 us     20 us     28 us     37 us     38 us     35 us     49 us     58 us
+beam only (K=n/3)               524 us    2.0 ms    4.9 ms    9.5 ms     15 ms     23 ms     32 ms     42 ms
+beam+screen (low budget)        2.1 ms    7.7 ms     20 ms     39 ms     60 ms     95 ms    118 ms    158 ms
+beam+screen (fixed rule)         16 ms     54 ms    152 ms    288 ms    487 ms    658 ms    902 ms    1.12 s
+beam+screen (n-scaled)           16 ms     52 ms    141 ms    300 ms    472 ms    631 ms    969 ms    1.35 s
+beam + tunnel (tuned)           6.0 ms     44 ms    168 ms    439 ms    829 ms    1.50 s    2.48 s    4.15 s
+BGMA low                        3.9 ms     11 ms     32 ms     85 ms    131 ms    238 ms    377 ms    585 ms
+BGMA mid                         15 ms     41 ms    120 ms    245 ms    514 ms    866 ms    1.32 s    2.01 s
+BGMA high                        31 ms     81 ms    268 ms    646 ms    1.27 s    2.32 s    3.94 s    6.28 s
+BGMA xhigh                       55 ms    219 ms    725 ms    1.79 s    3.41 s    6.25 s    9.70 s    15.1 s
+BGMA max                        205 ms    688 ms    2.16 s    5.49 s    10.9 s    20.1 s    32.6 s    49.0 s
 
 validation : all tours are valid permutations
 
-wrote      : bench/beam_screen_results.csv
+wrote      : experiments/beam-screen-only/bench_results.csv
 

@@ -490,6 +490,7 @@ node tuning/validate_effort.js --ns=18,20,22 --seeds=3
 
 # ablation: beam + fast screen only (no polish / ERX / anneal)
 node experiments/beam-screen-only/tune.js --ns=100,200,300 --seeds=2
+node experiments/beam-screen-only/tune_nscale.js --ns=100,200,300,400 --seeds=2
 node experiments/beam-screen-only/bench.js --seeds=2 --csv=experiments/beam-screen-only/bench_results.csv
 
 # mixing study
@@ -704,72 +705,96 @@ no full polish. `restarts` repeats the same two steps with fresh beam seeds.
 The full record — harnesses, recorded run, and the longer write-up — is in
 [`experiments/beam-screen-only/`](../experiments/beam-screen-only/README.md).
 
-`experiments/beam-screen-only/bench.js` runs it against the full hybrid. 24 synthetic instances
-(n=50,100,150,200,250,300; 2 seeds × uniform/cluster), reference = best tour found by any
+`experiments/beam-screen-only/bench.js` runs it against the full hybrid. 32 synthetic instances
+(n=50…400 in steps of 50; 2 seeds × uniform/cluster), reference = best tour found by any
 method on that instance. `beam+screen (low budget)` follows BGMA `low`'s beam+screen
 shape (2 islands, K=n/4, every final screened; identical for n≥64 and slightly wider at
-n=50), so `low − (low budget)` isolates stages 3–6.
+n=50), so `low − (low budget)` isolates stages 3–6. `beam+screen (fixed rule)` is the
+pre-tuning winner (16 islands, K=n/4, near=n/10, all finals); `beam+screen (n-scaled)` is the
+rule below.
+
+The n-scaled rule, from `experiments/beam-screen-only/tune_nscale.js`:
+
+```
+islands = max(16, round(n/20))    (capped at 32)
+K       = max(16, round(n/5))
+near    = max(10, round(n/8))     screen candidate width
+screenF = 16                      top 16 finals per island
+```
 
 | method | median gap | mean gap | worst gap | median vs 1-tree | median time |
 |---|---:|---:|---:|---:|---:|
-| beam only (K=n/3, no screen) | +35.51% | +35.26% | +45.64% | +36.46% | 7.2 ms |
-| beam+screen (low budget) | +3.08% | +2.88% | +6.42% | +3.76% | 30 ms |
-| beam+screen (8× beam) | +1.63% | +1.68% | +3.80% | +2.46% | 222 ms |
-| beam+screen (8×, 2 restarts) | +1.22% | +1.44% | +3.44% | +1.81% | 441 ms |
-| beam + tunnel (tuned) | +1.05% | +1.18% | +2.82% | +2.05% | 330 ms |
-| BGMA low | +1.40% | +1.29% | +2.79% | +1.96% | 57 ms |
-| BGMA mid | +0.38% | +0.45% | +1.86% | +1.08% | 170 ms |
-| BGMA high | +0.06% | +0.16% | +0.63% | +0.89% | 449 ms |
+| beam only (K=n/3, no screen) | +36.41% | +36.05% | +45.64% | +37.86% | 12 ms |
+| beam+screen (low budget) | +3.85% | +3.62% | +6.57% | +4.71% | 48 ms |
+| beam+screen (fixed rule) | +2.41% | +2.46% | +5.59% | +3.30% | 361 ms |
+| beam+screen (n-scaled) | +2.56% | +2.28% | +5.05% | +3.33% | 370 ms |
+| beam + tunnel (tuned) | +1.56% | +1.50% | +3.14% | +2.45% | 624 ms |
+| BGMA low | +1.71% | +1.60% | +3.17% | +2.93% | 108 ms |
+| BGMA mid | +0.50% | +0.60% | +1.86% | +1.49% | 338 ms |
+| BGMA high | +0.16% | +0.27% | +1.04% | +1.15% | 927 ms |
 
 Median gap by n:
 
-| n | screen (low budget) | screen (8×) | screen (8×, r2) | BGMA low | BGMA mid |
+| n | screen (low budget) | screen (fixed) | screen (n-scaled) | BGMA low | BGMA mid |
 |---:|---:|---:|---:|---:|---:|
 | 50 | +0.00% | +0.00% | +0.00% | +0.00% | +0.00% |
-| 100 | +1.84% | +1.37% | +0.73% | +0.25% | +0.03% |
-| 150 | +2.87% | +1.21% | +0.78% | +1.63% | +0.17% |
-| 200 | +2.85% | +2.04% | +1.86% | +1.09% | +0.50% |
-| 250 | +4.27% | +2.57% | +2.57% | +2.32% | +0.76% |
-| 300 | +4.40% | +3.04% | +2.92% | +1.77% | +0.90% |
+| 100 | +1.84% | +1.37% | +0.67% | +0.25% | +0.03% |
+| 150 | +2.87% | +1.21% | +1.34% | +1.63% | +0.17% |
+| 200 | +2.85% | +2.04% | +1.69% | +1.09% | +0.50% |
+| 250 | +4.27% | +2.57% | +2.96% | +2.32% | +0.76% |
+| 300 | +4.40% | +3.04% | +3.02% | +1.77% | +0.90% |
+| 350 | +5.82% | +4.44% | +3.86% | +2.75% | +1.05% |
+| 400 | +5.95% | +5.04% | +4.17% | +2.55% | +0.94% |
 
 Median time by n, same columns (ms):
 
-| n | screen (low budget) | screen (8×) | screen (8×, r2) | BGMA low | BGMA mid |
+| n | screen (low budget) | screen (fixed) | screen (n-scaled) | BGMA low | BGMA mid |
 |---:|---:|---:|---:|---:|---:|
-| 50 | 2.3 | 15 | 30 | 3.9 | 15 |
-| 100 | 7.9 | 56 | 108 | 11 | 41 |
-| 150 | 21 | 154 | 306 | 32 | 122 |
-| 200 | 40 | 290 | 575 | 85 | 246 |
-| 250 | 60 | 480 | 908 | 132 | 516 |
-| 300 | 94 | 641 | 1.32 s | 227 | 854 |
+| 50 | 2.1 | 16 | 16 | 3.9 | 15 |
+| 100 | 7.7 | 54 | 52 | 11 | 41 |
+| 150 | 20 | 152 | 141 | 32 | 120 |
+| 200 | 39 | 288 | 300 | 85 | 245 |
+| 250 | 60 | 487 | 472 | 131 | 514 |
+| 300 | 95 | 658 | 631 | 238 | 866 |
+| 350 | 118 | 902 | 969 | 377 | 1.32 s |
+| 400 | 158 | 1.12 s | 1.35 s | 585 | 2.01 s |
 
 What it shows:
 
-- **At n=50 the ablation is the better solver.** Every method finds the same tour; the
-  two-step version does it in 2.3 ms against 3.9 ms for `low`. The dropped stages have
-  nothing left to win there.
+- **At n=50 every method ties.** The two-step rules coincide there (K=16, near=10, top 16 =
+  all finals); 16 ms buys the same tour as `mid` in 15 ms. The dropped stages have nothing
+  left to win.
 - **From n=100 up, stages 3–6 pay for themselves.** Keeping `low`'s beam+screen budget and
-  deleting everything after it costs +1.84% at n=100 and +4.40% at n=300. The rest of `low`
-  costs 3 ms / 133 ms at those sizes and buys 1.6 / 2.6 percentage points.
-- **At n≥200 `low` dominates the ablation on both axes** — it is better and faster. At n=300,
-  the best two-step run is +2.92% in 1.32 s; `low` is +1.77% in 227 ms, `mid` +0.90% in 854 ms.
-- **More beam and more restarts saturate.** Going from 2 to 16 islands cuts the n=300 gap from
-  4.40% to 3.04% at 7× the time; a second restart buys only another 0.12 pp. The last 2 pp are
-  not reachable by widening steps 1–2 — they need recombination and polish.
-- **The screen is what makes the beam competitive at all** (35.5% → 3.1%), but screening only
-  the beam's top final is not enough: the beam ranks finals by partial-path length, and the
-  tour that wins after 2-opt/Or-opt is often not the one that was shortest before it. Screen
-  every final, or at least the top few.
+  deleting everything after it costs +1.84% at n=100 and +5.95% at n=400. The tuned rule
+  narrows that to +0.67% / +4.17%, but `low` is still both cheaper and better.
+- **At n≥200 `low` dominates the ablation on both axes.** At n=400 the best two-step rule is
+  +4.17% in 1.35 s; `low` is +2.55% in 585 ms, `mid` +0.94% in 2.01 s.
+- **The n-scaled rule moves the large end, not the verdict.** n=400 improves from +5.04% to
+  +4.17% for 20% more time; the overall median is flat (+2.41% → +2.56%) because n=150/250
+  regress slightly, while the mean and worst case improve (+2.46% → +2.28%, +5.59% → +5.05%).
+- **Islands alone do not close it.** Going from 2 to 16 islands cuts the n=300 gap from
+  4.40% to 3.04%; 16 → 33 at n=400 buys about 0.7 pp for ~2× the time, and 33 → 50 buys
+  nothing. The cheaper levers are the beam width (`K=n/5`) and the screen's candidate width
+  (`near=n/8`).
+- **The screen is what makes the beam competitive at all** (36.4% → 3.9%), and the top 16
+  finals per island match screening every final at these sizes.
+- **The last ~1.6 pp is still the dropped stages.** `low`'s two generations and two polishes
+  cost 585 ms at n=400 and return +2.55%; no reallocation of the two-step budget reaches it.
 
-The pure configuration sweep (`islands` × `K=n/4,n/3,n/2` × `screenF=1,2,4,8,all`,
-1 restart, then 2/4 restarts on the top eight) picked 16 islands, K=n/4, all finals as the
-best median. The ranking is flat between the top few settings; the time/quality curve is the
-real result, not the winner.
+The first sweep (`islands` × `K=n/4,n/3,n/2` × `screenF=1,2,4,8,all`, 1 restart, then 2/4
+restarts on the top eight) picked 16 islands, K=n/4, all finals as the best median. A second,
+n-scaled sweep (`tune_nscale.js`) varied `islands=n/A`, `K=n/B`, `near=n/C`, `screenF=F` and
+scored each rule against BGMA `low`/`mid` on the same instance, on seeds 1–2 and held-out
+seeds 3–4. Islands saturate around 16–20; `K=n/5` beats `n/4` on quality and time; widening
+the screen to `near=n/8` is the largest single gain; the top 16 finals tie screening all of
+them. The fixed rule is kept in the bench as the head-to-head baseline.
 
 Reproduce:
 
 ```bash
 node experiments/beam-screen-only/tune.js --ns=100,200,300 --seeds=2
+node experiments/beam-screen-only/tune_nscale.js --ns=100,200,300,400 --seeds=1,2 \
+  --A=8,12,16,20,25,32 --B=4,5 --C=8 --F=16
 node experiments/beam-screen-only/bench.js --seeds=2 --csv=experiments/beam-screen-only/bench_results.csv
 node experiments/beam-screen-only/bench.js --ns=200,300 --seeds=2 --levels=low,mid,high
 ```

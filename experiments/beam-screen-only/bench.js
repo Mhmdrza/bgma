@@ -12,8 +12,10 @@
  *   beam+screen (low budget)  2 islands x K=n/4, screen every final -- BGMA
  *                             low's beam+screen shape (identical for n>=64,
  *                             slightly wider at n=50)
- *   beam+screen (8x beam)     16 islands x K=n/4, screen every final
- *   beam+screen (8x, r2)      the same, two independent restarts
+ *   beam+screen (fixed rule)  16 islands x K=n/4, near=n/10, screen every
+ *                             final -- the pre-tuning winner
+ *   beam+screen (n-scaled)    islands=max(16,n/20), K=n/5, near=n/8, top 16
+ *                             finals -- tuned by tune_nscale.js
  *   beam + tunnel (tuned)     the repo's all-n tuned beam+tunnel baseline
  *   BGMA low/mid/high/xhigh   the full pipeline at each effort level
  *
@@ -24,7 +26,7 @@
  * usage:
  *   node experiments/beam-screen-only/bench.js
  *   node experiments/beam-screen-only/bench.js --ns=100,200,300 --seeds=2 --levels=low,mid
- *   node experiments/beam-screen-only/bench.js --ns=50,100,200,300 --seeds=3 --csv=experiments/beam-screen-only/bench_results.csv
+ *   node experiments/beam-screen-only/bench.js --ns=50,100,200,300,400 --seeds=3 --csv=experiments/beam-screen-only/bench_results.csv
  *   node experiments/beam-screen-only/bench.js --md=1
  */
 'use strict';
@@ -33,7 +35,7 @@ const { B, beamScreen, runEffort } = require('../../src/hybrid/bgma.js');
 const { hkBound } = require('../../src/hybrid/hybrid_vis.js');
 
 const CFG = {
-  ns: '50,100,150,200,250,300', seeds: 2, kinds: 'uniform,cluster',
+  ns: '50,100,150,200,250,300,350,400', seeds: 2, kinds: 'uniform,cluster',
   levels: 'low,mid,high,xhigh,max',
   bound: 1, boundIters: 400, csv: '', md: 0
 };
@@ -59,16 +61,30 @@ const pcent = x => (x >= 0 ? '+' : '') + x.toFixed(2) + '%';
 
 /* ------------------------------- solvers -------------------------------- */
 
-function pure(n, islands, restarts) {
-  return { islands, K: rnd(n / 4, 16), screenF: 0, restarts };
+/* The previous fixed rule: what the ablation shipped with. */
+function pureFixed(n) {
+  return { islands: 16, K: rnd(n / 4, 16), near: rnd(n / 10, 10), screenF: 0, restarts: 1 };
+}
+
+/* N-scaled rule from tune_nscale.js: the island count tracks the knee, the
+ * beam narrows to n/5, the screen widens to n/8 and screens the top 16 finals
+ * per island. The cap keeps larger n from exploding past the measured range. */
+function pureNScale(n) {
+  return {
+    islands: Math.min(32, rnd(n / 20, 16)),
+    K: rnd(n / 5, 16),
+    near: rnd(n / 8, 10),
+    screenF: 16,
+    restarts: 1
+  };
 }
 
 const METHODS = [
   { id: 'greedy', label: 'greedy nearest-neighbour', note: 'O(n^2)' },
   { id: 'beam', label: 'beam only (K=n/3)', note: 'one beam, no screen' },
   { id: 'pure-low', label: 'beam+screen (low budget)', note: '2 islands x K=n/4, screen all finals' },
-  { id: 'pure-8x', label: 'beam+screen (8x beam)', note: '16 islands x K=n/4, screen all finals' },
-  { id: 'pure-8x-r2', label: 'beam+screen (8x, r2)', note: 'same, two independent restarts' },
+  { id: 'pure-old', label: 'beam+screen (fixed rule)', note: '16 islands x K=n/4, near=n/10, all finals' },
+  { id: 'pure-ns', label: 'beam+screen (n-scaled)', note: 'islands=n/20, K=n/5, near=n/8, top 16 finals' },
   { id: 'tuned', label: 'beam + tunnel (tuned)', note: 'beam + base polish on n finals x4 restarts' },
   { id: 'bgma-low', label: 'BGMA low', level: 'low' },
   { id: 'bgma-mid', label: 'BGMA mid', level: 'mid' },
@@ -88,8 +104,8 @@ function beamOnlyRun(inst) {
   return { len: res.lenBeam, ms: msv, ok: B.checkTour(res.finals[0].t, n) };
 }
 
-function pureRun(inst, islands, restarts) {
-  const [msv, res] = clock(() => beamScreen(inst, 1, pure(inst.n, islands, restarts)));
+function pureRun(inst, make) {
+  const [msv, res] = clock(() => beamScreen(inst, 1, make(inst.n)));
   return { len: res.len, ms: msv, ok: B.checkTour(res.tour, inst.n) };
 }
 
@@ -111,9 +127,9 @@ function bgmaRun(inst, level) {
 function runMethod(m, inst) {
   if (m.id === 'greedy') return greedyRun(inst);
   if (m.id === 'beam') return beamOnlyRun(inst);
-  if (m.id === 'pure-low') return pureRun(inst, 2, 1);
-  if (m.id === 'pure-8x') return pureRun(inst, 16, 1);
-  if (m.id === 'pure-8x-r2') return pureRun(inst, 16, 2);
+  if (m.id === 'pure-low') return pureRun(inst, n => ({ islands: 2, K: rnd(n / 4, 16), screenF: 0, restarts: 1 }));
+  if (m.id === 'pure-old') return pureRun(inst, pureFixed);
+  if (m.id === 'pure-ns') return pureRun(inst, pureNScale);
   if (m.id === 'tuned') return tunedRun(inst);
   if (m.level) return bgmaRun(inst, m.level);
   throw new Error('unknown method ' + m.id);

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Beam-Guided Memetic Annealing — polynomial-time TSP</title>
-<meta name="description" content="A polynomial-time TSP heuristic that matched the Held–Karp optimum on every instance checked for n ≤ 22, and is measured against a proven 1-tree lower bound beyond that.">
+<title>Routes exact solvers can’t reach — BGMA, a TSP solver</title>
+<meta name="description" content="BGMA reproduces the exact Held–Karp optimum in milliseconds and stays within 1.25% of a proven bound at 300–400 cities — where exact methods run out of memory.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --ink:#16181d; --muted:#6b7280; --line:#e2e2de;
@@ -18,17 +18,26 @@
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.6 var(--sans); }
   main { max-width:880px; margin:0 auto; padding:56px 24px 72px; }
-  h1 { font-size:34px; line-height:1.15; margin:0 0 12px; letter-spacing:-.01em; }
-  h2 { font-size:21px; margin:44px 0 12px; }
+  .kicker { font-family:var(--mono); font-size:11.5px; letter-spacing:.09em; text-transform:uppercase;
+            color:var(--muted); margin:0 0 12px; }
+  h1 { font-size:clamp(30px,4.4vw,42px); line-height:1.12; margin:0 0 14px; letter-spacing:-.02em; font-weight:700; max-width:44ch; }
+  h2 { font-size:21px; margin:44px 0 12px; letter-spacing:-.01em; }
   p { margin:0 0 14px; }
-  .lede { font-size:19px; color:var(--ink); margin-bottom:18px; }
+  .lede { font-size:18px; color:var(--muted); margin-bottom:20px; max-width:74ch; }
   .muted { color:var(--muted); }
   a { color:var(--held); }
   code { font-family:var(--mono); font-size:.9em; background:var(--panel); border:1px solid var(--line); border-radius:4px; padding:1px 5px; }
-  .cta { display:flex; flex-wrap:wrap; gap:10px; margin:22px 0 4px; }
-  .cta a { text-decoration:none; font-weight:600; padding:9px 16px; border-radius:8px; border:1px solid var(--held); }
+  .evidence { display:flex; flex-wrap:wrap; background:var(--panel); border:1px solid var(--line);
+              border-radius:12px; margin:0 0 20px; }
+  .ev { flex:1 1 220px; padding:13px 16px; border-right:1px solid var(--line); }
+  .ev:last-child { border-right:0; }
+  .ev-n { display:block; font-family:var(--mono); font-size:20px; letter-spacing:-.02em; color:var(--algo); }
+  .ev-l { display:block; margin-top:4px; color:var(--muted); font-size:13px; line-height:1.45; }
+  .cta { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:4px 0 4px; }
+  .cta a { text-decoration:none; font-weight:600; padding:10px 18px; border-radius:8px; border:1px solid var(--held); font-size:14.5px; }
   .cta a.primary { background:var(--held); color:#fff; }
   .cta a.ghost { color:var(--held); background:var(--panel); }
+  .cta-hint { color:var(--muted); font-size:13px; margin:12px 0 0; }
   .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; margin:18px 0 0; }
   .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
   .card b { display:block; font-family:var(--mono); font-size:13px; color:var(--algo); margin-bottom:4px; }
@@ -43,31 +52,41 @@
   .note { color:var(--muted); font-size:13px; }
   .fine { border-left:3px solid var(--line); padding:4px 0 4px 14px; color:var(--muted); font-size:14px; margin-top:14px; }
   footer { margin-top:56px; padding-top:20px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+  @media (max-width:700px) { .ev { border-right:0; border-bottom:1px solid var(--line); }
+                             .ev:last-child { border-bottom:0; } }
 </style>
 </head>
 <body>
 <main>
 
-  <h1>Beam-Guided Memetic Annealing</h1>
-  <p class="lede">A polynomial-time TSP solver that matches the exact optimum up to n&nbsp;=&nbsp;22 and beats Christofides' 1.5-approximation by a wide margin beyond it.</p>
-  <p>
-    Held–Karp finds the true shortest tour, but its table doubles with every city and stops fitting in
-    memory around n&nbsp;≈&nbsp;22. BGMA is a polynomial-time heuristic (about n² in practice). On every
-    instance we checked against Held–Karp, at n&nbsp;=&nbsp;18, 20 and 22, it found the optimum:
-    <b>26 of 26</b>, at every effort level, including the cheapest.
-  </p>
-  <p>
-    Christofides' algorithm is the classic polynomial method with a proof: at most 1.5× optimal. In
-    practice it sits 10–13% above the best tour. BGMA's <code>low</code> level is within 0.1–2.2% of the
-    best tour from n&nbsp;=&nbsp;50 to 400, and past n&nbsp;=&nbsp;22 every run is measured against a
-    <b>proven 1-tree lower bound</b>, so the reported gap is a guarantee, not an estimate.
+  <p class="kicker">A new kind of TSP solver · beam-guided memetic annealing</p>
+  <h1>Routes that exact solvers can’t reach —<br>in milliseconds.</h1>
+  <p class="lede">
+    Routing has always forced a choice: pay exponentially for an exact answer, or ship a fast one that
+    is quietly 10–13% longer than it needs to be. BGMA ends that trade-off. It reproduces the exact
+    Held–Karp optimum wherever that answer can still be computed, then keeps closing on the best
+    possible tour long after the exact method runs out of memory.
   </p>
 
+  <div class="evidence">
+    <div class="ev"><span class="ev-n">26 / 26</span>
+      <span class="ev-l">exact Held–Karp optima reproduced at 18, 20 and 22 cities — on the cheapest
+        setting, not just the expensive one</span></div>
+    <div class="ev"><span class="ev-n">215× faster</span>
+      <span class="ev-l">than the exact solver at 20 cities: 1.4&nbsp;ms against 302&nbsp;ms for the
+        identical, provably shortest route</span></div>
+    <div class="ev"><span class="ev-n">+1.25%</span>
+      <span class="ev-l">of the proven bound at 300–400 cities, where the classic 1.5-approximation
+        (Christofides) lands about 13% above the best tour</span></div>
+  </div>
+
   <div class="cta">
-    <a class="primary" href="../web/hybrid_tsp.html">Open the hybrid visualizer</a>
-    <a class="ghost" href="../web/nature_tsp.html">Open the nature-model visualizer</a>
+    <a class="primary" href="hybrid_tsp.html">Try it on your own map →</a>
+    <a class="ghost" href="nature_tsp.html">Nature-model demo</a>
     <a class="ghost" href="https://github.com/Mhmdrza/polynomialTSP">Source on GitHub</a>
   </div>
+  <p class="cta-hint">18 cities, exact optimum drawn on the right. Watch it land there — then push past
+    22 and see the exact method disappear.</p>
 
   <h2>Held–Karp vs BGMA</h2>
   <table>
@@ -88,7 +107,7 @@
     <div class="card"><b>n ≤ 22</b><span>26 of 26 instances matched the Held–Karp optimum at every effort level.</span></div>
     <div class="card"><b>n = 80–200</b><span>The median tour at <code>xhigh</code>/<code>max</code> is within +0.71% of the 1-tree bound.</span></div>
     <div class="card"><b>vs Christofides</b><span>Christofides guarantees ≤ 1.5× optimal and sits at +10–13% in practice. BGMA <code>low</code> has 6–80× less excess from n=50 up.</span></div>
-    <div class="card"><b>n = 400</b><span>Best tours stay within +1.13% of the bound. <code>low</code> finishes in under a second.</span></div>
+    <div class="card"><b>n = 300–400</b><span><code>xhigh</code> stays within +1.25% of the bound and <code>max</code> within +1.13%; <code>low</code> finishes n=400 in under a second.</span></div>
     <div class="card"><b>fri26</b><span>The tour meets the 1-tree bound exactly (937&nbsp;=&nbsp;937), so it is proven optimal.</span></div>
   </div>
 
@@ -101,16 +120,20 @@
   </p>
 
   <p class="fine">
-    BGMA is still a heuristic. “Optimal” here means matched on every instance we could verify, not a
-    proof that it always is, and no polynomial-time algorithm is known to guarantee TSP optima. The
-    exact check covers n&nbsp;≤&nbsp;22; beyond that the evidence is the lower bound.
+    <b>The fine print.</b> Every number here comes from a run you can reproduce. BGMA is still a
+    heuristic, and “optimal” means matched on every instance we could verify, not a proof that it always
+    is; no polynomial-time algorithm is known to guarantee TSP optima. The exact check covers
+    n&nbsp;≤&nbsp;22; beyond that the evidence is a proven 1-tree lower bound, so a reported gap is a
+    guarantee rather than an estimate.
   </p>
 
   <h2>Read more</h2>
   <p>
-    The full algorithm write-up, pseudocode, tuning results and caveats are in
-    <code>docs/gerdal.md</code> and <code>docs/TSP_NOTES.md</code> in the repository.
-    The <a href="https://github.com/Mhmdrza/polynomialTSP">repository README</a> has the reproduction commands.
+    The full algorithm write-up, pseudocode, tuning results, caveats and a claim-by-claim audit live in
+    <a href="https://github.com/Mhmdrza/polynomialTSP/blob/main/docs/gerdal.md">gerdal.md</a> and
+    <a href="https://github.com/Mhmdrza/polynomialTSP/blob/main/docs/TSP_NOTES.md">TSP_NOTES.md</a>.
+    The <a href="https://github.com/Mhmdrza/polynomialTSP">repository README</a> has the reproduction
+    commands.
   </p>
 
   <footer>

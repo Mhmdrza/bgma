@@ -10,7 +10,7 @@ Tags: `tsp` · `heuristic` · `bgma`
 > faster than the exact solver at n=20, and within 1.25% of a proven lower bound at n=300–400 — a
 > size where the exact method no longer fits in memory. This note is the evidence behind those three
 > numbers: what the method does, what it costs, and what is and is not proven. The demo that makes
-> the same claims interactively is `web/hybrid_tsp.html`.
+> the same claims interactively is `docs/hybrid_tsp.html`.
 
 > This document describes the algorithm implemented in this repository at commit
 > `0f8f69d1cdb0e93aec26281017cabd4cf6ec84e8` (2026-10-20). It is intended as a
@@ -411,7 +411,7 @@ Node v22.23.2, measured 2026-10-19. The raw results are in `docs/runtime.json`.
 | `BGMA xhigh` | +0.00% | +0.00% | +0.00% | +0.02% | +0.12% |
 | `BGMA max` | +0.00% | +0.00% | +0.00% | +0.00% | +0.00% |
 
-Reproduce with `node bench/runtime_bench.js --json=docs/runtime.json --web=web/runtime_data.js`
+Reproduce with `node bench/runtime_bench.js --json=docs/runtime.json --web=docs/runtime_data.js`
 (about ten minutes; `--ns`, `--seeds`, `--levels` and `--maxN` shorten it). The same
 data feeds the "Measured runtime" table in both visualizer pages.
 
@@ -484,7 +484,7 @@ a few passes, so the practical growth is close to quadratic.
 
 ## Claims made on the demo page, and their evidence
 
-The visual page (`web/hybrid_tsp.html`) is written as a pitch: a claim, three numbers that back it,
+The visual page (`docs/hybrid_tsp.html`) is written as a pitch: a claim, three numbers that back it,
 then the demo. Every sentence on it maps to a table in this note. If a claim is not in this table,
 the project does not claim it.
 
@@ -534,7 +534,7 @@ node tuning/tune_effort.js --ns=80,150 --seeds=2 --only='elite|gen|children|poli
 
 # open the interactive demo (claim, evidence, effort dial, Held–Karp comparison)
 python3 -m http.server 8000
-# then open http://127.0.0.1:8000/web/hybrid_tsp.html
+# then open http://127.0.0.1:8000/docs/hybrid_tsp.html
 ```
 
 ## Implementation map
@@ -547,13 +547,15 @@ python3 -m http.server 8000
 | `src/hybrid/effort_profiles.js` | shared low/mid/high/xhigh/max budgets |
 | `src/hybrid/hybrid_effort.js` | tuned CLI with `--effort`, `--bound`, `--exact`, `--tour`, `--json` |
 | `src/hybrid/hybrid_vis.js` | browser/Node core for the animated demo |
-| `web/hybrid_tsp.html` | interactive demo and pitch page: claim + evidence, exact optimum vs BGMA, effort dial, timeline |
+| `docs/hybrid_tsp.html` | interactive demo and pitch page: claim + evidence, exact optimum vs BGMA, effort dial, timeline |
 | `tuning/tune_effort.js` | knob sweep and quality/runtime harness |
 | `tuning/validate_effort.js` | Held–Karp validation at n≤22 |
 | `TSP_NOTES.md` | full project notes and earlier benchmarks |
 | `TUNING_NOTES.md` | tuning observations and future work |
 | `bench/runtime_bench.js` | runtime and quality of every algorithm; source of `docs/runtime.json` |
-| `web/runtime_table.js` | renders the measured-runtime table in both visualizer pages |
+| `docs/runtime_table.js` | renders the measured-runtime table in both visualizer pages |
+| `docs/js/` | generated mirror of `src/hybrid/{effort_profiles,hybrid_vis}.js`, so Pages (which serves only `docs/`) can load the demo |
+| `bench/sync_docs.js` | writes that mirror; `--check` fails when it is stale |
 
 The Node core loads `src/beam/beam_fast.js` and `src/nature/nature_tsp.js` by slicing the source and
 evaluating the algorithm portion. This keeps the browser page and the CLI on the

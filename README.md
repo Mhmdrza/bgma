@@ -13,7 +13,7 @@ closing on the best possible tour long after the exact method runs out of memory
 - **+1.25% of the proven bound at 300–400 cities**, where Christofides’ classic 1.5-approximation lands
   about 13% above the best tour.
 
-**[Open the interactive demo →](web/hybrid_tsp.html)** — 18 cities with the exact optimum side by side.
+**[Open the interactive demo →](docs/hybrid_tsp.html)** — 18 cities with the exact optimum side by side.
 Drag the effort dial, roll a new seed, and watch the gap.
 
 | | Held–Karp (exact) | BGMA |
@@ -73,11 +73,15 @@ src/
   hybrid/               BGMA: solver, effort ladder, CLI, demo core
 bench/                  TSPLIB, dataset and comparison benchmarks
 tuning/                 knob / effort sweeps and Held-Karp validation
-web/                    visual pages (open from a static server or file://)
-docs/                   notes: findings, tuning, algorithm write-up
+docs/                   notes + the published pages (GitHub Pages serves /docs)
 ```
 
 Every script resolves its siblings from its own location, so commands work from any directory.
+
+The visual pages live in `docs/` so GitHub Pages can serve them. Pages serves only that folder, so
+the two browser modules they load are mirrored into `docs/js/` by `node bench/sync_docs.js`; rerun it
+after editing `src/hybrid/hybrid_vis.js` or `src/hybrid/effort_profiles.js` (`--check` fails if the
+mirror is stale).
 
 ## Quick start
 
@@ -101,8 +105,8 @@ node src/hybrid/hybrid_effort.js --ns=50,100,200 --efforts=low,mid,high,xhigh,ma
 node tuning/tune_effort.js --ns=40,80,150 --seeds=2      # learn the effort knobs
 node tuning/validate_effort.js --ns=18,20,22 --seeds=5   # exact Held-Karp check
 node tuning/validate_christofides.js                     # matching vs brute force, Christofides <= 1.5x
-open web/nature_tsp.html                              # visual page (nature solver)
-open web/hybrid_tsp.html                              # the pitch: exact optimum vs BGMA, live
+open docs/nature_tsp.html                             # nature-model visual page
+open docs/hybrid_tsp.html                             # the pitch: exact optimum vs BGMA, live
 ```
 
 ### A proven guarantee, for comparison
@@ -164,8 +168,8 @@ What it shows:
   From n=50 up, BGMA `low` has a 6 to 80 times smaller excess, at 8 to 24 times the runtime.
 - The 1-tree bound costs about 35–55% of a `low` run; Held–Karp needs 0.30 s at n=20 and doubles per city.
 
-Reproduce (about ten minutes): `node bench/runtime_bench.js --json=docs/runtime.json --web=web/runtime_data.js`.
-The same data drives the runtime table in both pages under `web/`; the pages also show the live
+Reproduce (about ten minutes): `node bench/runtime_bench.js --json=docs/runtime.json --web=docs/runtime_data.js`.
+The same data drives the runtime table in both pages under `docs/`; the pages also show the live
 runtime of each panel. Analysis and caveats: [docs/gerdal.md](docs/gerdal.md) (section "Measured runtime").
 
 ## Files
@@ -175,11 +179,11 @@ runtime of each panel. Analysis and caveats: [docs/gerdal.md](docs/gerdal.md) (s
 | `src/beam/beam_fast.js` | optimised beam + tunnel (arena, bitsets, DLB 2-opt, Or-opt) |
 | `src/beam/beam_simple.js` | same solver written for reading |
 | `src/nature/nature_tsp.js` | population + annealing + recombination solver |
-| `web/nature_tsp.html` | visual page with optimum / bound panel |
+| `docs/nature_tsp.html` | visual page with optimum / bound panel |
 | `bench/merge_bench.js` | "mix the wave, then contract" comparison |
 | `bench/bench_dataset.js` | dataset bench (greedy / beam+tunnel / nature) |
-| `bench/runtime_bench.js` | wall-clock runtime and quality of every algorithm; writes `docs/runtime.json` and `web/runtime_data.js` |
-| `web/runtime_table.js` | renders the measured-runtime table inside both pages |
+| `bench/runtime_bench.js` | wall-clock runtime and quality of every algorithm; writes `docs/runtime.json` and `docs/runtime_data.js` |
+| `docs/runtime_table.js` | renders the measured-runtime table inside both pages |
 | `src/christofides/christofides.js` | Christofides 1.5-approximation: MST, blossom minimum-weight perfect matching, Euler tour |
 | `tuning/validate_christofides.js` | checks the matching against brute force and the tour against Held–Karp (≤ 1.5×) |
 | `bench/knob_bench.js` | greedy vs nature vs beam+tunnel under n-based knob presets |
@@ -190,11 +194,14 @@ runtime of each panel. Analysis and caveats: [docs/gerdal.md](docs/gerdal.md) (s
 | `src/hybrid/hybrid_effort.js` | Tuned BGMA CLI with `--effort=low|mid|high|xhigh|max`, `--bound`, `--tour`, `--json` |
 | `tuning/tune_effort.js` | Sweep harness for the effort knobs (quality vs 1-tree bound vs runtime) |
 | `tuning/validate_effort.js` | Checks every effort level against Held–Karp (n ≤ 22) |
-| `web/hybrid_tsp.html` | interactive demo and pitch page: exact optimum vs BGMA, effort dial, timeline, live stats (n ≤ 30) |
+| `docs/hybrid_tsp.html` | interactive demo and pitch page: exact optimum vs BGMA, effort dial, timeline, live stats (n ≤ 30) |
+| `docs/js/` | generated mirror of the two browser modules, so Pages can serve the demo (`node bench/sync_docs.js`) |
+| `bench/sync_docs.js` | copies `src/hybrid/{effort_profiles,hybrid_vis}.js` into `docs/js/`; `--check` fails when stale |
 | `src/hybrid/hybrid_vis.js` | Browser/Node core behind the demo: `makeInstance`, `buildSnapshots`, `effortOptions`, `heldKarp`, `hkBound` |
 | `docs/gerdal.md` | Archival algorithm note for BGMA: design, pseudocode, effort ladder, validation, demo-claim audit |
 | `docs/TUNING_NOTES.md` | observations from the tuning sweeps and future-work hypotheses |
 | `bench/fri26_bench.js`, `bench/dantzig42_bench.js`, `bench/att48_bench.js` | TSPLIB runs |
 | `bench/n22_bench.js` | n=22 greedy vs beam+tunnel vs exact (never executed) |
 
-No dependencies. Node only; the visual page is static HTML plus `src/hybrid/hybrid_vis.js`.
+No dependencies. Node only; the visual page is static HTML plus the `docs/js/` mirror of
+`src/hybrid/hybrid_vis.js` (regenerate with `node bench/sync_docs.js`).

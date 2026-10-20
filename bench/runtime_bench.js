@@ -12,7 +12,7 @@
  *   node bench/runtime_bench.js
  *   node bench/runtime_bench.js --ns=50,100,200 --seeds=2 --levels=low,mid,high
  *   node bench/runtime_bench.js --maxN=200            # run `max` only up to n=200 (default 400)
- *   node bench/runtime_bench.js --json=docs/runtime.json --web=web/runtime_data.js
+ *   node bench/runtime_bench.js --json=docs/runtime.json --web=docs/runtime_data.js
  *   node bench/runtime_bench.js --md=1                # print markdown tables
  *   node bench/runtime_bench.js --from=docs/runtime.json --md=1   # re-print saved results, no re-run
  */

@@ -1,6 +1,6 @@
 # Knob tuning — observations and future work
 
-Last run: 2026-10-19. Harness: `tuning/tune_knobs.js` (built on `src/beam/beam_fast.js` + `web/nature_tsp.html`).
+Last run: 2026-10-19. Harness: `tuning/tune_knobs.js` (built on `src/beam/beam_fast.js` + `docs/nature_tsp.html`).
 This file records what the sweeps actually showed, why `--preset=tuned` looks the way it
 does, and which directions are worth trying next.
 

@@ -61,7 +61,7 @@ Known limitations found:
 | `src/beam/beam_fast.js` | Optimised beam + tunnel (arena, parent pointers, bitsets, Zobrist dedupe, DLB 2-opt, Or-opt). Includes its own bench. Baseline implementations included for comparison. |
 | `src/beam/beam_simple.js` | Same solver written only to be read (~55 lines of algorithm). Strings/arrays/boolean sets, no bitsets. |
 | `src/nature/nature_tsp.js` | Nature-model solver: weighted population, soft selection, simulated annealing with avulsion kicks, ordered-crossover recombination. Includes a bench. |
-| `web/nature_tsp.html` | Visual page for the nature solver: population drawn faint, best tour bold, second panel shows the exact optimum (n ≤ 22) or a proven bound (23–30). |
+| `docs/nature_tsp.html` | Visual page for the nature solver: population drawn faint, best tour bold, second panel shows the exact optimum (n ≤ 22) or a proven bound (23–30). |
 | `bench/merge_bench.js` | "Mix the wave, then contract": edge-vote assembly vs picking the best tour. |
 | `bench/bench_dataset.js` | CSV dataset bench: greedy vs beam+tunnel vs nature, with 1-tree bound and optional Held–Karp check. |
 | `bench/knob_bench.js` | Synthetic bench: greedy vs nature vs beam+tunnel across n-based knob presets; CSV output. |
@@ -73,10 +73,10 @@ Known limitations found:
 | `src/hybrid/hybrid_effort.js` | Tuned BGMA CLI: `--effort=low|mid|high|xhigh|max`, optional 1-tree bound, tour/JSON output. |
 | `tuning/tune_effort.js` | Effort/knob sweep: gap vs best-of-all, gap vs 1-tree bound, median time. |
 | `tuning/validate_effort.js` | Held–Karp check of every effort level at n ≤ 22. |
-| `web/hybrid_tsp.html` | Animated hybrid demo: beam depth, island screening, ERX, kicks/anneal, selective polish; Held–Karp optimum for n≤20 and 1-tree bound for n=21..30. |
-| `src/hybrid/hybrid_vis.js` | Isolated demo logic for `web/hybrid_tsp.html`: `makeInstance`, `buildSnapshots`, `effortOptions`, `heldKarp`, `hkBound` (browser global + CommonJS). |
-| `bench/runtime_bench.js` | Wall-clock runtime and quality of every algorithm (greedy, beam, tuned beam+tunnel, nature, BGMA levels, 1-tree, Held–Karp) at n=20..400; writes `docs/runtime.json` and `web/runtime_data.js`. Results: `docs/gerdal.md`, "Measured runtime". |
-| `web/runtime_table.js` | Renders the measured-runtime table in both pages. |
+| `docs/hybrid_tsp.html` | Animated hybrid demo: beam depth, island screening, ERX, kicks/anneal, selective polish; Held–Karp optimum for n≤20 and 1-tree bound for n=21..30. |
+| `src/hybrid/hybrid_vis.js` | Isolated demo logic for `docs/hybrid_tsp.html`: `makeInstance`, `buildSnapshots`, `effortOptions`, `heldKarp`, `hkBound` (browser global + CommonJS). |
+| `bench/runtime_bench.js` | Wall-clock runtime and quality of every algorithm (greedy, beam, tuned beam+tunnel, nature, BGMA levels, 1-tree, Held–Karp) at n=20..400; writes `docs/runtime.json` and `docs/runtime_data.js`. Results: `docs/gerdal.md`, "Measured runtime". |
+| `docs/runtime_table.js` | Renders the measured-runtime table in both pages. |
 | `bench/att48_bench.js` | TSPLIB att48 (ATT distances). |
 | `bench/dantzig42_bench.js` | TSPLIB dantzig42 (explicit lower-diagonal matrix). |
 | `bench/fri26_bench.js` | TSPLIB fri26 (explicit lower-diagonal matrix). |
@@ -234,7 +234,7 @@ Detailed observations, things that did not help, and future hypotheses are in
 
 ---
 
-## 4. The nature model (`src/nature/nature_tsp.js`, `web/nature_tsp.html`)
+## 4. The nature model (`src/nature/nature_tsp.js`, `docs/nature_tsp.html`)
 
 | quantum step | nature step | implementation |
 |---|---|---|
@@ -307,7 +307,7 @@ The nature model's edge appears only on larger/rugged instances (n ≥ 100 in th
    new node when a shorter duplicate arrives.
 2. **Off-by-one in beam depth.** Used `depth = step + 1`, giving one fewer voter than the page,
    silently degrading the beam 10–20%. Fix: `depth = step`.
-3. **TDZ in `web/nature_tsp.html`.** `addEventListener('change', debounced)` read `debounced`
+3. **TDZ in `docs/nature_tsp.html`.** `addEventListener('change', debounced)` read `debounced`
    before its `const` initialisation. Fix: declare `debounced` at the top of the wiring block.
 4. **`src/beam/beam_fast.js` CLI parsing swallowed bench flags** when the file was eval'd into another
    script. Fix: strip `process.argv.slice(2)` before eval (see `bench/bench_dataset.js`).
@@ -335,8 +335,8 @@ node src/nature/nature_tsp.js --n=200 --seeds=4
 node src/nature/nature_tsp.js --n=15 --seeds=8 --exact=1
 
 # visual pages (open in browser)
-open web/nature_tsp.html
-open web/hybrid_tsp.html
+open docs/nature_tsp.html
+open docs/hybrid_tsp.html
 
 # n-based knob sweep vs greedy / nature
 node bench/knob_bench.js --ns=50,100,200 --seeds=2
@@ -454,7 +454,7 @@ exact island/generation split is not critical.
 Caveat: the reference is still best-of-all, not the optimum; TSPLIB/CSV validation of the
 hybrid is not done yet.
 
-`web/hybrid_tsp.html` animates the pipeline step by step (beam depth → island finals → initial
+`docs/hybrid_tsp.html` animates the pipeline step by step (beam depth → island finals → initial
 polish → each ERX/kick/anneal child → selective polish), with the current pool, parents and
 child colour-coded. The right panel runs Held–Karp for n ≤ 20 (exact optimum); for n = 21..30
 Held–Karp is infeasible, so it shows a proven 1-tree lower bound instead and marks a tour
@@ -484,7 +484,7 @@ on the same instance.
 | `xhigh` | 6 islands, K=100, 67 elites, 25 gens, 18 children, polish 20 | 2.3 s | 20 s |
 | `max` | `xhigh` + 8 islands, K=100, 100 elites, 25 gens, polish 17, 2 restarts | 7 s | 63 s |
 
-The visualizer (`web/hybrid_tsp.html`) now exposes the same selector. It loads
+The visualizer (`docs/hybrid_tsp.html`) now exposes the same selector. It loads
 `src/hybrid/effort_profiles.js` and calls `HybridTSP.effortOptions(level, n)`, which takes the real
 preset and applies playback caps (1/2/3/4/6 islands, 1/3/4/5/8 generations,
 2/3/4/5/6 children for low→max). The "demo budget" line under the controls shows the

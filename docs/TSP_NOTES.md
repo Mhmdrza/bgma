@@ -488,6 +488,10 @@ node src/hybrid/hybrid_effort.js --ns=50,100,200 --efforts=low,mid,high,xhigh,ma
 node tuning/tune_effort.js --ns=40,80,150 --seeds=2
 node tuning/validate_effort.js --ns=18,20,22 --seeds=3
 
+# ablation: beam + fast screen only (no polish / ERX / anneal)
+node experiments/beam-screen-only/tune.js --ns=100,200,300 --seeds=2
+node experiments/beam-screen-only/bench.js --seeds=2 --csv=experiments/beam-screen-only/bench_results.csv
+
 # mixing study
 node bench/merge_bench.js --n=200 --seeds=6
 
@@ -689,7 +693,90 @@ node src/hybrid/hybrid_effort.js --ns=80,150,200 --seeds=2 --kind=both \
 
 ---
 
-## 11. Open threads
+## 11. Ablation: keep only steps 1–2 (beam + fast screen)
+
+The pipeline has six stages: beam search, fast screen, full polish, ERX crossover,
+kick/anneal, and (optional) final polish. A fair question is whether the last four earn
+their cost. `beamScreen()` in `src/hybrid/bgma.js` is the ablation: beam islands → fast
+candidate-list screen → shortest tour wins, with no pool, no ERX, no kicks, no anneal, and
+no full polish. `restarts` repeats the same two steps with fresh beam seeds.
+
+The full record — harnesses, recorded run, and the longer write-up — is in
+[`experiments/beam-screen-only/`](../experiments/beam-screen-only/README.md).
+
+`experiments/beam-screen-only/bench.js` runs it against the full hybrid. 24 synthetic instances
+(n=50,100,150,200,250,300; 2 seeds × uniform/cluster), reference = best tour found by any
+method on that instance. `beam+screen (low budget)` follows BGMA `low`'s beam+screen
+shape (2 islands, K=n/4, every final screened; identical for n≥64 and slightly wider at
+n=50), so `low − (low budget)` isolates stages 3–6.
+
+| method | median gap | mean gap | worst gap | median vs 1-tree | median time |
+|---|---:|---:|---:|---:|---:|
+| beam only (K=n/3, no screen) | +35.51% | +35.26% | +45.64% | +36.46% | 7.2 ms |
+| beam+screen (low budget) | +3.08% | +2.88% | +6.42% | +3.76% | 30 ms |
+| beam+screen (8× beam) | +1.63% | +1.68% | +3.80% | +2.46% | 222 ms |
+| beam+screen (8×, 2 restarts) | +1.22% | +1.44% | +3.44% | +1.81% | 441 ms |
+| beam + tunnel (tuned) | +1.05% | +1.18% | +2.82% | +2.05% | 330 ms |
+| BGMA low | +1.40% | +1.29% | +2.79% | +1.96% | 57 ms |
+| BGMA mid | +0.38% | +0.45% | +1.86% | +1.08% | 170 ms |
+| BGMA high | +0.06% | +0.16% | +0.63% | +0.89% | 449 ms |
+
+Median gap by n:
+
+| n | screen (low budget) | screen (8×) | screen (8×, r2) | BGMA low | BGMA mid |
+|---:|---:|---:|---:|---:|---:|
+| 50 | +0.00% | +0.00% | +0.00% | +0.00% | +0.00% |
+| 100 | +1.84% | +1.37% | +0.73% | +0.25% | +0.03% |
+| 150 | +2.87% | +1.21% | +0.78% | +1.63% | +0.17% |
+| 200 | +2.85% | +2.04% | +1.86% | +1.09% | +0.50% |
+| 250 | +4.27% | +2.57% | +2.57% | +2.32% | +0.76% |
+| 300 | +4.40% | +3.04% | +2.92% | +1.77% | +0.90% |
+
+Median time by n, same columns (ms):
+
+| n | screen (low budget) | screen (8×) | screen (8×, r2) | BGMA low | BGMA mid |
+|---:|---:|---:|---:|---:|---:|
+| 50 | 2.3 | 15 | 30 | 3.9 | 15 |
+| 100 | 7.9 | 56 | 108 | 11 | 41 |
+| 150 | 21 | 154 | 306 | 32 | 122 |
+| 200 | 40 | 290 | 575 | 85 | 246 |
+| 250 | 60 | 480 | 908 | 132 | 516 |
+| 300 | 94 | 641 | 1.32 s | 227 | 854 |
+
+What it shows:
+
+- **At n=50 the ablation is the better solver.** Every method finds the same tour; the
+  two-step version does it in 2.3 ms against 3.9 ms for `low`. The dropped stages have
+  nothing left to win there.
+- **From n=100 up, stages 3–6 pay for themselves.** Keeping `low`'s beam+screen budget and
+  deleting everything after it costs +1.84% at n=100 and +4.40% at n=300. The rest of `low`
+  costs 3 ms / 133 ms at those sizes and buys 1.6 / 2.6 percentage points.
+- **At n≥200 `low` dominates the ablation on both axes** — it is better and faster. At n=300,
+  the best two-step run is +2.92% in 1.32 s; `low` is +1.77% in 227 ms, `mid` +0.90% in 854 ms.
+- **More beam and more restarts saturate.** Going from 2 to 16 islands cuts the n=300 gap from
+  4.40% to 3.04% at 7× the time; a second restart buys only another 0.12 pp. The last 2 pp are
+  not reachable by widening steps 1–2 — they need recombination and polish.
+- **The screen is what makes the beam competitive at all** (35.5% → 3.1%), but screening only
+  the beam's top final is not enough: the beam ranks finals by partial-path length, and the
+  tour that wins after 2-opt/Or-opt is often not the one that was shortest before it. Screen
+  every final, or at least the top few.
+
+The pure configuration sweep (`islands` × `K=n/4,n/3,n/2` × `screenF=1,2,4,8,all`,
+1 restart, then 2/4 restarts on the top eight) picked 16 islands, K=n/4, all finals as the
+best median. The ranking is flat between the top few settings; the time/quality curve is the
+real result, not the winner.
+
+Reproduce:
+
+```bash
+node experiments/beam-screen-only/tune.js --ns=100,200,300 --seeds=2
+node experiments/beam-screen-only/bench.js --seeds=2 --csv=experiments/beam-screen-only/bench_results.csv
+node experiments/beam-screen-only/bench.js --ns=200,300 --seeds=2 --levels=low,mid,high
+```
+
+---
+
+## 12. Open threads
 
 - **EAX / AB-cycle recombination** instead of ERX in `src/hybrid/hybrid_tsp.js` — the natural next
   step after ERX; edge voting on raw finals already scored ~0.

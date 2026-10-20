@@ -10,6 +10,9 @@
  *   -> selective full-restart polish -> optional final polish
  *
  * All knobs are plain options; no globals are mutated after load.
+ *
+ * `beamScreen()` is steps 1+2 with everything after them removed; the ablation
+ * against the full pipeline lives in experiments/beam-screen-only/.
  */
 'use strict';
 const fs = require('fs');
@@ -114,6 +117,60 @@ function doubleBridge(t, n, r) {
   for (let i = b; i < c; i++) out.push(t[i]);
   for (let i = a; i < b; i++) out.push(t[i]);
   return out;
+}
+
+/* -------------------- beam + fast screen, and nothing else ----------------
+ * Steps 1 and 2 of the pipeline on their own:
+ *   beam islands -> fast candidate-list screen -> shortest tour wins
+ * No elite pool, no ERX, no kicks/annealing, no full-restart polish.
+ * `screenF` caps how many finals per island get the screen (0 = all of them).
+ */
+const SCREEN_DEFAULTS = Object.freeze({
+  islands: 4,
+  K: 0,                 // 0 -> max(16, n/3)
+  near: 0,              // 0 -> max(10, n/10)
+  startCount: 2,
+  score: 'visited',
+  fastOrOptMaxL: 3,
+  screenF: 0,           // 0 -> screen every beam final
+  restarts: 1
+});
+
+function beamScreenOnce(inst, base, seed, P) {
+  const n = inst.n;
+  const K = P.K ? P.K : rnd(n / 3, 16);
+  const fastOpts = { oroptMaxL: P.fastOrOptMaxL };
+  const islands = Math.max(1, P.islands | 0);
+  let best = null;
+  for (let i = 0; i < islands; i++) {
+    const b = B.beamFast(base, K, {
+      starts: i === 0 ? 'farthest' : 'random',
+      startCount: P.startCount,
+      startSeed: (seed * 97 + i * 131 + 1) >>> 0,
+      score: P.score
+    });
+    const lim = P.screenF > 0 ? Math.min(P.screenF, b.finals.length) : b.finals.length;
+    for (let f = 0; f < lim; f++) {
+      const x = B.refineFast(base.D, b.finals[f].t, base.near, base.kn, n, false, fastOpts);
+      if (!best || x.len < best.len - 1e-9) best = { t: x.tour, len: x.len };
+    }
+  }
+  return best;
+}
+
+/* Public entry point. Restarts repeat the same two steps with fresh beam seeds. */
+function beamScreen(inst, seed, opts) {
+  const P = Object.assign({}, SCREEN_DEFAULTS, opts || {});
+  const n = inst.n;
+  const nearK = P.near ? P.near : rnd(n / 10, 10);
+  const base = inst.base || B.buildInstance(n, inst.seed, inst.kind, nearK);
+  const R = Math.max(1, P.restarts | 0);
+  let best = null;
+  for (let r = 0; r < R; r++) {
+    const res = beamScreenOnce(inst, base, (seed + r * 104729) >>> 0, P);
+    if (!best || res.len < best.len - 1e-9) best = res;
+  }
+  return { tour: best.t, len: best.len, restarts: R, knobs: P };
 }
 
 /* ------------------------------ the hybrid ------------------------------- */
@@ -311,4 +368,5 @@ function combineUnits(level, results) {
 }
 
 module.exports = { B, NAT, DEFAULTS, hybrid, hybridOnce, runEffort, erx, doubleBridge,
-  effortPreset, tourKey, unitsFor, hybridUnit, combineUnits };
+  effortPreset, tourKey, unitsFor, hybridUnit, combineUnits,
+  SCREEN_DEFAULTS, beamScreen, beamScreenOnce };

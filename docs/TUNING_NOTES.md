@@ -494,10 +494,14 @@ Per-n median time (n=50/100/200/300): `low` 9/35/142/309 ms, `mid` 22/86/361/896
 Per-n median gap vs bound: `low` 1.43/1.27/1.55/3.41%, `mid` 1.49/0.75/1.64/3.13%,
 `high` 1.25/1.06/1.35/2.57%, `xhigh` 1.08/0.74/1.37/2.53%, `max` 1.08/0.74/1.02/2.43%.
 
-At n=400 (single seed per family) the ordering is not reliable: `low` (0.52 s) beat `mid`
-(1.37 s) and `high` (3.98 s) on the uniform instance, and `xhigh` (11 s) drew a bad basin on
-the cluster instance (+4.5% vs the best) while `max` (44 s) recovered. The portfolio is what
-makes `max` safe; do not read the n=400 rows as a monotone curve.
+At n=400 (single seed per family) the ordering frays: `low` (0.52 s) beat `mid` (1.37 s) and
+`high` (3.98 s) on the uniform instance, and `xhigh` (11 s) drew a bad basin on the cluster
+instance (+4.5% vs the best) while `max` (44 s) recovered. A 2-seed rerun at n=400 and n=500
+confirms that only `max` holds at these sizes: median gap to the bound +3.3% and +3.9%, mean
++0.14% over the best level per instance, best or within 0.11% on 7 of 8 instances. `high` beat
+it once by 1.0% at a ninth of the runtime; `low`/`mid` drift to +7.9%/+6.4% at n=500. Widening
+`nearK` made every level worse, and a second restart helped `low` only ~1%. Details in
+TSP_NOTES §4.4.
 
 ### 8.7 Exact check
 

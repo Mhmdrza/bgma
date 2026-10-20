@@ -342,14 +342,47 @@ Median time by n: **9 / 35 / 142 / 309 ms** for `low`, **22 / 86 / 361 / 896 ms*
 **499 / 2.05 / 8.79 / 22.5 s** for `max` (n=50/100/200/300). At n ≤ 22 all five levels matched
 Held–Karp on **18/18 instances**.
 
-Caveat: at n=400 (one seed per family) the ordering is no longer reliable — `xhigh` drew a bad
-basin on the cluster instance and `low` beat it, while the `max` portfolio recovered. Treat the
-ladder as tuned on n=50–300 and use `max` when n≥400.
+Caveat: below n=300 the ordering is stable and well sampled; above it the ordering frays —
+see §4.4.
+
+### 4.4 Large n: n=400 and n=500
+
+Same ladder, 2 seeds × uniform/cluster per size, gap to the 1-tree bound:
+
+| effort | med gap n=400 | med gap n=500 | med time n=400 | n=500 |
+|---|---:|---:|---:|---:|
+| `low` | +4.24% | +7.86% | 0.55 s | 0.91 s |
+| `mid` | +3.67% | +6.41% | 1.6 s | 3.0 s |
+| `high` | +3.15% | +6.35% | 4.6 s | 8.0 s |
+| `xhigh` | +5.46% | +5.70% | 13 s | 23 s |
+| `max` | +3.31% | +3.90% | 40 s | 72 s |
+
+- **`max` is the only level that holds.** Over the eight instances it was best or within
+  0.11% on seven, won five outright, and never lost by more than 1.04%. Mean gap to the
+  per-instance best of the five levels: `max` +0.14%, `high` +2.08%, `xhigh` +2.05%,
+  `mid` +2.62%, `low` +2.86%.
+- **`high` can still win.** On n=400/cluster it beat `max` by 1.04% at 4.6 s instead of 40 s.
+  If a large-n run matters and 40–70 s is too much, run `high` and `max` and keep the shorter.
+- **The middle levels drift.** `xhigh` lost to `high` on the median at n=400 (5.5% vs 3.2%)
+  and won at n=500 (5.7% vs 6.4%): basin luck, not a trend. `low` and `mid` fall behind as n
+  grows (4.2→7.9% and 3.7→6.4% vs bound) because they keep one restart and 4n²/7.5n² proposals.
+- **Wider candidate lists do not help.** Raising `nearK` at n=400/500 made every level worse:
+  `low` goes 5.2% (at 10) → 7.7% (16) → 10.2% (50), `mid` 4.1% → 5.1% → 9.4%. A second
+  restart helps `low` by ~1% but does not close the gap; the missing ingredient is budget and
+  restarts, not a longer list.
+- **Against the old cap.** The fixed 120k-proposal default is +15 to +59% above the bound at
+  these sizes (median +47.6%) for ~0.75 s; `low` is +4.2/+7.9% for 0.55/0.91 s.
+
+Cluster instances sit higher than uniform for every level (at n=500 the medians are 8.5–11.8%
+vs 3.8–5.7% for `low`–`high`; `max` narrows it to +4.2% vs +3.8%), partly because the 1-tree
+bound is weaker on clustered geometry. Compare levels within an instance, not across families.
+
 
 ```bash
 node src/nature/nature_effort.js --n=200 --effort=mid
 node src/nature/nature_effort.js --n=200 --effort=max --bound=1 --tour=tour.txt
 node src/nature/nature_effort.js --ns=50,100,200 --efforts=low,mid,high,xhigh,max --seeds=2 --kind=both --bound=1
+node src/nature/nature_effort.js --ns=400,500 --seeds=2 --kind=both --efforts=low,mid,high,xhigh,max --bound=1
 node tuning/tune_nature.js --ns=50,100,150 --seeds=2
 node tuning/validate_nature_effort.js --ns=18,20,22 --seeds=3
 ```

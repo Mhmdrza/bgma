@@ -192,6 +192,10 @@ subgradient iterations. `max` is a portfolio of the `xhigh` run and a heavier ru
 never be worse than `xhigh` on the same instance. At n ≤ 22 every level matched Held–Karp on
 **18/18 instances**. Reproduce: `node src/nature/nature_effort.js --ns=50,100,200 --efforts=low,mid,high,xhigh,max --seeds=2 --kind=both --bound=1`.
 
+At n=400/500 only `max` holds (median +3.3/+3.9% vs the bound, 40/72 s); `low` drifts to
++4.2/+7.9% and `high` beat `max` once at a ninth of the cost. Larger-n detail:
+[TSP_NOTES §4.4](docs/TSP_NOTES.md#44-large-n-n400-and-n500).
+
 Reproduce the runtime table above (about ten minutes): `node bench/runtime_bench.js --json=docs/runtime.json --web=docs/runtime_data.js`.
 The same data drives the runtime table in both pages under `docs/`; the pages also show the live
 runtime of each panel. Analysis and caveats: [docs/gerdal.md](docs/gerdal.md) (section "Measured runtime").

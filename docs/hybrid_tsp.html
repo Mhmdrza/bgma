@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Routes exact solvers can’t reach — BGMA, a new TSP solver</title>
-<meta name="description" content="BGMA reproduces the exact Held–Karp optimum in milliseconds, stays within 1.13% of a proven bound at 400 cities and within 2.16% at 1000 — where exact methods run out of memory.">
+<meta name="description" content="BGMA reproduces the exact Held–Karp optimum in milliseconds, hits the published optimum on 9 of 14 TSPLIB instances, and stays within +2.10% of the real optimum at 1002 cities — where exact methods run out of memory.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --ink:#16181d; --muted:#6b7280; --line:#e2e2de;
@@ -138,10 +138,10 @@
   <p class="lede">
     Routing has always forced a choice: pay exponentially for an exact answer, or ship a fast one that
     is quietly 10–13% longer than it needs to be. BGMA ends that trade-off. It reproduced the exact
-    Held–Karp optimum every time the two could be compared — in 1.4&nbsp;ms — at 400 cities it holds
-    within 1.13% of a proven lower bound, and at 1000, where the exact method is long gone, within
-    2.16%. On every 1000-city instance whose optimum is known by construction, it returns that
-    optimum exactly.
+    Held–Karp optimum every time the two could be compared — in 1.4&nbsp;ms. It reaches the published
+    optimum on 9 of 14 TSPLIB instances, and where it does not, the true gap is measured: +1.05% at 783
+    cities and +2.10% at 1002. On every 1000-city instance whose optimum is known by construction, it
+    returns that optimum exactly.
   </p>
   <div class="evidence">
     <div class="ev"><span class="ev-n">26 / 26</span>
@@ -150,9 +150,10 @@
     <div class="ev"><span class="ev-n">215× faster</span>
       <span class="ev-l">than the exact solver at 20 cities: 1.4&nbsp;ms against 302&nbsp;ms for the
         identical, provably shortest route</span></div>
-    <div class="ev"><span class="ev-n">+1.13% / +2.16%</span>
-      <span class="ev-l">of the proven bound at 400 and 1000 cities — where the classic
-        1.5-approximation (Christofides) lands about 13% above the best tour</span></div>
+    <div class="ev"><span class="ev-n">+2.10% true gap</span>
+      <span class="ev-l">at 1002 cities against the published optimum (<code>pr1002</code>); exact on
+        9 of 14 instances with known optima. A 1-tree bound gap is only a ceiling — on <code>fl417</code>
+        it claims 5.6% for an optimal tour</span></div>
   </div>
   <div class="cta">
     <button id="tryCta" class="primary">Try it on your own map ↓</button>
@@ -267,6 +268,23 @@
       capacity only — here, nothing. The same sweep solved every instance with a provable optimum
       exactly (convex position at 1000; collinear and grid at 400), with no invalid tour, length
       mismatch or bound violation in ~160 runs. Cost at this scale grows like n<sup>4</sup>, not n<sup>2</sup>.</p>
+
+    <table>
+      <thead><tr><th>published optimum</th><th>n</th><th>true gap</th><th>bound ceiling</th></tr></thead>
+      <tbody>
+        <tr><td>eil51 · berlin52 · st70</td><td>51–70</td><td class="best">0.000%</td><td>+0.00–0.83%</td></tr>
+        <tr><td>kroA100 · pr124 · bier127 · ch130</td><td>100–130</td><td class="best">0.000%</td><td>+0.57–1.66%</td></tr>
+        <tr><td>tsp225 · fl417</td><td>225–417</td><td class="best">0.000%</td><td>+0.98–5.64%</td></tr>
+        <tr><td>pcb442 · u574</td><td>442–574</td><td>+0.71% · +0.33%</td><td>+1.28% · +0.86%</td></tr>
+        <tr><td>rat783</td><td>783</td><td>+1.05%</td><td>+1.43%</td></tr>
+        <tr><td>pr1002 · u1060</td><td>1002–1060</td><td>+2.10% · +1.45%</td><td>+3.02% · +2.33%</td></tr>
+      </tbody>
+    </table>
+    <p class="note">The rows above are the same solver measured against <em>known optima</em> (TSPLIB
+      <code>EUC_2D</code>, distances rounded as the format requires), so the middle column is the real
+      excess and the right column is what the 1-tree certificate would have claimed. On <code>fl417</code>
+      the tour is optimal while the bound claims 5.64%: the certificate's slack is geometry, and it
+      cannot compare different instances.</p>
   </section>
 
   <section class="closing">
@@ -280,11 +298,12 @@
   <b>The fine print, in full.</b> Every number on this page comes from a run you can reproduce; nothing
   here is a marketing estimate. BGMA is a heuristic, and confidence should scale with evidence, not with
   adjectives. “Optimal” means <em>matched on every instance we could verify</em>, not a theorem. Up to
-  20 cities the target comes from Held–Karp, which needs (n−1)·2^(n−1) states and stops there; beyond that a
-  1-tree + subgradient lower bound takes over, so every reported gap is a guarantee rather than a guess —
-  but it is a <em>loose</em> guarantee, and how loose depends on the geometry: on a collinear instance at
-  400 cities the bound sits 69% below a tour that is provably optimal. The +2.16% at 1000 cities is
-  therefore an upper bound on the true gap, not a measured excess over the optimum. The demo runs
+  20 cities the target comes from Held–Karp, which needs (n−1)·2^(n−1) states and stops there. Past that,
+  tours are scored against <em>published TSPLIB optima</em> (14 instances, 51–1060 cities): 9 are exact,
+  and the n≈1000 excess is real — +2.10% on <code>pr1002</code>, +1.45% on <code>u1060</code>. A gap to
+  the 1-tree bound is only a ceiling, and a loose one: on <code>fl417</code> the bound claims 5.6% for a
+  tour that is provably optimal, and across the set the ceiling overstates the true gap by 0.00–5.34
+  percentage points. The demo runs
   scaled-down effort budgets to stay watchable; the full <code>--effort</code> ladder lives in
   <code>hybrid_effort.js</code>.
 </footer>

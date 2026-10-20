@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Routes exact solvers can’t reach — BGMA, a TSP solver</title>
-<meta name="description" content="BGMA reproduces the exact Held–Karp optimum in milliseconds and stays within 1.25% of a proven bound at 300–400 cities — where exact methods run out of memory.">
+<meta name="description" content="BGMA reproduces the exact Held–Karp optimum in milliseconds, hits the published optimum on 9 of 14 TSPLIB instances, and stays within +2.10% of the real optimum at 1002 cities — where exact methods run out of memory.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --ink:#16181d; --muted:#6b7280; --line:#e2e2de;
@@ -76,9 +76,10 @@
     <div class="ev"><span class="ev-n">215× faster</span>
       <span class="ev-l">than the exact solver at 20 cities: 1.4&nbsp;ms against 302&nbsp;ms for the
         identical, provably shortest route</span></div>
-    <div class="ev"><span class="ev-n">+1.13% / +2.16%</span>
-      <span class="ev-l">of the proven bound at 400 and 1000 cities, where the classic 1.5-approximation
-        (Christofides) lands about 13% above the best tour</span></div>
+    <div class="ev"><span class="ev-n">+2.10% true gap</span>
+      <span class="ev-l">against the published optimum at 1002 cities (TSPLIB <code>pr1002</code>), and
+        exactly optimal on 9 of 14 instances with known optima — the rest measured against the real
+        optimum, not a bound</span></div>
   </div>
 
   <div class="cta">
@@ -109,7 +110,7 @@
     <div class="card"><b>n = 80–200</b><span>The median tour at <code>xhigh</code>/<code>max</code> is within +0.71% of the 1-tree bound.</span></div>
     <div class="card"><b>vs Christofides</b><span>Christofides guarantees ≤ 1.5× optimal and sits at +10–13% in practice. BGMA <code>low</code> has 6–80× less excess from n=50 up.</span></div>
     <div class="card"><b>n = 300–400</b><span><code>xhigh</code> stays within +1.25% of the bound and <code>max</code> within +1.13%; <code>low</code> finishes n=400 in under a second.</span></div>
-    <div class="card"><b>n = 800–1000</b><span>The gap grows: +1.59% at 800 and +2.16% at 1000. At 1000 <code>xhigh</code> and <code>max</code> return the identical tour, and <code>max</code> costs 72 min against 16 min.</span></div>
+    <div class="card"><b>n = 800–1000</b><span>Gap to the 1-tree bound: +1.59% at 800 and +2.16% at 1000. Measured against published optima the true gaps are +1.05% at 783 and +2.10% at 1002. At 1000 <code>xhigh</code> and <code>max</code> return the identical tour, and <code>max</code> costs 72 min against 16 min.</span></div>
     <div class="card"><b>n = 1000, provable case</b><span>On convex-position instances the optimum is known by construction — the hull cycle — and BGMA returns it exactly. Collinear and grid cases are exact at 400; no invalid tour in ~160 stress runs.</span></div>
     <div class="card"><b>fri26</b><span>The tour meets the 1-tree bound exactly (937&nbsp;=&nbsp;937), so it is proven optimal.</span></div>
   </div>
@@ -127,9 +128,10 @@
     <b>The fine print.</b> Every number here comes from a run you can reproduce. BGMA is still a
     heuristic, and “optimal” means matched on every instance we could verify, not a proof that it always
     is; no polynomial-time algorithm is known to guarantee TSP optima. The exact check covers
-    n&nbsp;≤&nbsp;22; beyond that the evidence is a proven 1-tree lower bound, so a reported gap is a
-    guarantee rather than an estimate — but a loose one: on a collinear instance at n=400 the bound sits
-    69% below a provably optimal tour, so +2.16% at n=1000 is an upper bound on the true gap.
+    n&nbsp;≤&nbsp;22; beyond that tours are scored against <em>published TSPLIB optima</em> (14 instances,
+    51–1060 cities): 9 are exact, and the n≈1000 excess is real — +2.10% on <code>pr1002</code> and
+    +1.45% on <code>u1060</code>. A gap to the 1-tree bound is only a ceiling, and a loose one: on
+    <code>fl417</code> the bound claims 5.6% for a provably optimal tour.
   </p>
 
   <h2>Read more</h2>

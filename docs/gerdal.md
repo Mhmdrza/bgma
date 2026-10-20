@@ -8,8 +8,9 @@ Tags: `tsp` · `heuristic` · `bgma`
 
 > **The short version.** Exact Held–Karp optima reproduced on 26 of 26 checkable instances, 215×
 > faster than the exact solver at n=20, and within 1.13% of a proven lower bound at n=400 —
-> degrading to 2.16% at n=1000, where the exact method no longer fits in memory but the heuristic
-> still returns the exactly optimal tour on every instance whose optimum is known by construction.
+> 2.16% at n=1000 against that bound, which is a *ceiling*. Measured against published TSPLIB
+> optima the true gap is 0.00% on 9 of 14 instances (through n=417) and +2.10% at 1002 cities, so
+> the large-n residual is real tour quality, not only certificate slack.
 > This note is the evidence: what the method does, what it costs, and what is and is not proven.
 
 > This document describes the algorithm implemented in this repository at commit
@@ -39,9 +40,11 @@ optimum — 26 of 26 checkable instances at n = 18, 20 and 22, in milliseconds. 
 larger sizes the levels trade runtime for a progressively smaller gap to the best
 tour found, with `max` matching the best-of-all tested tour on all reported
 n=80–200 instances and `xhigh` staying within 1.25% of a proven 1-tree bound at
-n=300–400, where Held–Karp is out of reach. Past 400 the certificate gap grows
-with n (+1.59% at 800, +2.16% at 1000) and the top of the ladder stops paying:
-at n=1000 `max` and `xhigh` return the same tour for 4.5× the runtime.
+n=300–400, where Held–Karp is out of reach. Past 400 the gap *to the bound* grows
+with n (+1.59% at 800, +2.16% at 1000; a ceiling, not the true gap) and the top
+of the ladder stops paying: at n=1000 `max` and `xhigh` return the same tour for
+4.5× the runtime. Against published optima the true gap is 0% through n=417 and
++2.10% at n=1002.
 
 ## Problem and notation
 
@@ -418,9 +421,10 @@ sum of its two arms.
 
 The gap also does not stay flat: 1.11% at 400, 1.33% at 600, 1.59% at 800,
 2.16% at 1000. The certificate is converged at every one of those sizes, so the
-growth is either genuine tour excess or genuine 1-tree duality gap — the
-1-tree bound cannot separate the two. A tighter relaxation (Lagrangian with
-degree constraints, DFJ cuts, or branch-and-bound) is needed to settle it.
+1-tree bound alone cannot separate genuine tour excess from duality gap. TSPLIB
+instances with known optima settle it for those sizes: the true gap is +0.33% at
+574, +1.05% at 783 and +2.10% at 1002, i.e. the growth is real tour quality, not
+an artefact of the bound.
 
 ### Robustness and provable cases
 
@@ -477,6 +481,52 @@ geometry, not on the solver: at n<=22 it is 0-0.6% below the exact Held-Karp
 optimum and never above it in 18/18 checks; on a collinear instance at n=400 it
 is 69% below a provably optimal tour. A reported gap is a ceiling on the true
 gap, not a measurement of it.
+
+### The true gap: TSPLIB optima
+
+A ceiling is only as useful as its slack, so the same `max` run was scored against
+published TSPLIB optima instead. `tuning/tsplib_bench.js` parses `NODE_COORD_SECTION`,
+rounds each distance the way `EUC_2D` defines it ($\mathrm{nint}(\sqrt{\Delta x^2+\Delta y^2})$),
+builds the instance from those integers, runs the requested levels through the worker
+pool, and rejects any tour that is not a permutation or whose length does not
+recompute from the matrix. All runs below are `max`, seed 1, 600-iteration
+certificate.
+
+| instance | n | optimum | `max` tour | true gap | bound ceiling | bound below OPT |
+|---|---:|---:|---:|---:|---:|---:|
+| eil51 | 51 | 426 | 426 | 0.000% | +0.829% | 0.823% |
+| berlin52 | 52 | 7542 | 7542 | 0.000% | +0.000% | 0.000% |
+| st70 | 70 | 675 | 675 | 0.000% | +0.596% | 0.593% |
+| kroA100 | 100 | 21282 | 21282 | 0.000% | +1.650% | 1.624% |
+| pr124 | 124 | 59030 | 59030 | 0.000% | +1.658% | 1.631% |
+| bier127 | 127 | 118282 | 118282 | 0.000% | +0.725% | 0.720% |
+| ch130 | 130 | 6110 | 6110 | 0.000% | +0.568% | 0.565% |
+| tsp225 | 225 | 3916 | 3916 | 0.000% | +0.982% | 0.973% |
+| fl417 | 417 | 11861 | 11861 | 0.000% | +5.639% | 5.338% |
+| pcb442 | 442 | 50778 | 51136 | +0.705% | +1.282% | 0.570% |
+| u574 | 574 | 36905 | 37028 | +0.333% | +0.864% | 0.526% |
+| rat783 | 783 | 8806 | 8898 | +1.045% | +1.430% | 0.380% |
+| pr1002 | 1002 | 259045 | 264473 | +2.095% | +3.018% | 0.896% |
+| u1060 | 1060 | 224094 | 227345 | +1.451% | +2.327% | 0.856% |
+
+What this changes:
+
+1. **The certificate cannot rank instances or algorithms.** `fl417` is optimal
+   while its bound claims 5.64%; `berlin52`'s bound is exact. The ceiling
+   overstates the true gap by 0.00–5.34 pp across this set, and that slack is a
+   property of the geometry. A bound gap is only comparable within one instance.
+2. **The large-n excess over the optimum is real.** Everything through n=417 is
+   solved exactly; then +0.71% at 442, +0.33% at 574, +1.05% at 783, +2.10% at
+   1002 and +1.45% at 1060. Structure matters as much as size: `fl417` is exact
+   at a size where `pcb442` is 0.71% long.
+3. **The old "+2.16% at n=1000" was a ceiling that happened to land near the
+   `pr1002` truth (+2.10%)** — on that instance the ceiling was +3.02%, and on
+   `u1060` +2.33% against a true +1.45%. Any future claim about tour quality
+   should quote the true gap, not the bound gap.
+
+The arms also show the portfolio doing its job: on `pr1002` the three units
+returned +2.165% (`xhigh`), +2.095% and +2.263%, and `max` takes the best; on
+`u1060` they returned +1.955%, +1.901% and +1.451%.
 
 ### Measured runtime
 
@@ -652,7 +702,8 @@ the project does not claim it.
 | “Routes that exact solvers can’t reach” | n = 50–400 runs, where Held–Karp is infeasible, each measured against a 1-tree bound | runtime table; `--bound=1` |
 | “26 / 26” exact optima reproduced | exact checks: 10 + 10 + 6 instances at n = 18, 20, 22, at every effort level | `tuning/validate_effort.js --ns=18,20,22` |
 | “215× faster” at 20 cities | 1.4 ms (`low`) against 302 ms for the same provably shortest tour | runtime table, n=20 row |
-| “+1.13% of the proven bound at 400 cities, +2.16% at 1000” | large-n check: `max` +1.13% at 400; stress sweep `max` +2.16% at 1000 against a bound converged to 6000 iterations | `--n=400 --effort=max --bound=1`; `tuning/stress_max.js --ns=1000 --families=uniform --levels=max` |
+| “+1.13% of the proven bound at 400 cities, +2.16% at 1000” | large-n check: `max` +1.13% at 400; stress sweep `max` +2.16% at 1000 against a bound converged to 6000 iterations. These are **ceilings**: on `pr1002` the same bound was +3.02% against a true +2.10% | `--n=400 --effort=max --bound=1`; `tuning/stress_max.js --ns=1000 --families=uniform --levels=max` |
+| “True gap +2.10% at 1002 cities, +1.45% at 1060” | TSPLIB published optima: `pr1002` 259045 vs `max` 264473; `u1060` 224094 vs 227345. 9 of the 14 (all at n=51–417) hit the optimum exactly | `tuning/tsplib_bench.js --file=pr1002.tsp --opt=259045 --levels=max` |
 | “Provably optimal at 1000 cities on instances with a known optimum” | convex-position family: hull cycle is optimal by construction; `max` returns it at n=20, 100, 200, 400, 1000 | `tuning/stress_max.js --ns=1000 --families=convex` |
 | “Christofides lands about 13% above the best tour” | +10.07% to +13.48% mean excess across n = 20–400 | quality table below |
 | “No theorem attached” (the fine print) | BGMA has no approximation guarantee; only the measured evidence above | next section |
@@ -668,11 +719,12 @@ not the CLI numbers in the runtime table.
 - The larger-n tables use the best tour found by any tested method as the
   reference. They are **relative** comparisons, not optimality gaps.
 - The 1-tree bound is proven but loose, and how loose depends on the geometry.
-  At n=80–200 the best tours plateau roughly 0.5–1.2% above it, and adding much
-  more search does not close that plateau; at n=1000 the gap is 2.16%. On a
-  collinear instance at n=400 the tour is provably optimal while the bound is
-  69% below it. The evidence is consistent with bound looseness, but it is not a
-  proof that the tours are optimal.
+  At n=80–200 the best tours plateau roughly 0.5–1.2% above it; at n=1000 the gap
+  to it is 2.16%. On a collinear instance at n=400 the tour is provably optimal
+  while the bound is 69% below it, and on `fl417` the tour is optimal while the
+  bound claims 5.64%. Published optima show the large-n residual is real:
+  +2.10% on `pr1002` and +1.45% on `u1060`. So on synthetic families the bound
+  gap is an upper bound, and on TSPLIB the true gap is measured directly.
 - **"Effort max is optimal" is not a provable claim in the strong sense.** The
   ladder is polynomial-time by construction, so a theorem that it always
   returns an optimal tour would imply P = NP. The demonstrable statement is
@@ -712,6 +764,12 @@ node tuning/stress_max.js --ns=1000 --families=uniform --levels=low,mid,high,xhi
 node tuning/stress_parallel.js --ns=1000 --families=uniform,cluster \
   --levels=low,mid,high,xhigh,max --jobs=6
 
+# true gap: score a run against a published TSPLIB optimum instead of a bound.
+# EUC_2D distances are rounded, and every tour is validated before it is scored.
+node tuning/tsplib_bench.js --file=pr1002.tsp --opt=259045 --levels=max --jobs=3
+node tuning/tsplib_bench.js --file=eil51.tsp  --opt=426    --levels=low,mid,high,xhigh,max
+node tuning/tsplib_bench.js --file=pr1002.tsp --opt=259045 --check   # certificate only
+
 # open the interactive demo (claim, evidence, effort dial, Held–Karp comparison)
 python3 -m http.server 8000
 # then open http://127.0.0.1:8000/docs/hybrid_tsp.html
@@ -730,6 +788,9 @@ python3 -m http.server 8000
 | `docs/hybrid_tsp.html` | interactive demo and pitch page: claim + evidence, exact optimum vs BGMA, effort dial, timeline |
 | `tuning/tune_effort.js` | knob sweep and quality/runtime harness |
 | `tuning/validate_effort.js` | Held–Karp validation at n≤22 |
+| `tuning/tsplib_bench.js` | true-gap bench: parses TSPLIB `EUC_2D`, rounds distances, validates tours, scores against published optima |
+| `tuning/families.js` | synthetic instance families shared by `stress_max.js` and `stress_parallel.js` |
+| `src/hybrid/instance.js`, `src/hybrid/pool.js`, `src/hybrid/unit_runner.js` | instance rebuilding, worker pool, worker entry point |
 | `TSP_NOTES.md` | full project notes and earlier benchmarks |
 | `TUNING_NOTES.md` | tuning observations and future work |
 | `bench/runtime_bench.js` | runtime and quality of every algorithm; source of `docs/runtime.json` |
@@ -745,12 +806,14 @@ budgets so a `max` run stays watchable; it is not the exact Node code path.
 
 ## Limitations and future work
 
-- **Tighter bounds.** The 1-tree bound is the main obstacle to knowing the true
-  gap at n=60–120 and beyond. A tighter Lagrangian (degree constraints), an
-  assignment bound, DFJ cuts, or exact branch-and-bound would settle it — and
-  the stress sweep shows why this, not more search, is the binding constraint:
-  the gap grows to 2.16% at n=1000 while the bound costs 2.6 s against 72
-  minutes for the tour.
+- **Tighter bounds.** The 1-tree certificate is loose in a geometry-dependent way
+  (0.00–5.34 pp on the TSPLIB set below; 69% on a collinear instance), so it
+  cannot rank instances. Published optima settle the true gap wherever they
+  exist (9/14 exact, +2.10% at n=1002), but the synthetic families still have no
+  tight reference. A stronger Lagrangian (degree constraints), an assignment
+  bound, DFJ cuts, or exact branch-and-bound would close that hole — and the
+  TSPLIB runs show the residual is real search quality, not only certificate
+  slack.
 - **Early exit on a certificate.** When the tour length equals the bound the
   search can stop. On the 20×20 grid at n=400 that saves 51 s of the 51 s it
   spends; on the convex n=1000 instance it saves the full 23 minutes. This is a
@@ -763,9 +826,11 @@ budgets so a `max` run stays watchable; it is not the exact Node code path.
   cheaper level (`high`) beat a more expensive one (`xhigh`) by 0.052 pp.
 - **EAX / AB-cycle recombination.** ERX is simple; EAX is the natural next
   recombination operator with a demonstrated literature upside.
-- **Parallelism.** Islands, children, and polish calls are independent. A worker
-  pool would turn the `max` runtime into a cores× speedup without changing
-  quality — which matters more now that the runtime is quartic at scale.
+- **Parallelism.** Islands, children, and polish calls are independent. The
+  worker pool in `src/hybrid/pool.js` already turns the `max` portfolio into a
+  cores× speedup without changing the result (2.9–3.0× on three units), but the
+  remaining serial cost inside each unit is still the wall-clock floor at n≈1000.
+  Parallelising generations or the polish pass would be the next step.
 - **Held-out and real-instance validation.** Re-run the ladder on unseen seeds,
   TSPLIB, and the CSV dataset. The stress sweep covers seven synthetic
   families; real road networks are not among them, and the bound's tightness is

@@ -8,10 +8,17 @@
  * thread without shipping an 8 MB distance matrix through postMessage.
  */
 
-function buildFromPoints(pts) {
+function buildFromPoints(pts, opts) {
+  /* TSPLIB EUC_2D declares distances as nint(sqrt(dx^2 + dy^2)), i.e. rounded to
+   * the nearest integer. Comparing against a published optimum requires exactly
+   * that objective, so `opts.round` rounds each entry before anything else sees
+   * it (neighbour lists included). */
+  const rnd = !!(opts && opts.round);
   const n = pts.length, D = new Float64Array(n * n), rows = [];
-  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++)
-    D[i * n + j] = i === j ? 0 : Math.hypot(pts[i][0] - pts[j][0], pts[i][1] - pts[j][1]);
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const d = i === j ? 0 : Math.hypot(pts[i][0] - pts[j][0], pts[i][1] - pts[j][1]);
+    D[i * n + j] = rnd ? Math.floor(d + 0.5) : d;
+  }
   for (let i = 0; i < n; i++) rows.push(D.subarray(i * n, (i + 1) * n));
   const order = [], orderFlat = new Int32Array(n * (n - 1));
   for (let i = 0; i < n; i++) {
@@ -34,7 +41,7 @@ function buildFromPoints(pts) {
  * deterministic synthetic builder is used with the same arguments the parent used. */
 function instanceFromSpec(B, spec) {
   if (spec.points) {
-    const inst = buildFromPoints(spec.points);
+    const inst = buildFromPoints(spec.points, spec);
     inst.base = inst;
     return inst;
   }

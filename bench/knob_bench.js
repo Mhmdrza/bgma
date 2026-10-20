@@ -39,7 +39,7 @@ function sliceHtml(file, marker) {
     ? txt.indexOf('<script>') + '<script>'.length : 0;
   return txt.slice(start, cut);
 }
-const N = eval(sliceHtml(path.join(__dirname, '..', 'web', 'nature_tsp.html'), '/* ============================== drawing') +
+const N = eval(sliceHtml(path.join(__dirname, '..', 'docs', 'nature_tsp.html'), '/* ============================== drawing') +
   ';({makeNear,popWave,anneal,ox,tourLength,setRand:fn=>{rand=fn;}})');
 
 /* ------------------------------- presets -------------------------------- */

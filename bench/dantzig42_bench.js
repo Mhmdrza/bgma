@@ -43,7 +43,7 @@ for (let i = 0; i < n; i++) for (let j = 0; j <= i; j++) {
 const len = t => { let s = 0; for (let i = 0; i < t.length; i++) s += D[t[i]][t[(i + 1) % t.length]]; return s; };
 
 /* solver extraction */
-const html = fs.readFileSync(path.join(__dirname, '..', 'web', 'nature_tsp.html'), 'utf8');
+const html = fs.readFileSync(path.join(__dirname, '..', 'docs', 'nature_tsp.html'), 'utf8');
 const core = html.slice(html.indexOf('<script>') + 8, html.indexOf('/* ============================== drawing'));
 const NAT = eval(core + ';({nearestOrder,makeNear,farthestPair,popWave,anneal,ox,hkBound,rng,tourLength,' +
   'setRand:(fn)=>{rand=fn;}})');

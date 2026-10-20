@@ -47,7 +47,7 @@ function sliceFile(file, marker) {
   return txt.slice(start, cut);
 }
 
-const core = sliceFile(path.join(__dirname, '..', 'web', 'nature_tsp.html'), '/* ============================== drawing');
+const core = sliceFile(path.join(__dirname, '..', 'docs', 'nature_tsp.html'), '/* ============================== drawing');
 const N = eval(core + ';({makePoints,distRows,nearestOrder,makeNear,farthestPair,popWave,anneal,ox,' +
   'heldKarp,hkBound,tourLength,rng,setRand:(fn)=>{rand=fn;}})');
 

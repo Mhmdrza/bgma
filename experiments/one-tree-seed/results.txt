@@ -1,0 +1,91 @@
+
+one-tree seed bench   n=50/100/200/300/400  seeds=2  uniform+cluster+convex+line  levels=low/mid  iters=400
+
+n=50 s=1 uniform        ref=    524.8  best-of-all  bound=    521.6  gap<=+0.61%
+n=50 s=1 cluster        ref=    376.4  best-of-all  bound=    370.9  gap<=+1.50%
+n=50 s=1 convex         ref=    515.6  optimum  bound=    515.6  gap<=-0.00%
+n=50 s=1 line           ref=    190.7  optimum  bound=    167.1  gap<=+14.09%
+n=50 s=2 uniform        ref=    558.8  best-of-all  bound=    552.9  gap<=+1.08%
+n=50 s=2 cluster        ref=    311.7  best-of-all  bound=    311.6  gap<=+0.03%
+n=50 s=2 convex         ref=    515.6  optimum  bound=    515.6  gap<=-0.00%
+n=50 s=2 line           ref=    168.0  optimum  bound=    153.1  gap<=+9.77%
+n=100 s=1 uniform       ref=    694.1  best-of-all  bound=    687.4  gap<=+0.97%
+n=100 s=1 cluster       ref=    432.5  best-of-all  bound=    431.0  gap<=+0.35%
+n=100 s=1 convex        ref=    515.9  optimum  bound=    515.9  gap<=-0.00%
+n=100 s=1 line          ref=    191.2  optimum  bound=    135.0  gap<=+41.66%
+n=100 s=2 uniform       ref=    703.7  best-of-all  bound=    698.5  gap<=+0.74%
+n=100 s=2 cluster       ref=    383.2  best-of-all  bound=    383.1  gap<=+0.05%
+n=100 s=2 convex        ref=    515.9  optimum  bound=    515.9  gap<=-0.00%
+n=100 s=2 line          ref=    193.4  optimum  bound=    149.2  gap<=+29.56%
+n=200 s=1 uniform       ref=    985.3  best-of-all  bound=    970.7  gap<=+1.51%
+n=200 s=1 cluster       ref=    634.2  best-of-all  bound=    626.6  gap<=+1.20%
+n=200 s=1 convex        ref=    515.9  optimum  bound=    515.9  gap<=-0.00%
+n=200 s=1 line          ref=    199.4  optimum  bound=    125.5  gap<=+58.89%
+n=200 s=2 uniform       ref=    988.4  best-of-all  bound=    980.9  gap<=+0.76%
+n=200 s=2 cluster       ref=    574.9  best-of-all  bound=    569.4  gap<=+0.96%
+n=200 s=2 convex        ref=    515.9  optimum  bound=    515.9  gap<=-0.00%
+n=200 s=2 line          ref=    196.9  optimum  bound=    138.5  gap<=+42.23%
+n=300 s=1 uniform       ref=   1207.0  best-of-all  bound=   1185.5  gap<=+1.82%
+n=300 s=1 cluster       ref=    747.9  best-of-all  bound=    737.1  gap<=+1.47%
+n=300 s=1 convex        ref=    516.0  optimum  bound=    516.0  gap<=-0.00%
+n=300 s=1 line          ref=    199.4  optimum  bound=    119.6  gap<=+66.66%
+n=300 s=2 uniform       ref=   1227.2  best-of-all  bound=   1201.8  gap<=+2.12%
+n=300 s=2 cluster       ref=    709.1  best-of-all  bound=    694.8  gap<=+2.06%
+n=300 s=2 convex        ref=    516.0  optimum  bound=    516.0  gap<=-0.00%
+n=300 s=2 line          ref=    196.9  optimum  bound=    131.6  gap<=+49.64%
+n=400 s=1 uniform       ref=   1391.0  best-of-all  bound=   1363.8  gap<=+2.00%
+n=400 s=1 cluster       ref=    933.1  best-of-all  bound=    915.1  gap<=+1.96%
+n=400 s=1 convex        ref=    516.0  optimum  bound=    516.0  gap<=-0.00%
+n=400 s=1 line          ref=    199.5  optimum  bound=    115.2  gap<=+73.26%
+n=400 s=2 uniform       ref=   1369.6  best-of-all  bound=   1340.1  gap<=+2.20%
+n=400 s=2 cluster       ref=    774.9  best-of-all  bound=    764.6  gap<=+1.35%
+n=400 s=2 convex        ref=    516.0  optimum  bound=    516.0  gap<=-0.00%
+n=400 s=2 line          ref=    198.3  optimum  bound=    123.8  gap<=+60.12%
+
+SUMMARY  (40 instances; gap vs best-of-all per instance)
+
+method                         median     mean    worst     best   wins  vs bound     med ms     certified
+greedy nearest-neighbour       +7.40%  +14.05%  +40.38%   +0.00%  20/40   +27.38%      34 us             —
+1-tree walk only               +8.98%  +11.80%  +44.26%   +0.00%  10/40   +22.98%      17 ms10/40 (10 dist)
+1-tree walk + screen           +0.00%   +0.99%   +5.65%   +0.00%  23/40    +3.44%      17 ms10/40 (10 dist)
+BGMA low                       +0.00%   +0.44%   +2.99%   +0.00%  24/40    +1.78%      66 ms             —
+BGMA mid                       +0.00%   +0.07%   +0.49%   +0.00%  29/40    +1.35%     211 ms             —
+OTSH low                       +0.00%   +0.32%   +1.69%   +0.00%  27/40    +2.17%      31 ms10/40 (10 dist)
+OTSH mid                       +0.00%   +0.03%   +0.53%   +0.00%  36/40    +1.37%      61 ms10/40 (10 dist)
+
+MEDIAN GAP BY n
+method                            n=50     n=100     n=200     n=300     n=400
+greedy nearest-neighbour        +7.40%   +12.23%   +12.54%   +11.77%   +11.82%
+1-tree walk only                +3.29%   +11.49%   +15.99%   +11.95%   +12.40%
+1-tree walk + screen            +0.00%    +0.00%    +0.04%    +0.69%    +0.74%
+BGMA low                        +0.00%    +0.00%    +0.24%    +0.53%    +0.47%
+BGMA mid                        +0.00%    +0.00%    +0.00%    +0.00%    +0.00%
+OTSH low                        +0.00%    +0.00%    +0.00%    +0.10%    +0.32%
+OTSH mid                        +0.00%    +0.00%    +0.00%    +0.00%    +0.00%
+
+MEDIAN TIME BY n
+method                            n=50     n=100     n=200     n=300     n=400
+greedy nearest-neighbour         12 us     21 us     44 us     36 us     50 us
+1-tree walk only                3.9 ms     14 ms     58 ms    129 ms    236 ms
+1-tree walk + screen            4.0 ms     14 ms     58 ms    139 ms    238 ms
+BGMA low                        4.0 ms    9.7 ms     66 ms    218 ms    595 ms
+BGMA mid                         15 ms     38 ms    211 ms    821 ms    2.02 s
+OTSH low                        7.8 ms     25 ms    112 ms    320 ms    725 ms
+OTSH mid                         19 ms     54 ms    279 ms    815 ms    2.02 s
+
+TRUE GAP vs the published/known optimum  (20 instances: convex, line)
+
+method                         median     mean    worst  optimal
+greedy nearest-neighbour       +0.00%   +0.00%   +0.00%    20/20
+1-tree walk only               +1.30%   +3.79%  +15.24%    10/20
+1-tree walk + screen           +0.00%   +0.00%   +0.00%    20/20
+BGMA low                       -0.00%   -0.00%   -0.00%    20/20
+BGMA mid                       -0.00%   -0.00%   -0.00%    20/20
+OTSH low                       -0.00%   -0.00%   +0.00%    20/20
+OTSH mid                       -0.00%   -0.00%   +0.00%    20/20
+
+cost split    : the ascent is +44.61% of OTSH low wall time on average (17 ms of 31 ms)
+validation    : all tours are valid permutations (21 walk cases + a 5001-city path self-checked)
+
+wrote         : experiments/one-tree-seed/bench_results.csv
+

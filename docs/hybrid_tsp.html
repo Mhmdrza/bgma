@@ -73,6 +73,11 @@
   .field { display:flex; flex-direction:column; gap:6px; font-size:12px; color:var(--muted); }
   .field .row { display:flex; align-items:center; gap:8px; }
   input[type=range] { width:150px; accent-color:var(--held); }
+  /* slider scale: the datalist above draws the tick at 22 exactly where the thumb
+     lands; the caption under it is positioned from the slider's own min/max */
+  .marks { position:relative; width:150px; height:13px; font-size:10.5px; color:var(--muted); }
+  .marks b { position:absolute; top:0; left:15.2%; padding-left:5px;
+             font-weight:400; white-space:nowrap; color:var(--held); }
   input[type=number], select { font-family:var(--mono); font-size:13px; padding:5px 7px;
     border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); }
   button { font:inherit; font-size:13px; padding:8px 14px; border-radius:7px; cursor:pointer;
@@ -82,7 +87,8 @@
   button:disabled { opacity:.5; cursor:default; }
   button:focus-visible, input:focus-visible, select:focus-visible, canvas:focus-visible
     { outline:2px solid var(--held); outline-offset:2px; }
-  .val { font-family:var(--mono); font-size:12px; color:var(--ink); min-width:26px; text-align:right; }
+  .val { font-family:var(--mono); font-size:12px; color:var(--ink); min-width:26px; text-align:right;
+         white-space:nowrap; }
   .btns { display:flex; gap:6px; }
 
   /* pipeline chips */
@@ -164,7 +170,9 @@
 
 <main>
   <section class="controls">
-    <label class="field">cities <span class="row"><input id="n" type="range" min="8" max="30" value="18"><span class="val" id="nOut">18</span></span></label>
+    <label class="field">cities <span class="row"><input id="n" type="range" min="8" max="100" value="18" list="nMarks"><span class="val" id="nOut">18 · exact</span></span>
+      <span class="marks"><b id="nMark" title="Held–Karp stops here: exact optimum up to 22 (a couple of seconds at 22), 1-tree lower bound past it">22 · Held–Karp max</b></span></label>
+    <datalist id="nMarks"><option value="22" label="Held–Karp max"></option></datalist>
     <label class="field">seed <span class="row"><input id="seed" type="number" min="1" max="99" value="7" step="1"><button id="dice" title="new seed">↻</button></span></label>
     <label class="field">points <span class="row"><select id="kind"><option value="uniform">uniform</option><option value="cluster">clustered</option></select></span></label>
     <label class="field">effort <span class="row"><select id="effort"><option value="low">low</option><option value="mid" selected>mid</option><option value="high">high</option><option value="xhigh">xhigh</option><option value="max">max</option></select></span></label>
@@ -228,12 +236,12 @@
     </p>
     <div class="detail">
       <div>
-        <h3>Under 20 cities</h3>
+        <h3>22 cities and under</h3>
         <p>The right panel is the exact Held–Karp optimum. The tour on the left lands on it in a few
           milliseconds — no estimate, nothing assumed, nothing left on the table.</p>
       </div>
       <div>
-        <h3>21 cities and up</h3>
+        <h3>23 cities and up</h3>
         <p>Held–Karp is gone, so the right panel switches to a <em>proven</em> 1-tree lower bound. Meet it
           and the tour is optimal; miss it and the gap on screen is a guaranteed ceiling, not a guess.</p>
       </div>
@@ -317,7 +325,12 @@
 <script>
 'use strict';
 
-const { EXACT_MAX, effortOptions, makeInstance, buildSnapshots, heldKarp, hkBoundTree, tourLen, greedy } = window.HybridTSP;
+const { effortOptions, makeInstance, buildSnapshots, heldKarp, hkBoundTree, tourLen, greedy } = window.HybridTSP;
+
+/* Held–Karp is 2^(n-1)·n, so the browser demo stops at 22 — the largest n the
+ * repo's benchmarks verify against the exact optimum. Past it the right panel
+ * falls back to the 1-tree lower bound. */
+const HK_MAX = 22;
 
 const $ = id => document.getElementById(id);
 
@@ -392,7 +405,9 @@ function buildLegend() {
     legendItem('', 'background:var(--child)', 'child / escape'),
     exact ? legendItem('', 'background:var(--held)', 'optimum') : legendItem('', 'background:var(--held)', '1-tree'),
     exact ? legendItem('dash', 'border-color:var(--child)', 'best-tour edge not in optimum')
-          : legendItem('ring', 'border-color:var(--child)', 'vertex of 1-tree degree ≠ 2')
+          : TREE && TREE.deg.every(d => d === 2)
+            ? legendItem('dash', 'border-color:var(--child)', 'best-tour edge not in the attained 1-tree tour')
+            : legendItem('ring', 'border-color:var(--child)', 'vertex of 1-tree degree ≠ 2')
   ].join('');
 }
 
@@ -701,6 +716,12 @@ function refreshEffortMap() {
   $('effortMap').textContent = describeEffort(level, effortOptions(level, +$('n').value));
 }
 
+/* The cities readout says which reference the right panel is showing. */
+function setNOut() {
+  const n = +$('n').value;
+  $('nOut').textContent = n + (n <= HK_MAX ? ' · exact' : ' · bound');
+}
+
 const fmtMs = t => t < 10 ? t.toFixed(1) + ' ms' : t < 1000 ? Math.round(t) + ' ms' : (t / 1000).toFixed(2) + ' s';
 
 function updateChips(st) {
@@ -726,6 +747,9 @@ function render() {
   drawTimeline();
   updateChips(st);
 
+  /* A 1-tree with every degree 2 is a Hamiltonian cycle: the bound is attained. */
+  const treeFull = !!(TREE && TREE.deg.every(d => d === 2));
+
   $('hLen').textContent = st.best ? st.best.len.toFixed(1) : '—';
   $('oLen').textContent = OPT ? OPT.len.toFixed(1) : '—';
   $('hMs').textContent = '(' + fmtMs(T_HYB) + ')';
@@ -744,8 +768,10 @@ function render() {
     const d = right.diffCount;
     $('oStage').textContent = d == null ? '' : (d === 0 ? 'best tour = optimum' : d + ' edge' + (d > 1 ? 's' : '') + ' differ from the optimum');
   } else if (TREE) {
-    const bad = TREE.deg.filter(x => x !== 2).length;
-    $('oStage').textContent = bad + ' of ' + TREE.deg.length + ' vertices have 1-tree degree ≠ 2';
+    const bad = TREE.deg.filter(x => x !== 2).length, m = TREE.deg.length;
+    $('oStage').textContent = treeFull
+      ? 'the 1-tree is itself a full tour — the bound is attained: it is the exact optimum'
+      : bad + ' of ' + m + ' vertices have 1-tree degree ≠ 2 — no full tour from the 1-tree, so the bound is a floor and the gap is a ceiling';
   }
 
   $('sStage').textContent = st.stage || '—';
@@ -753,16 +779,17 @@ function render() {
     ? ' · ' + EFFOPTS.islands + 'i/' + EFFOPTS.gens + 'g/' + EFFOPTS.children + 'c'
     : '');
   $('sBest').textContent = st.best ? st.best.len.toFixed(2) : '—';
-  $('sOpt').textContent = OPT ? (OPTSRC === 'exact' ? '' : '≥ ') + OPT.len.toFixed(2) : '—';
+  $('sOpt').textContent = OPT ? (OPTSRC === 'exact' || treeFull ? '' : '≥ ') + OPT.len.toFixed(2) : '—';
   $('sPool').textContent = st.poolLen || 0;
   $('sWork').textContent = st.work || 0;
   $('sStep').textContent = (IDX + 1) + ' / ' + SNAPS.length;
   const b = st.best ? st.best.len : null;
   const gap = b != null && OPT ? (b / OPT.len - 1) * 100 : null;
   const proven = b != null && OPT && b <= OPT.len + 1e-6;
+  const exactish = OPTSRC === 'exact' || treeFull;
   $('sGap').textContent = gap == null ? '—' : (gap >= 0 ? '+' : '') + gap.toFixed(2) + '%' +
-    (OPTSRC === 'exact' ? '' : ' (≤)') +
-    (proven ? (OPTSRC === 'exact' ? ' · OPTIMAL' : ' · PROVEN') : '');
+    (exactish ? '' : ' (≤)') +
+    (proven ? (exactish ? ' · OPTIMAL' : ' · PROVEN') : '');
   $('sTime').textContent = COMPUTE.toFixed(0) + ' ms';
   $('cv3').setAttribute('aria-valuenow', IDX + 1);
   $('cv3').setAttribute('aria-valuemax', SNAPS.length);
@@ -814,7 +841,7 @@ function run() {
       const ub = lastBest ? lastBest.len : tourLen(D, greedy(D, INST.order, 0));
       TREE = null;
       const to = performance.now();
-      if (n <= EXACT_MAX) {
+      if (n <= HK_MAX) {
         OPT = heldKarp(D); OPTSRC = 'exact';
         $('oTitle').textContent = 'Held–Karp optimum';
         $('oNote').textContent = 'The true optimum, straight from Held–Karp — not an estimate. Orange dashes are the edges your tour still gets wrong.';
@@ -824,7 +851,7 @@ function run() {
         TREE = { edges: b.edges, deg: b.deg };
         OPTSRC = 'bound';
         $('oTitle').textContent = '1-tree lower bound';
-        $('oNote').textContent = 'Held–Karp is out of reach here, so this is a proven lower bound: no tour can beat it. Rings mark vertices the tree leaves short of degree 2; your best tour is dashed in green. The gap is a ceiling on the real gap.';
+        $('oNote').textContent = 'Past 22 cities Held–Karp is out of reach, so the right panel is a proven floor: no tour can beat it. If every vertex has tree degree 2 the 1-tree is itself a full tour, and the floor is reached — the tour on the left is then provably optimal. Otherwise rings mark the vertices the tree leaves short of degree 2 and the blue edges are not a tour at all: no tour can achieve this length, so the floor sits strictly below the true optimum and the gap is a ceiling on the real gap. Your best tour is dashed in green.';
       }
 
       T_OPT = performance.now() - to;
@@ -847,7 +874,12 @@ function run() {
 
 /* ================================ wiring =============================== */
 
-$('n').addEventListener('input', () => { $('nOut').textContent = $('n').value; refreshEffortMap(); });
+/* slider scale: put the Held–Karp tick where 22 falls on this range */
+{
+  const el = $('n');
+  $('nMark').style.left = ((HK_MAX - el.min) / (el.max - el.min) * 100) + '%';
+}
+$('n').addEventListener('input', () => { setNOut(); refreshEffortMap(); });
 $('speed').addEventListener('input', () => { SPEED = +$('speed').value; $('speedOut').textContent = SPEED; });
 $('seed').addEventListener('change', () => { if (SNAPS.length) run(); });
 $('kind').addEventListener('change', () => { if (SNAPS.length) run(); });
@@ -905,6 +937,7 @@ window.addEventListener('resize', renderAll);
 buildChips();
 applyEffortSpeed($('effort').value);
 refreshEffortMap();
+setNOut();
 run();
 </script>
 </body>

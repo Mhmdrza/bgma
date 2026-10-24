@@ -801,7 +801,54 @@ node experiments/beam-screen-only/bench.js --ns=200,300 --seeds=2 --levels=low,m
 
 ---
 
-## 12. Open threads
+## 12. Seeding the hybrid from the 1-tree lower bound (OTSH)
+
+Section 11 asks what the pipeline's later stages are worth. This experiment asks the other
+direction: the subgradient ascent that produces the 1-tree bound also produces the 1-tree, and
+a depth-first walk of that tree is already a Hamiltonian cycle. `walkTree()` in
+[`src/onetree/onetree_seed.js`](../src/onetree/onetree_seed.js) keeps each city the first time
+it is reached, which *is* the degree repair — a city of tree degree d>2 is entered once and
+skipped d−1 times, and a city of degree 1 takes its second edge from the closing edge back to
+the root. `treeHybrid()` hands that walk to BGMA as an extra pool seed and passes the bound
+`L` in as `floor`, so the search stops as soon as it reaches a proven optimum. The pipeline
+gained only those two optional knobs (`seedTours`, `floor`); with them unset nothing changed.
+
+The full record — harness, recorded run, and the longer write-up — is in
+[`experiments/one-tree-seed/`](../experiments/one-tree-seed/README.md).
+
+Verdict, from 40 instances (n=50...400, 2 seeds × uniform/cluster/convex/line):
+
+- **The certificate is the win, not the seed.** On all 10 convex instances the 1-tree closed
+  (every degree exactly 2), so it *was* a tour of length `L` — optimal by definition, returned
+  in 0–2 ms against 17–236 ms for BGMA. Across the run 10/40 rows were certified with no
+  hybrid work at all.
+- **At equal budget the seed is a small quality edge paid for in time.** On the hard families
+  (uniform/cluster) OTSH is +0.64% / +0.05% against `low`'s +0.89% and `mid`'s +0.14%, with
+  the `low` worst case halving (+1.69% vs +2.99%) — but 1.7x / 1.4x the wall time, because the
+  ascent is 44.6% of the seeded run's own time (17 ms of 31 ms at `low`).
+- **The walk alone is weak; the screen is what makes it work.** Uniform/cluster: +19.81% for
+  the bare walk, +1.98% after one candidate-list screen. Same shape as the beam ablation
+  (36% → 4%): the starting structure only decides where the cheap local search starts.
+- **It fails where the relaxation is loose.** Collinear instances: the 1-tree is a path, the
+  bound sits up to 73% below the optimum, the floor never fires, and the ascent is overhead on
+  a problem 2-opt solves exactly. It also loses at n≤100, where the ascent costs more than the
+  run it improves.
+
+What the tree contributes is structure, not length: subgradient ascent drives it toward
+degree 2, so its surviving edges are short *and* their traversal is locally coherent — a plain
+MST walk averages ~2x the optimum, this walk +11.80%, and after one screen +0.99%.
+
+Reproduce:
+
+```bash
+node experiments/one-tree-seed/bench.js
+node experiments/one-tree-seed/bench.js --ns=100,200 --seeds=2 --fams=convex,line   # the certificate
+node experiments/one-tree-seed/bench.js --fams=uniform,cluster --levels=low --md=1  # the tax
+```
+
+---
+
+## 13. Open threads
 
 - **EAX / AB-cycle recombination** instead of ERX in `src/hybrid/hybrid_tsp.js` — the natural next
   step after ERX; edge voting on raw finals already scored ~0.

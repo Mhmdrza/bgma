@@ -58,7 +58,9 @@ const DEFAULTS = Object.freeze({
   fastOrOptMaxL: 3,
   polishOrOptMaxL: 5,
   finalPolish: 0,       // polish top N after the generations
-  restarts: 1           // independent hybrid restarts, best wins
+  restarts: 1,          // independent hybrid restarts, best wins
+  seedTours: null,      // external start tours, screened like an island (see onetree_seed.js)
+  floor: null           // proven lower bound: stop the moment the best tour reaches it
 });
 
 const rnd = (x, lo) => Math.max(lo == null ? 0 : lo, Math.round(x));
@@ -204,6 +206,21 @@ function hybridOnce(inst, base, seed, P) {
 
   /* 1. beam islands -> fast screen -> pool */
   const seeds = [];
+  /* 1a. external seeds first. A caller with a *proven* floor (the 1-tree bound)
+   * can hand over a tour that already attains it; if so, no beam work is needed
+   * at all: the tour is optimal and the floor proves it. */
+  if (P.seedTours) {
+    let bestSeed = null;
+    for (const t of P.seedTours) {
+      const x = fastTun(t);
+      const s = { t: x.tour, len: x.len };
+      seeds.push(s);
+      if (!bestSeed || s.len < bestSeed.len) bestSeed = s;
+    }
+    if (bestSeed && P.floor != null && bestSeed.len <= P.floor + 1e-6) {
+      return { tour: bestSeed.t, len: bestSeed.len, pool: seeds.length, certified: true };
+    }
+  }
   for (let i = 0; i < P.islands; i++) {
     const bo = {
       starts: i === 0 ? 'farthest' : 'random',
@@ -259,6 +276,8 @@ function hybridOnce(inst, base, seed, P) {
     pool = rebuild(pool.concat(kids));
     best = pool[0];
     if (best.len < before - 1e-9) stagnant = 0; else stagnant++;
+    /* a proven floor: reaching it means the tour cannot be improved, so stop paying */
+    if (P.floor != null && best.len <= P.floor + 1e-6) break;
 
     /* 4. stagnation: inject a fresh random-start beam island */
     if (P.inject && stagnant >= 2) {
@@ -286,7 +305,8 @@ function hybridOnce(inst, base, seed, P) {
     best = pool[0];
   }
 
-  return { tour: best.t, len: best.len, pool: pool.length };
+  return { tour: best.t, len: best.len, pool: pool.length,
+    certified: P.floor != null && best.len <= P.floor + 1e-6 };
 }
 
 /* Public entry point. opts is merged over DEFAULTS; restarts rerun the whole
@@ -304,8 +324,10 @@ function hybrid(inst, seed, opts) {
     const res = hybridOnce(inst, base, (seed + r * 104729) >>> 0, P);
     pool = Math.max(pool, res.pool);
     if (!best || res.len < best.len - 1e-9) best = res;
+    /* certified: the floor is a valid lower bound, so more restarts cannot help */
+    if (res.certified) break;
   }
-  return { tour: best.tour, len: best.len, pool: pool, restarts: R };
+  return { tour: best.tour, len: best.len, pool: pool, restarts: R, certified: !!best.certified };
 }
 
 /* Run one named effort level. `max` is a two-configuration portfolio: the

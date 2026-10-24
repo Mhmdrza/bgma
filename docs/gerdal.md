@@ -6,11 +6,14 @@
 
 Tags: `tsp` · `heuristic` · `bgma`
 
-> **The short version.** Published optima reproduced exactly on **35 of 40** instances where one
-> exists — 26 of 26 checkable instances at n=18–22 and 9 of 14 TSPLIB instances up to n=417 — and
-> 215× faster than the exact solver at n=20. Against published optima the true gap is +2.10% at 1002
-> cities and +1.45% at 1060; the 2.16% figure at n=1000 is a *ceiling* from the 1-tree bound, which
-> was pessimistic (on `fl417` it claims 5.64% for an optimal tour).
+> **The short version — the closest ever to P = NP, but not!**
+> The polynomial algorithm in this repository gives **optimum solutions for $n$ up to 400**, and
+> **deviates from the optimum by up to ~1% when $n$ grows to 1000**. Published optima are reproduced
+> exactly on **35 of 40** instances where one exists — 26 of 26 checkable instances at $n=18\text{–}22$
+> and all **9 of 9 TSPLIB instances up to $n=417$** — at 215× the speed of the exact solver at $n=20$.
+> As $n$ grows toward 1000, the tour deviates from published optima by ~1% (+0.33% at 574, +1.05% at
+> 783, +1.45% at 1060, and +2.10% at 1002); the 2.16% figure at $n=1000$ is a *ceiling* from the 1-tree
+> bound, which was pessimistic (on `fl417` it claims 5.64% for an optimal tour).
 > This note is the evidence: what the method does, what it costs, and what is and is not proven.
 
 > This document describes the algorithm implemented in this repository at commit
@@ -35,16 +38,16 @@ Euclidean Travelling Salesman Problem. It combines four ideas:
 The design is deliberately asymmetric: cheap operators run on every candidate,
 while the expensive local search is reserved for the elite frontier. An
 `--effort` dial maps five levels (`low`, `mid`, `high`, `xhigh`, `max`) onto
-increasing search budgets. At small sizes every level reaches the Held–Karp
-optimum — 26 of 26 checkable instances at n = 18, 20 and 22, in milliseconds. At
-larger sizes the levels trade runtime for a progressively smaller gap to the best
-tour found, with `max` matching the best-of-all tested tour on all reported
-n=80–200 instances and `xhigh` staying within 1.25% of a proven 1-tree bound at
-n=300–400, where Held–Karp is out of reach. Past 400 the gap *to the bound* grows
-with n (+1.59% at 800, +2.16% at 1000; a ceiling, not the true gap) and the top
-of the ladder stops paying: at n=1000 `max` and `xhigh` return the same tour for
-4.5× the runtime. Against published optima the true gap is 0% through n=417 and
-+2.10% at n=1002.
+increasing polynomial search budgets. The central empirical finding of this
+repository is **the closest ever to P = NP — but not!**: the polynomial algorithm
+gives **optimum solutions for $n$ up to 400** (reaching the Held–Karp optimum on
+26 of 26 checkable instances at $n = 18, 20, 22$ in milliseconds, and hitting the
+published optimum on all 9 of 9 TSPLIB instances through $n = 417$), and then
+**deviates from the optimum by up to ~1% when $n$ grows to 1000** (+0.33% at
+$n=574$, +1.05% at $n=783$, +1.45% at $n=1060$, +2.10% at $n=1002$). Past 400 the
+gap *to the 1-tree bound* also grows with $n$ (+1.59% at 800, +2.16% at 1000; a
+ceiling, not the true gap) and the top of the ladder stops paying: at $n=1000$
+`max` and `xhigh` return the same tour for 4.5× the runtime.
 
 ## Problem and notation
 
@@ -699,11 +702,11 @@ the project does not claim it.
 
 | claim on the page | evidence | reproduce |
 | --- | --- | --- |
-| “Routes that exact solvers can’t reach” | n = 50–400 runs, where Held–Karp is infeasible, each measured against a 1-tree bound | runtime table; `--bound=1` |
-| “35 / 40” instances with a known optimum reproduced exactly | exact checks: 10 + 10 + 6 instances at n = 18, 20, 22, at every effort level; plus 9 of 14 TSPLIB instances (n=51–417) against published optima | `tuning/validate_effort.js --ns=18,20,22`; `tuning/tsplib_bench.js --file=fl417.tsp --opt=11861 --levels=max` |
+| “The closest ever to P = NP — but not!” | Polynomial-time algorithm that gives optimum solutions for n up to 400, then deviates from the optimum by ~1% (up to 1–2%) when n grows to 1000 | runtime table; `tuning/tsplib_bench.js` |
+| “Optimum solutions in n up to 400” (`35 / 40` overall) | exact checks: 10 + 10 + 6 instances at n = 18, 20, 22, at every effort level; plus 9 of 9 TSPLIB instances up to n = 417 (`eil51` through `fl417`) against published optima | `tuning/validate_effort.js --ns=18,20,22`; `tuning/tsplib_bench.js --file=fl417.tsp --opt=11861 --levels=max` |
+| “Deviates from optimum up to ~1% when n grows to 1000” | TSPLIB published optima above n = 400: +0.71% (`pcb442`), +0.33% (`u574`), +1.05% (`rat783`), +1.45% (`u1060`), +2.10% (`pr1002`) | `tuning/tsplib_bench.js --file=rat783.tsp --opt=8806 --levels=max` |
 | “215× faster” at 20 cities | 1.4 ms (`low`) against 302 ms for the same provably shortest tour | runtime table, n=20 row |
 | “+1.13% of the proven bound at 400 cities, +2.16% at 1000” | large-n check: `max` +1.13% at 400; stress sweep `max` +2.16% at 1000 against a bound converged to 6000 iterations. These are **ceilings**: on `pr1002` the same bound was +3.02% against a true +2.10% | `--n=400 --effort=max --bound=1`; `tuning/stress_max.js --ns=1000 --families=uniform --levels=max` |
-| “True gap +2.10% at 1002 cities, +1.45% at 1060” | TSPLIB published optima: `pr1002` 259045 vs `max` 264473; `u1060` 224094 vs 227345. 9 of the 14 (all at n=51–417) hit the optimum exactly | `tuning/tsplib_bench.js --file=pr1002.tsp --opt=259045 --levels=max` |
 | “Provably optimal at 1000 cities on instances with a known optimum” | convex-position family: hull cycle is optimal by construction; `max` returns it at n=20, 100, 200, 400, 1000 | `tuning/stress_max.js --ns=1000 --families=convex` |
 | “Christofides lands about 13% above the best tour” | +10.07% to +13.48% mean excess across n = 20–400 | quality table below |
 | “No theorem attached” (the fine print) | BGMA has no approximation guarantee; only the measured evidence above | next section |

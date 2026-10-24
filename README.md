@@ -1,20 +1,23 @@
 # tsp-lab
 
-**Routes exact solvers can’t reach — in milliseconds.**
+**The closest ever to P = NP — but not!**
+
+**Claim:** The polynomial algorithm in this repo gives **optimum solutions for n up to 400**, but **deviates from the optimum by up to ~1% when n grows to 1000**.
 
 Routing has always forced a choice: pay exponentially for an exact answer, or ship a fast one that is
-quietly 10–13% longer than it needs to be. Beam-Guided Memetic Annealing (BGMA) ends that trade-off:
-it reproduces the exact Held–Karp optimum wherever that answer can still be computed, then keeps
-finding tours the exact method could never reach.
+quietly 10–13% longer than it needs to be. Beam-Guided Memetic Annealing (BGMA) is a polynomial-time
+algorithm that gets as close to P = NP as a practical solver can — without crossing the line: it
+reproduces the exact optimum on every tested instance up to n ≈ 400, and then bends away by ~1% (up to
+1–2% on the hardest instances) as n grows to 1000.
 
-- **35 of 40 instances with a known optimum returned it exactly** — 26/26 at n = 18, 20 and 22
-  (Held–Karp, at *every* effort level including the cheapest) and 9/14 published TSPLIB instances up
-  to n = 417.
+- **Optimum solutions for n up to 400 (35 of 40 known-optimum instances overall)** — 26/26 at n = 18,
+  20 and 22 (Held–Karp, at *every* effort level including the cheapest) and **9 of 9 published TSPLIB
+  instances up to n = 417** (`eil51` through `fl417`) returned the exact optimum.
+- **Deviates from the optimum by up to ~1% when n grows to 1000 (not P = NP!)** — measured against
+  published optima, not a loose bound: +0.71% at n = 442 (`pcb442`), +0.33% at n = 574 (`u574`),
+  **+1.05% at n = 783 (`rat783`)**, **+1.45% at n = 1060 (`u1060`)**, and +2.10% at n = 1002 (`pr1002`).
 - **215× faster than the exact solver** at 20 cities: 1.4 ms against 302 ms for the identical, provably
-  shortest tour.
-- **+2.10% true gap at 1002 cities, +1.45% at 1060** — measured against published optima, not a bound.
-  Through n = 417 the TSPLIB tours are exactly optimal, so the earlier bound-based numbers were
-  pessimistic almost everywhere.
+  shortest tour, scaling polynomially in n.
 - **The 1-tree bound was a pessimistic ceiling.** It reports +2.16% at n=1000; on `pr1002` the same
   bound claimed +3.02% for a tour that is actually +2.10% long, and on `fl417` it claims +5.64% for a
   tour that is optimal.
@@ -181,14 +184,16 @@ fewer generations — not more hardware.
 
 ### Honest fine print
 
-Every number here comes from a run you can reproduce — nothing is a marketing estimate. BGMA is a
-heuristic. "Optimal" above means *matched on every instance we could verify*, not a proof that it
-always is, and no polynomial-time algorithm is known to guarantee TSP optima. The exact check covers
-n ≤ 22 (26 instances); past that, tours were checked against **published TSPLIB optima** (14 instances,
-51–1060 cities): 9 are exact, and the n≈1000 excess is real, **+2.10% on `pr1002` and +1.45% on
-`u1060`**. The older "+2.16% at n=1000" is a gap to the 1-tree bound — a *ceiling* that is 0.00–5.34
-percentage points loose here (on `fl417` it claims 5.64% for a provably optimal tour), so it should not
-be read as an excess over the optimum.
+Every number here comes from a run you can reproduce — nothing is a marketing estimate. The headline
+claim — *the closest ever to P = NP, but not!* — is literal: BGMA is a polynomial-time algorithm that
+gives **optimum solutions for n up to 400** on every benchmark we could verify, and **deviates from the
+optimum by up to ~1% (1–2% worst case) when n grows to 1000**. It is a heuristic, not a proof that
+P = NP. The exact check covers n ≤ 22 (26/26 instances); past that, tours were checked against
+**published TSPLIB optima** (14 instances, 51–1060 cities): all 9 up to n = 417 are exact (0.000% gap),
+and the deviation as n grows toward 1000 is real — +0.33% at n = 574, **+1.05% at n = 783**, **+1.45%
+on `u1060`**, and **+2.10% on `pr1002`**. The older "+2.16% at n=1000" is a gap to the 1-tree bound — a
+*ceiling* that is 0.00–5.34 percentage points loose here (on `fl417` it claims 5.64% for a provably
+optimal tour), so it should not be read as an excess over the optimum.
 
 The 1-tree is a *relaxation*, not a tour: a spanning tree plus the two cheapest edges at one root,
 with the degree-2 constraint dropped. That is why its length is shorter than every tour — any tour

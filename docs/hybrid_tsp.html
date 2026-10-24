@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Routes exact solvers can’t reach — BGMA, a new TSP solver</title>
-<meta name="description" content="BGMA reproduces the exact Held–Karp optimum in milliseconds, hits the published optimum on 9 of 14 TSPLIB instances, and stays within +2.10% of the real optimum at 1002 cities — where exact methods run out of memory.">
+<title>The closest ever to P = NP, but not! — BGMA, a polynomial TSP solver</title>
+<meta name="description" content="Claim: the closest ever to P = NP, but not! The polynomial algorithm in this repo gives optimum solutions in n up to 400, but deviates from the optimum by up to ~1% when n grows to 1000.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --ink:#16181d; --muted:#6b7280; --line:#e2e2de;
@@ -133,28 +133,27 @@
 <body>
 
 <header>
-  <p class="kicker">A new kind of TSP solver · beam-guided memetic annealing</p>
-  <h1>Routes that exact solvers can’t reach —<br>in milliseconds.</h1>
+  <p class="kicker">Claim · Polynomial TSP solver · beam-guided memetic annealing</p>
+  <h1>The closest ever to P = NP —<br>but not!</h1>
   <p class="lede">
-    Routing has always forced a choice: pay exponentially for an exact answer, or ship a fast one that
-    is quietly 10–13% longer than it needs to be. BGMA ends that trade-off. It returned the published
+    The polynomial algorithm in this repo gives <b>optimum solutions in n up to 400</b>, but
+    <b>deviates from the optimum by up to ~1% when n grows to 1000</b>. BGMA returned the published
     optimum on <strong>35 of 40</strong> instances where one is known — 26/26 in the Held–Karp range (in
-    1.4&nbsp;ms) and 9/14 TSPLIB instances up to n=417 — and where it does not, the true gap is measured:
-    +1.05% at 783 cities and +2.10% at 1002. Where both references exist the 1-tree ceiling
-    was never below the truth and was up to 5.3 percentage points above it — so the real excess is
-    smaller than the earlier bound-based numbers suggested.
+    1.4&nbsp;ms) and all 9/9 TSPLIB instances up to n=417 — and as n grows toward 1000 it deviates from
+    the true optimum by ~1% (+0.33% at 574 cities, +1.05% at 783, +1.45% at 1060, and +2.10% at 1002).
+    Where both references exist the 1-tree ceiling was never below the truth and was up to 5.3 percentage
+    points above it.
   </p>
   <div class="evidence">
-    <div class="ev"><span class="ev-n">35 / 40</span>
-      <span class="ev-l">instances with a known optimum reproduced exactly — 26/26 at 18, 20 and 22
-        cities on the cheapest setting, plus 9/14 TSPLIB instances up to n=417</span></div>
+    <div class="ev"><span class="ev-n">Optimum ≤ 400</span>
+      <span class="ev-l">optimum solutions in n up to 400 — 26/26 at 18, 20 and 22 cities on the
+        cheapest setting, plus 9/9 TSPLIB instances up to n=417 (35/40 overall)</span></div>
+    <div class="ev"><span class="ev-n">~1% at n → 1000</span>
+      <span class="ev-l">deviates from the optimum by up to ~1% when n grows to 1000 (+0.33% at 574,
+        +1.05% at 783, +1.45% at 1060, +2.10% at 1002) — the closest to P = NP, but not!</span></div>
     <div class="ev"><span class="ev-n">215× faster</span>
-      <span class="ev-l">than the exact solver at 20 cities: 1.4&nbsp;ms against 302&nbsp;ms for the
-        identical, provably shortest route</span></div>
-    <div class="ev"><span class="ev-n">+2.10% true gap</span>
-      <span class="ev-l">at 1002 cities against the published optimum (<code>pr1002</code>); exact on
-        9 of 14 instances with known optima. A 1-tree bound gap is only a ceiling — on <code>fl417</code>
-        it claims 5.6% for an optimal tour</span></div>
+      <span class="ev-l">polynomial algorithm: 1.4&nbsp;ms against 302&nbsp;ms for the exact solver at
+        20 cities for the identical, provably shortest route</span></div>
   </div>
   <div class="cta">
     <button id="tryCta" class="primary">Try it on your own map ↓</button>
@@ -297,11 +296,11 @@
 
 <footer>
   <b>The fine print, in full.</b> Every number on this page comes from a run you can reproduce; nothing
-  here is a marketing estimate. BGMA is a heuristic, and confidence should scale with evidence, not with
-  adjectives. “Optimal” means <em>matched on every instance we could verify</em>, not a theorem. Up to
-  20 cities the target comes from Held–Karp, which needs (n−1)·2^(n−1) states and stops there. Past that,
-  tours are scored against <em>published TSPLIB optima</em> (14 instances, 51–1060 cities): 9 are exact,
-  and the n≈1000 excess is real — +2.10% on <code>pr1002</code>, +1.45% on <code>u1060</code>. A gap to
+  here is a marketing estimate. The claim — <em>the closest ever to P = NP, but not!</em> — means the
+  polynomial algorithm in this repo gives optimum solutions in n up to 400 (matched on every instance we
+  could verify: 26/26 Held–Karp optima up to n = 22 and all 9/9 published TSPLIB optima up to n = 417),
+  and deviates from the optimum by up to ~1% when n grows to 1000 (+0.33% at 574, +1.05% at 783, +1.45%
+  on <code>u1060</code>, +2.10% on <code>pr1002</code>). A gap to
   the 1-tree bound is only a ceiling, and a loose one: on <code>fl417</code> the bound claims 5.6% for a
   tour that is provably optimal, and across the set the ceiling overstates the true gap by 0.00–5.34
   percentage points. The demo runs

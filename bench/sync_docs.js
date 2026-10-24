@@ -16,7 +16,8 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const PAIRS = [
   ['src/hybrid/effort_profiles.js', 'docs/js/effort_profiles.js'],
-  ['src/hybrid/hybrid_vis.js', 'docs/js/hybrid_vis.js']
+  ['src/hybrid/hybrid_vis.js', 'docs/js/hybrid_vis.js'],
+  ['src/farthest/farthest_pole.js', 'docs/js/farthest_pole.js']
 ];
 
 function banner(from) {

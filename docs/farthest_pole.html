@@ -1,0 +1,1361 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Beam console — aim the beams, walk the cursor</title>
+<meta name="description" content="A manual TSP lab: two nearest beams by default, three far corners, clickable beam results, and a cursor you move yourself.">
+<style>
+  :root {
+    --bg:#f7f7f5; --panel:#fff; --ink:#16181d; --muted:#6b7280; --line:#e2e2de;
+    --algo:#16a34a; --algo2:#dc2626; --child:#ea580c; --pa:#2563eb; --pb:#7c3aed; --held:#2563eb;
+    --mono:ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans:system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f1115; --panel:#171a20; --ink:#e8e8e6; --muted:#9aa0aa; --line:#2a2e37;
+            --algo:#4ade80; --algo2:#f87171; --child:#fb923c; --pa:#60a5fa; --pb:#c084fc; --held:#60a5fa; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); }
+  header { padding:34px 24px 8px; max-width:1180px; margin:0 auto; }
+  .kicker { font-family:var(--mono); font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+            color:var(--muted); margin:0 0 12px; }
+  h1 { font-size:clamp(26px,3vw,32px); line-height:1.18; letter-spacing:-.7px;
+       margin:0 0 12px; max-width:48ch; font-weight:650; }
+  .lede { font-size:16px; line-height:1.55; color:var(--muted); margin:0 0 18px; max-width:76ch; }
+  .lede b { color:var(--ink); font-weight:600; }
+  .evidence { display:flex; flex-wrap:wrap; max-width:960px; margin:0 0 18px;
+              background:var(--panel); border:1px solid var(--line); border-radius:10px; }
+  .ev { flex:1 1 230px; padding:12px 16px; border-right:1px solid var(--line); }
+  .ev:last-child { border-right:0; }
+  .ev-n { display:block; font-family:var(--mono); font-size:19px; letter-spacing:-.3px; color:var(--algo); }
+  .ev-l { display:block; margin-top:4px; color:var(--muted); font-size:12.5px; line-height:1.45; }
+  @media (max-width:700px) { .ev { border-right:0; border-bottom:1px solid var(--line); }
+                             .ev:last-child { border-bottom:0; } }
+  main { max-width:1180px; margin:0 auto; padding:8px 24px 40px; }
+  .controls { display:flex; flex-wrap:wrap; gap:14px 20px; align-items:flex-end;
+              background:var(--panel); border:1px solid var(--line); border-radius:10px;
+              padding:12px 16px; margin:0 0 12px; }
+  .field { display:flex; flex-direction:column; gap:5px; font-size:11px; letter-spacing:.05em;
+           text-transform:uppercase; color:var(--muted); }
+  .field .row { display:flex; align-items:center; gap:8px; }
+  input[type=range] { width:150px; accent-color:var(--algo); }
+  input[type=number], select { font-family:var(--mono); font-size:13px; padding:5px 7px;
+    border:1px solid var(--line); border-radius:6px; background:var(--panel); color:var(--ink); }
+  input[type=number] { width:64px; }
+  button { font:inherit; font-size:13px; padding:8px 14px; border-radius:7px; cursor:pointer;
+           border:1px solid var(--line); background:var(--panel); color:var(--ink); }
+  button.primary { background:var(--algo); border-color:var(--algo); color:#fff; }
+  button.on { border-color:var(--ink); box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--ink) 45%, transparent); }
+  button:active { transform:translateY(1px); }
+  button:disabled { opacity:.45; cursor:default; }
+  button:focus-visible, input:focus-visible, select:focus-visible, canvas:focus-visible
+    { outline:2px solid var(--algo); outline-offset:2px; }
+  .val { font-family:var(--mono); font-size:12px; color:var(--ink); min-width:26px; text-align:right; }
+  .btns { display:flex; gap:6px; flex-wrap:wrap; }
+  .console { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:0 0 12px;
+             background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 14px; }
+  .console .lbl { font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .console .who { font-family:var(--mono); font-size:14px; font-weight:600; margin-right:6px; }
+  .console .sep { width:1px; height:22px; background:var(--line); margin:0 4px; }
+  .console .chk { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted);
+                  cursor:pointer; user-select:none; }
+  .console .chk input { accent-color:var(--algo); }
+  .panels { display:grid; grid-template-columns:minmax(0,1.45fr) minmax(320px,.75fr); gap:16px; }
+  @media (max-width:900px) { .panels { grid-template-columns:1fr; } }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .panel h2 { display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+              font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted);
+              margin:0 0 10px; font-weight:600; }
+  .panel h2 .len { font-family:var(--mono); font-size:12px; color:var(--ink); text-transform:none; letter-spacing:0; }
+  #cv1 { width:100%; height:500px; display:block; border-radius:8px; touch-action:none; cursor:grab; background:
+         repeating-linear-gradient(0deg, transparent 0 23px, color-mix(in srgb, var(--line) 55%, transparent) 23px 24px),
+         repeating-linear-gradient(90deg, transparent 0 23px, color-mix(in srgb, var(--line) 55%, transparent) 23px 24px); }
+  @media (max-width:900px) { #cv1 { height:400px; } }
+  .stage { font-family:var(--mono); font-size:11.5px; color:var(--muted); margin:10px 0 4px; min-height:16px; }
+  .note { margin:0; font-size:13px; line-height:1.5; color:var(--muted); }
+  .note b { color:var(--ink); }
+  .rank-head { display:grid; grid-template-columns:34px 60px 1fr 48px 46px; gap:6px;
+               font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted);
+               padding:4px 6px 5px; border-bottom:1px solid var(--line); }
+  .rank-head span:nth-child(3) { text-align:left; }
+  .rank-head span:nth-child(4) { text-align:right; }
+  .rank-list { overflow:auto; height:300px; max-height:300px; }
+  .rk { display:grid; grid-template-columns:34px 60px 1fr 48px 46px; gap:6px; align-items:center;
+        padding:3px 6px; font-family:var(--mono); font-size:11.5px; color:var(--muted);
+        border-bottom:1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+  .rk .p { color:var(--ink); }
+  .rk .bar { height:5px; border-radius:3px; background:color-mix(in srgb, var(--line) 70%, transparent); overflow:hidden; }
+  .rk .bar i { display:block; height:100%; background:var(--muted); opacity:.45; }
+  .rk .d { text-align:right; color:var(--ink); }
+  .rk .s { font-size:10px; color:var(--muted); text-align:right; }
+  .rk.pole, .rk.past { background:color-mix(in srgb, var(--algo) 9%, transparent); }
+  .rk.pole .s, .rk.past .s { color:var(--algo); }
+  .rk.cur { background:color-mix(in srgb, var(--pa) 10%, transparent); }
+  .rk.cur .s { color:var(--pa); }
+  .req { border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin:0 0 8px; }
+  .req:last-child { margin-bottom:0; }
+  .req-top { display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:12px;
+             margin:0 0 6px; }
+  .req-top .src { font-weight:600; }
+  .req-top .tag { font-size:10px; letter-spacing:.05em; text-transform:uppercase; padding:1px 6px;
+                  border-radius:999px; border:1px solid currentColor; }
+  .tag.near { color:var(--algo); }
+  .tag.far { color:var(--pa); }
+  .req-top .x { margin-left:auto; padding:2px 8px; font-size:11px; border-radius:6px; }
+  .req-chips { display:flex; flex-wrap:wrap; gap:4px; }
+  .bch { display:inline-block; font-family:var(--mono); font-size:11.5px; padding:2px 8px;
+         border-radius:999px; border:1px solid var(--line); color:var(--muted); background:transparent; }
+  button.bch { cursor:pointer; }
+  button.bch:hover { border-color:var(--pa); color:var(--pa); }
+  .bch.near { border-color:var(--algo); color:var(--ink); }
+  .bch.nearCur { border-color:var(--algo2); color:var(--ink); }
+  .tag.nearCur { color:var(--algo2); }
+  .bch.far { border-color:var(--pa); color:var(--pa); }
+  .bch.walk { border-color:var(--child); color:var(--child); }
+  .bch + .bounce { margin-left:-2px; }
+  .bounce { font-family:var(--mono); font-size:10.5px; color:var(--muted); padding:0 2px 0 1px; }
+  .touch { font-family:var(--mono); font-size:11px; color:var(--pa); padding:0 3px 0 0; }
+  .tip { position:fixed; z-index:9; pointer-events:none; display:none; padding:4px 9px;
+         border-radius:6px; background:var(--panel); border:1px solid var(--line);
+         font-family:var(--mono); font-size:11.5px; color:var(--ink);
+         box-shadow:0 2px 10px rgba(0,0,0,.14); white-space:nowrap; }
+  .tip.on { display:block; }
+  .tip b { font-weight:600; }
+  .tip i { color:var(--muted); font-style:normal; }
+  .hintline { font-size:12.5px; line-height:1.5; color:var(--muted); margin:10px 0 0; }
+  .hintline b { color:var(--ink); }
+  .legend { display:flex; flex-wrap:wrap; gap:8px 18px; margin:14px 0 0;
+            font-size:12px; color:var(--muted); }
+  .legend span { display:flex; align-items:center; gap:6px; }
+  .legend i { display:inline-block; width:22px; height:0; border-top:2px solid currentColor; }
+  .legend i.dash { border-top-style:dashed; }
+  .legend i.dot { width:9px; height:9px; border:0; border-radius:50%; }
+  .legend i.sq { width:9px; height:9px; border:1.5px solid currentColor; border-radius:1px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(112px, 1fr)); gap:1px;
+           background:var(--line); border:1px solid var(--line); border-radius:10px;
+           overflow:hidden; margin:14px 0 0; }
+  .stat { background:var(--panel); padding:10px 12px; }
+  .stat .k { font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+  .stat .v { font-family:var(--mono); font-size:15px; margin-top:3px; }
+  .stat .v.gap { color:var(--child); }
+  .how { margin-top:18px; background:var(--panel); border:1px solid var(--line);
+         border-radius:10px; padding:16px 18px; }
+  .how > h2 { font-size:13px; margin:0 0 8px; }
+  .how .sub { color:var(--muted); font-size:13.5px; margin:0; max-width:84ch; line-height:1.55; }
+  .detail { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px 22px; margin-top:14px; }
+  .detail h3 { font-size:12.5px; margin:0 0 4px; }
+  .detail p { margin:0; font-size:12.5px; line-height:1.5; color:var(--muted); }
+  .closing { display:flex; flex-wrap:wrap; align-items:center; gap:12px 18px; margin:16px 0 0; }
+  .closing p { margin:0; font-size:13px; color:var(--muted); max-width:70ch; line-height:1.5; }
+  .closing b { color:var(--ink); }
+  footer { max-width:1180px; margin:0 auto; padding:0 24px 46px; color:var(--muted);
+           font-size:12.5px; line-height:1.6; }
+  code { font-family:var(--mono); font-size:.94em; }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="kicker">TSP heuristic lab · manual beam console</p>
+  <h1>Aim the beams yourself. Move the cursor when you decide.</h1>
+  <p class="lede">
+    No algorithm runs on this page. There is a <b>cursor</b>, three <b>far corners</b>, and a beam
+    request you can fire at any node. Ask a node for its two nearest, or its two farthest (the beam
+    width is adjustable), and the
+    rays stay on the map until you clear them — so you can put several answers side by side, argue with
+    them, and only then move the cursor to the city you pick. Every move is one real edge; the tour is
+    whatever path you walked.
+  </p>
+  <div class="evidence">
+    <div class="ev"><span class="ev-n">3 corners</span>
+      <span class="ev-l">the far end of the original pole plus the two ends of the longest pair that
+        runs roughly perpendicular to it</span></div>
+    <div class="ev"><span class="ev-n">3 + 3</span>
+      <span class="ev-l">each request returns two targets by default, nearest-first or farthest-first, with the
+        distances that produced them</span></div>
+    <div class="ev"><span class="ev-n">click → move</span>
+      <span class="ev-l">click any city to focus it, ask it anything, then move the cursor there or
+        click a result chip instead</span></div>
+  </div>
+</header>
+
+<main>
+  <section class="controls">
+    <label class="field">cities <span class="row"><input id="n" type="range" min="6" max="60" value="18"><span class="val" id="nOut">18</span></span></label>
+    <label class="field">seed <span class="row"><input id="seed" type="number" min="1" max="99" value="7" step="1"><button id="dice" title="new seed">↻</button></span></label>
+    <label class="field">points <span class="row"><select id="kind"><option value="uniform">uniform</option><option value="clustered">cluster</option></select></span></label>
+    <label class="field">beam width <span class="row"><input id="k" type="number" min="1" max="8" value="2" step="1"></span></label>
+    <div class="btns">
+      <button id="run" class="primary">New map</button>
+      <button id="undo" title="undo the last move">Undo</button>
+      <button id="close" title="close the walked path into a tour">Close tour</button>
+      <button id="resetPath" title="keep the map, walk again">Reset walk</button>
+    </div>
+  </section>
+
+  <section class="console" aria-label="beam console">
+    <span class="lbl">focus</span><span class="who" id="focusId">—</span>
+    <button id="beamNear" title="ask the focused node for its k nearest cities">nearest ×k</button>
+    <button id="beamFar" title="ask the focused node for its k farthest cities">farthest ×k</button>
+    <button id="askCorners" title="all three corners answer with their k farthest cities">ask 3 corners</button>
+    <label class="chk" title="include cities already on the path in every beam answer">
+      <input id="allCities" type="checkbox"><span>all cities</span></label>
+    <span class="sep"></span>
+    <button id="moveTo" title="move the cursor to the focused node, claiming that edge">move cursor → focus</button>
+    <button id="jumpTo" title="move the cursor to the focused node without claiming an edge">jump cursor → focus</button>
+    <button id="clearBeams" title="clear every beam on the map">clear beams</button>
+  </section>
+
+  <div id="focusBar" class="stage" style="margin:0 0 12px"></div>
+
+  <section class="panels">
+    <div class="panel">
+      <h2><span>Map <span id="hMs"></span></span><span class="len" id="hLen">—</span></h2>
+      <canvas id="cv1" role="img" aria-label="map with cursor, beams, far corners and the walked path"></canvas>
+      <p class="stage" id="hStage">Press New map.</p>
+      <p class="note" id="hNote">Click focuses, <b>shift-click</b> moves the cursor there,
+        <b>double-click</b> jumps it with no edge. The cursor is the orange node. Wheel zooms, drag pans,
+        double-click empty space or <code>0</code> resets the view.</p>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="panel">
+      <h2><span>Requests</span><span class="len" id="rCount">—</span></h2>
+      <div id="reqList"><p class="hintline">No beams yet. Focus a city and ask it something.</p></div>
+      <div class="rank-head"><span>#</span><span>pair</span><span>distance</span><span>d</span><span></span></div>
+      <div class="rank-list" id="rankList"></div>
+      <p class="hintline">Every request is a pure lookup: nothing is decided by it. Click a chip to move
+        there, click a beam button twice to drop its answer, or <em>clear beams</em> (<code>n</code>) to
+        drop them all.
+        <b>&#8623; n</b> on a nearest chip counts the far/corner rays that already land on that city —
+        hover it to see which ones. A nearest answer drawn in the red shade belongs to the cursor you
+        are on right now; the older green ones came from a cursor you have since left. <b>all cities</b> lets farthest and corner beams name cities you
+        already walked (useful for a second look at a full path); nearest keeps dropping the wired ones
+        either way, and with the switch off every beam stays usable as a move. Hover any line
+        on the map to read that edge's length; hover a city
+        to get its total, split by source — e.g. <code>2 farthest · 1 near · 3 corners</code>.
+        Wheel zoom keeps the point under the pointer fixed; drag pans; <code>0</code> resets.</p>
+    </div>
+  </section>
+
+  <section class="stats">
+    <div class="stat"><div class="k">pairs ranked</div><div class="v" id="sPairs">—</div></div>
+    <div class="stat"><div class="k">path edges</div><div class="v" id="sEdges">—</div></div>
+    <div class="stat"><div class="k">cities left</div><div class="v" id="sOpen">—</div></div>
+    <div class="stat"><div class="k">walk length</div><div class="v" id="sWalk">—</div></div>
+    <div class="stat"><div class="k">tour length</div><div class="v" id="sLen">—</div></div>
+    <div class="stat"><div class="k">vs optimum / bound</div><div class="v gap" id="sGap">—</div></div>
+    <div class="stat"><div class="k">map time</div><div class="v" id="sTime">—</div></div>
+  </section>
+
+  <section class="how">
+    <h2>How to use the console</h2>
+    <p class="sub">
+      The map is the only input. The cursor starts on the first endpoint of the farthest pair — that is
+      corner <b>Z</b>'s partner, and the pole <b>A–Z</b> stays drawn across the map. Click any city to
+      make it the <b>focus</b>; the beam buttons always ask the focused node, so "ask any node" is just
+      click-then-ask. Requests pile up and stay drawn across moves until you clear them or ask again —
+      that is why the rays are dashed: they are answers, not edges. Every beam button is a toggle, so a
+      second click also takes its answer back.
+    </p>
+    <div class="detail">
+      <div>
+        <h3>1 · ask</h3>
+        <p><em>nearest ×k</em> returns the k closest cities to the focus and draws a plain ray to
+          each. It searches the <b>whole map</b>, walked cities included, but leaves out the ones already
+          wired to the focus — after <code>A → B</code> the nearest from B no longer names A, and the same
+          goes for the city a jump left behind — and any city that already carries two walked edges, since
+          nothing more can be wired into it. <em>farthest ×k</em> does not stop at its target: a faint ray names the k farthest, then
+          a bright leg leaves each of them for <em>that city's</em> farthest city — a bounce, so you see
+          where the far end of the map reflects back to. Excluding the source keeps it a reflection
+          rather than a retrace. By default requests skip cities already on the path; tick <em>all
+          cities</em> to let them name walked ones too. Clicking the same button again removes its answer. The nearest chips carry a <b>&#8623; n</b> badge: the number of far and
+          corner rays that land on that city right now, so a city pulled from two directions shows up
+          before you move.</p>
+      </div>
+      <div>
+        <h3>2 · the three corners</h3>
+        <p>The purple dashed line is the <b>pole</b>: the farthest pair in the map, labelled with its
+          length. <b>Z</b> is its far end. The other two corners are the endpoints of the pair
+          that maximises <code>distance × |sin</code> of the angle against the farthest pole — the
+          longest pair that is roughly perpendicular to it. <em>ask 3 corners</em> makes all three
+          report their k farthest cities at once; click it again to remove all three answers.</p>
+      </div>
+      <div>
+        <h3>3 · decide, then move</h3>
+        <p>Shift-click a city, click a result chip, or focus it and press <em>move cursor → focus</em>.
+          That claims the edge; the beams stay where they are, so you can keep reading an old answer
+          after moving. A move onto an unvisited city extends the leg. A move onto a city that already
+          has <b>one</b> edge joins two loose ends instead: that is how a walk split by jumps gets
+          stitched back together, and how you close the loop by hand when the cursor's loose end meets
+          another one. Two full ends never connect, and if the final link leaves every city with two
+          edges the tour closes itself.</p>
+      </div>
+      <div>
+        <h3>3b · jump instead</h3>
+        <p>Double-click a city, or press <em>jump cursor → focus</em> (key <code>j</code>), to move the
+          cursor <b>without</b> drawing an edge — to a fresh city or back to one you already walked, so
+          you can re-ask beams anywhere.
+          The leg walked so far is sealed, a new leg starts at the jump target, and the beams stay put.
+          A jump to a walked city branches the walk there, which <em>Close tour</em> then refuses until
+          <em>Undo</em> takes the jumps back.</p>
+      </div>
+      <div>
+        <h3>4 · close</h3>
+        <p><em>Close tour</em> connects the last pair of loose ends once every city is in, writing the
+          blue closing edge. With more than two loose ends it refuses and names them, so you can link
+          them yourself first. The gap is measured against Held–Karp (n ≤ 20) or a proven 1-tree
+          bound.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="closing">
+    <p><b>Nothing here is automatic.</b> The beams are queries, the cursor moves only when you say so,
+      and the path is exactly the edges you accepted. That makes the console a place to test a rule
+      before any rule is written.</p>
+    <button id="resetCta" class="primary">Start over with a new map</button>
+  </section>
+</main>
+
+<footer>
+  <b>Fine print.</b> This page is a manual explorer, not the heuristic — <code>src/farthest/farthest_pole.js</code>
+  still holds the Farthest-Beam Walk that decides by itself, but the console never calls it. A beam
+  request is O(n) over the distance matrix and never mutates the path. Each button is a toggle: the
+  second click removes exactly the answer the first click added. The pole line is the rank-1 pair, so it
+  is also the pair the ranked list marks <em>start</em>. The cursor can only move to a
+  city that is not already on the path, so the walked path is always simple and closing it yields a
+  valid tour; <em>Undo</em> and <em>Reset walk</em> rebuild that state, and a jump seals the current leg instead of
+  inventing an edge, so nothing is ever drawn that you did not accept or explicitly refuse. Distances are Euclidean on the
+  unit square, so the numbers are map units, not kilometres. The demo caps n at 60 to keep the requests
+  and the ranked list readable. For the full polynomial solver in this repo (<a href="hybrid_tsp.html">BGMA</a>) —
+  <em>claim: the closest ever to P = NP, but not!</em> — it gives optimum solutions in n up to 400 and
+  deviates from the optimum by up to ~1% when n grows to 1000.
+</footer>
+
+<div id="tip" class="tip" role="status" aria-live="polite"></div>
+
+<!-- beams/console logic is page-local; the solver stays in src/farthest/farthest_pole.js -->
+<script src="js/hybrid_vis.js"></script>
+<script src="js/farthest_pole.js"></script>
+<script>
+'use strict';
+
+const { EXACT_MAX, makeInstance, heldKarp, hkBoundTree } = window.HybridTSP;
+const { rankPairs } = window.FarthestPole;
+
+const $ = id => document.getElementById(id);
+
+/* =============================== palette =============================== */
+
+const PAL = {};
+function readPalette() {
+  const cs = getComputedStyle(document.documentElement);
+  for (const k of ['bg', 'panel', 'ink', 'muted', 'line', 'algo', 'algo2', 'child', 'pa', 'pb', 'held']) {
+    PAL[k] = cs.getPropertyValue('--' + k).trim();
+  }
+  PAL.mono = 'ui-monospace, SFMono-Regular, Menlo, monospace';
+}
+const col = c => { const m = /^var\(--(\w+)\)$/.exec(c || ''); return m ? PAL[m[1]] : c; };
+readPalette();
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+  readPalette(); render();
+});
+
+/* ================================ state ================================ */
+
+let INST = null;          // { n, pts, D }
+let RANK = null;          // rankPairs(INST.D)
+let CORNERS = [];         // [Z, P, Q]
+let POLE = null;          // {a, z, d} the farthest pair, drawn on the map
+let START = 0;            // A, first endpoint of the farthest pair
+let PATH = [];            // the live leg; the cursor is PATH[PATH.length-1]
+let DONE = [];            // legs sealed off by a jump, oldest first
+let LINKS = [];           // edges that join two loose ends ({a,b}), not part of a leg
+let CLOSE = null;         // the edge that closed the tour
+let UNDO = [];            // snapshots, newest last
+let ON = null;            // Uint8Array, 1 = already on the path
+let PREV = -1;            // city the cursor just left, even when it jumped
+let FOCUS = -1;           // node the beam buttons ask
+let BEAMS = [];           // {id, from, kind:'near'|'far', corner, list:[{c,d}]}
+let CLOSED = false;
+let OPT = null, OPTSRC = '', LEN = 0, COMPUTE = 0, T_SOLVE = 0;
+let BEAM_ID = 0;
+let LASTG = null;         // last canvas geometry, for hit testing
+let VIEW = { k: 1, tx: 0, ty: 0 };   // zoom + pan, in CSS pixels
+let ROWS = [];            // ranked pair rows
+
+const K = () => Math.max(1, Math.min(8, Math.round(+$('k').value) || 2));
+
+/* ============================ geometry/draw ============================ */
+
+function fitCanvas(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const r = canvas.getBoundingClientRect();
+  const w = Math.max(200, r.width), h = Math.max(120, r.height);
+  canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return [ctx, w, h];
+}
+
+function drawMap() {
+  const canvas = $('cv1');
+  const [ctx, w, h] = fitCanvas(canvas);
+  ctx.clearRect(0, 0, w, h);
+  const s0 = Math.min(w, h) / 104;
+  const s = s0 * VIEW.k;
+  const ox = (w - 100 * s0) / 2 + VIEW.tx, oy = (h - 100 * s0) / 2 + VIEW.ty;
+  const X = p => ox + p[0] * s, Y = p => oy + p[1] * s;
+  LASTG = { w, h, s0, s, ox, oy, X, Y };
+  if (!INST) return;
+
+  /* walked edges */
+  ctx.save();
+  ctx.strokeStyle = col('var(--algo)'); ctx.lineWidth = 2.6;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.globalAlpha = .5;
+  ctx.beginPath();
+  for (const leg of DONE) {
+    for (let i = 0; i + 1 < leg.length; i++) {
+      const a = leg[i], b = leg[i + 1];
+      ctx.moveTo(X(INST.pts[a]), Y(INST.pts[a]));
+      ctx.lineTo(X(INST.pts[b]), Y(INST.pts[b]));
+    }
+  }
+  ctx.stroke();
+  ctx.globalAlpha = .95;
+  ctx.beginPath();
+  for (let i = 0; i + 1 < PATH.length; i++) {
+    const a = PATH[i], b = PATH[i + 1];
+    ctx.moveTo(X(INST.pts[a]), Y(INST.pts[a]));
+    ctx.lineTo(X(INST.pts[b]), Y(INST.pts[b]));
+  }
+  ctx.stroke(); ctx.restore();
+
+  /* links: edges that join two loose ends */
+  if (LINKS.length) {
+    ctx.save();
+    ctx.strokeStyle = col('var(--algo)'); ctx.lineWidth = 2.6; ctx.globalAlpha = .95;
+    ctx.beginPath();
+    for (const l of LINKS) {
+      ctx.moveTo(X(INST.pts[l.a]), Y(INST.pts[l.a]));
+      ctx.lineTo(X(INST.pts[l.b]), Y(INST.pts[l.b]));
+    }
+    ctx.stroke(); ctx.restore();
+  }
+
+  /* the closing edge */
+  if (CLOSED && CLOSE) {
+    const a = CLOSE.a, b = CLOSE.b;
+    ctx.save();
+    ctx.strokeStyle = col('var(--held)'); ctx.lineWidth = 3.2; ctx.globalAlpha = .95;
+    ctx.beginPath();
+    ctx.moveTo(X(INST.pts[a]), Y(INST.pts[a]));
+    ctx.lineTo(X(INST.pts[b]), Y(INST.pts[b]));
+    ctx.stroke(); ctx.restore();
+  }
+
+  /* the pole itself: the farthest pair, always drawn, labelled with its length */
+  if (POLE) {
+    const a = INST.pts[POLE.a], b = INST.pts[POLE.z];
+    ctx.save();
+    ctx.strokeStyle = col('var(--pb)'); ctx.lineWidth = 1.6; ctx.setLineDash([9, 6]);
+    ctx.globalAlpha = .9;
+    ctx.beginPath(); ctx.moveTo(X(a), Y(a)); ctx.lineTo(X(b), Y(b)); ctx.stroke();
+    ctx.setLineDash([]);
+    const mx = (X(a) + X(b)) / 2, my = (Y(a) + Y(b)) / 2;
+    const label = 'pole ' + POLE.d.toFixed(1);
+    ctx.font = '10px ' + PAL.mono;
+    const tw = ctx.measureText(label).width + 8;
+    ctx.fillStyle = PAL.panel; ctx.globalAlpha = .92;
+    ctx.fillRect(mx - tw / 2, my - 8, tw, 16);
+    ctx.globalAlpha = 1; ctx.fillStyle = PAL.pb;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, mx, my);
+    ctx.restore();
+  }
+
+  /* beams. nearest: one ray, source -> target. farthest: a bounce -- a faint ray
+   * reaches the target, then the bright leg answers back from the target's own
+   * farthest city, the way a reflection leaves the mirror. */
+  const cur = PATH.length ? PATH[PATH.length - 1] : -1;
+  const beamColor = b => b.kind === 'near'
+    ? (b.from === cur ? 'var(--algo2)' : 'var(--algo)')
+    : b.corner != null ? 'var(--child)' : 'var(--pa)';
+  for (const b of BEAMS) {
+    const from = INST.pts[b.from];
+    const far = b.kind === 'far';
+    ctx.save();
+    ctx.strokeStyle = col(beamColor(b));
+    ctx.lineCap = 'round';
+
+    /* incoming leg: faint for a bounce, full for a plain nearest ray */
+    ctx.lineWidth = far ? 1 : 1.4;
+    ctx.setLineDash(far ? [2, 4] : [3, 4]);
+    ctx.globalAlpha = far ? .38 : .8;
+    ctx.beginPath();
+    for (const t of b.list) {
+      ctx.moveTo(X(from), Y(from));
+      ctx.lineTo(X(INST.pts[t.c]), Y(INST.pts[t.c]));
+    }
+    ctx.stroke();
+
+    /* reflected leg: the target answers with its own farthest city */
+    if (far) {
+      ctx.lineWidth = 1.6; ctx.setLineDash([7, 5]); ctx.globalAlpha = .88;
+      ctx.beginPath();
+      for (const t of b.list) if (t.bo != null) {
+        ctx.moveTo(X(INST.pts[t.c]), Y(INST.pts[t.c]));
+        ctx.lineTo(X(INST.pts[t.bo]), Y(INST.pts[t.bo]));
+      }
+      ctx.stroke();
+    }
+
+    /* rings: the target (what the request named) and the bounce landing */
+    ctx.setLineDash([]); ctx.globalAlpha = .9;
+    for (const t of b.list) {
+      ctx.beginPath();
+      ctx.arc(X(INST.pts[t.c]), Y(INST.pts[t.c]), 5.2, 0, Math.PI * 2);
+      ctx.stroke();
+      if (far && t.bo != null) {
+        ctx.beginPath();
+        ctx.arc(X(INST.pts[t.bo]), Y(INST.pts[t.bo]), 3.2, 0, Math.PI * 2);
+        ctx.fillStyle = col(beamColor(b)); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  /* corners: square markers + labels */
+  CORNERS.forEach((c, i) => {
+    const x = X(INST.pts[c]), y = Y(INST.pts[c]);
+    const txt = i === 0 ? 'Z' : 'C' + i;
+    ctx.save();
+    ctx.strokeStyle = col('var(--pa)'); ctx.lineWidth = 1.5;
+    ctx.strokeRect(x - 5.5, y - 5.5, 11, 11);
+    ctx.fillStyle = col('var(--pa)');
+    ctx.font = '9.5px ' + PAL.mono;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(txt, x + 8, y - 9);
+    ctx.restore();
+  });
+
+  /* cities */
+  const labels = INST.n <= 32;
+  ctx.font = '10px ' + PAL.mono;
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < INST.n; i++) {
+    const x = X(INST.pts[i]), y = Y(INST.pts[i]);
+    const seen = !!(ON && ON[i]);
+    const isCursor = PATH.length && i === PATH[PATH.length - 1];
+    const isFocus = i === FOCUS;
+    const r = isCursor ? 6 : isFocus ? 5 : 3.6;
+    ctx.beginPath(); ctx.arc(x, y, r + 2.4, 0, Math.PI * 2);
+    ctx.fillStyle = PAL.panel; ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = isCursor ? PAL.child : seen ? PAL.ink : PAL.muted;
+    ctx.globalAlpha = isCursor ? 1 : seen ? 1 : .6;
+    ctx.fill(); ctx.globalAlpha = 1;
+
+    if (isCursor) {
+      ctx.beginPath(); ctx.arc(x, y, r + 4, 0, Math.PI * 2);
+      ctx.strokeStyle = PAL.child; ctx.lineWidth = 2.2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, r + 8, 0, Math.PI * 2);
+      ctx.strokeStyle = PAL.child; ctx.globalAlpha = .3; ctx.lineWidth = 1.2;
+      ctx.stroke(); ctx.globalAlpha = 1;
+    } else if (isFocus) {
+      ctx.beginPath(); ctx.arc(x, y, r + 4.4, 0, Math.PI * 2);
+      ctx.strokeStyle = PAL.pa; ctx.lineWidth = 1.8; ctx.setLineDash([3, 3]);
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+    if (labels) {
+      ctx.fillStyle = PAL.muted;
+      ctx.fillText(i, x + r + 4, y - r - 4);
+    }
+  }
+}
+
+/* ============================== the map ================================ */
+
+/* The three far corners: Z (the far end of the farthest pair) plus the two ends
+ * of the pair that maximises distance * |sin(angle to the farthest pole)| -- the
+ * longest pair that is roughly perpendicular to it. */
+function findCorners(inst) {
+  const D = inst.D, n = inst.n, P = inst.pts;
+  const r = rankPairs(D);
+  const A = r.ii[r.ord[0]], Z = r.jj[r.ord[0]];
+  const ux = (P[Z][0] - P[A][0]) / D[A][Z], uy = (P[Z][1] - P[A][1]) / D[A][Z];
+  let best = -1, bp = -1, bq = -1;
+  for (let i = 0; i < n; i++) {
+    if (i === A || i === Z) continue;
+    for (let j = i + 1; j < n; j++) {
+      if (j === A || j === Z) continue;
+      const dx = P[j][0] - P[i][0], dy = P[j][1] - P[i][1];
+      const d = D[i][j];
+      if (d < 1e-9) continue;
+      const sin = Math.abs(ux * (dy / d) - uy * (dx / d));
+      const score = d * sin;
+      if (score > best) { best = score; bp = i; bq = j; }
+    }
+  }
+  START = A;
+  return { start: A, pole: Z, poleDist: D[A][Z], corners: bp < 0 ? [Z] : [Z, bp, bq] };
+}
+
+function newMap() {
+  const n = +$('n').value, seed = +$('seed').value, kind = $('kind').value;
+  const t0 = performance.now();
+  INST = makeInstance(n, seed, kind);
+  RANK = rankPairs(INST.D);
+  const c = findCorners(INST);
+  CORNERS = c.corners;
+  POLE = { a: c.start, z: c.pole, d: c.poleDist };
+  PATH = [START]; DONE = []; LINKS = []; CLOSE = null; UNDO = [];
+  ON = new Uint8Array(n); ON[START] = 1; PREV = -1;
+  FOCUS = START; BEAMS = []; CLOSED = false; LEN = 0; BEAM_ID = 0;
+  VIEW = { k: 1, tx: 0, ty: 0 };
+  OPT = n <= EXACT_MAX ? heldKarp(INST.D) : null;
+  OPTSRC = n <= EXACT_MAX ? 'exact' : 'bound';
+  T_SOLVE = performance.now() - t0;
+  COMPUTE = T_SOLVE;
+  buildRankList();
+  say('Map ready. Cursor on <b>' + START + '</b> — the first end of the farthest pair. Corners: ' +
+    CORNERS.map((x, i) => (i === 0 ? 'Z=' : 'C' + i + '=') + x).join(', ') + '.');
+  render();
+}
+
+function buildRankList() {
+  const el = $('rankList');
+  el.innerHTML = '';
+  ROWS = [];
+  if (!RANK) return;
+  const { ii, jj, dd, ord } = RANK;
+  const maxD = ord.length ? dd[ord[0]] : 1;
+  const frag = document.createDocumentFragment();
+  for (let r = 0; r < ord.length; r++) {
+    const e = ord[r], a = ii[e], b = jj[e], d = dd[e];
+    const row = document.createElement('div');
+    row.className = 'rk';
+    row.innerHTML = '<span class="i">' + (r + 1) + '</span>' +
+      '<span class="p">' + a + '–' + b + '</span>' +
+      '<span class="bar"><i style="width:' + (100 * d / maxD).toFixed(1) + '%"></i></span>' +
+      '<span class="d">' + d.toFixed(1) + '</span>' +
+      '<span class="s"></span>';
+    frag.appendChild(row);
+    ROWS.push({ rank: r, a: a, b: b, d: d, el: row, s: row.lastChild });
+  }
+  el.appendChild(frag);
+  $('rCount').textContent = ord.length.toLocaleString() + ' pairs';
+}
+
+/* ============================== requests =============================== */
+
+function freeNodes() {
+  const out = [];
+  for (let i = 0; i < INST.n; i++) if (!ON[i]) out.push(i);
+  return out;
+}
+
+/* cities already wired to this one along the path: the edge just traversed is
+ * not news, so a nearest answer leaves it out */
+function pathNeighbors(node) {
+  const out = new Set();
+  const scan = leg => {
+    for (let i = 0; i + 1 < leg.length; i++) {
+      if (leg[i] === node) out.add(leg[i + 1]);
+      if (leg[i + 1] === node) out.add(leg[i]);
+    }
+  };
+  for (const leg of DONE) scan(leg);
+  scan(PATH);
+  for (const l of LINKS) {
+    if (l.a === node) out.add(l.b);
+    if (l.b === node) out.add(l.a);
+  }
+  if (CLOSE) {
+    if (CLOSE.a === node) out.add(CLOSE.b);
+    if (CLOSE.b === node) out.add(CLOSE.a);
+  }
+  return out;
+}
+
+/* how many walked edges touch a city: 1 at a path end, 2 inside, 2 on a closed tour */
+function walkDegree(node) {
+  let n = 0;
+  const scan = leg => {
+    for (let i = 0; i + 1 < leg.length; i++) {
+      if (leg[i] === node || leg[i + 1] === node) n++;
+    }
+  };
+  for (const leg of DONE) scan(leg);
+  scan(PATH);
+  for (const l of LINKS) if (l.a === node || l.b === node) n++;
+  if (CLOSE && (CLOSE.a === node || CLOSE.b === node)) n++;
+  return n;
+}
+
+/* beam candidates. Nearest always sees the whole map -- walked cities included --
+ * minus the ones already wired to the focus, because that edge is on the map
+ * already. Farthest and corners follow the "all cities" switch: off means only
+ * unvisited cities, so their answers stay usable as moves. */
+function poolFor(from, kind) {
+  const all = $('allCities').checked;
+  if (kind === 'near') {
+    const wired = pathNeighbors(from);
+    const cameFrom = from === PATH[PATH.length - 1] ? PREV : -1;
+    const out = [];
+    for (let i = 0; i < INST.n; i++) {
+      if (i === from || i === cameFrom || wired.has(i) || walkDegree(i) >= 2) continue;
+      out.push(i);
+    }
+    return out;
+  }
+  const out = [];
+  for (let i = 0; i < INST.n; i++) if (i !== from && (all || !ON[i])) out.push(i);
+  return out;
+}
+
+/* every request carries a key, so asking the same question twice takes the answer
+ * back off the map instead of stacking a duplicate */
+/* the farthest city from t that is still free and is neither the source nor t
+ * itself -- the bounce. Excluding the source is what makes it a reflection
+ * instead of a straight retrace. */
+function bounceOf(from, t) {
+  const all = $('allCities').checked;
+  let best = -1, bd = -1;
+  for (let i = 0; i < INST.n; i++) {
+    if ((!all && ON[i]) || i === from || i === t) continue;
+    const d = INST.D[t][i];
+    if (d > bd) { bd = d; best = i; }
+  }
+  return best < 0 ? null : { c: best, d: bd };
+}
+
+function makeRequest(from, kind, key, corner) {
+  const pool = poolFor(from, kind);
+  pool.sort((a, b) => kind === 'near'
+    ? (INST.D[from][a] - INST.D[from][b] || a - b)
+    : (INST.D[from][b] - INST.D[from][a] || a - b));
+  const list = pool.slice(0, Math.min(K(), pool.length))
+    .map(c => {
+      const t = { c: c, d: INST.D[from][c], bo: null, bd: null };
+      if (kind === 'far') {
+        const bo = bounceOf(from, c);
+        if (bo) { t.bo = bo.c; t.bd = bo.d; }
+      }
+      return t;
+    });
+  if (!list.length) return null;
+  return { id: ++BEAM_ID, from: from, kind: kind, key: key, corner: corner, list: list };
+}
+
+function toggleAsk(from, kind, key) {
+  if (!INST || from == null || from < 0) { say('Focus a city first.'); return; }
+  const at = BEAMS.findIndex(b => b.key === key);
+  if (at >= 0) {
+    BEAMS.splice(at, 1);
+    say('Took that answer back off the map: <b>' + from + '</b> ' +
+      (kind === 'near' ? 'nearest' : 'farthest') + '.');
+    render();
+    return;
+  }
+  const b = makeRequest(from, kind, key, null);
+  if (!b) { say('Nothing left to ask from <b>' + from + '</b>.'); return; }
+  BEAMS.push(b);
+  say('Asked <b>' + from + '</b> for its ' + b.list.length + ' ' +
+    (kind === 'near' ? 'nearest' : 'farthest') + ': ' +
+    b.list.map(x => x.c + ' (' + x.d.toFixed(1) + ')' +
+      (x.bo == null ? '' : ' &#8618; ' + x.bo)).join(', ') + '. Click again to clear.');
+  render();
+}
+
+function askCorners() {
+  if (!INST) return;
+  const keys = CORNERS.map((c, i) => 'corner:' + i);
+  if (BEAMS.some(b => keys.indexOf(b.key) >= 0)) {
+    BEAMS = BEAMS.filter(b => keys.indexOf(b.key) < 0);
+    say('Corner answers taken back off the map.');
+    render();
+    return;
+  }
+  let added = 0;
+  CORNERS.forEach((c, i) => {
+    const b = makeRequest(c, 'far', 'corner:' + i, i);
+    if (b) { BEAMS.push(b); added++; }
+  });
+  if (!added) say('No free cities left for the corners to report.');
+  else say('The three corners answered with their ' + K() + ' farthest cities each. Click again to clear.');
+  render();
+}
+
+function clearBeams() {
+  BEAMS = [];
+  say('Beams cleared. The path and the cursor are untouched.');
+  render();
+}
+
+/* ============================== the walk =============================== */
+
+/* Undo is snapshot based: the model is small and the edges now come from legs,
+ * jump-made links and a closing edge, so restoring a saved state is cheaper and
+ * safer than unwinding each kind by hand. */
+function snapshot() {
+  UNDO.push({
+    path: PATH.slice(),
+    done: DONE.map(l => l.slice()),
+    links: LINKS.map(l => ({ a: l.a, b: l.b })),
+    close: CLOSE ? { a: CLOSE.a, b: CLOSE.b } : null,
+    on: ON.slice(),
+    prev: PREV,
+    focus: FOCUS,
+    closed: CLOSED,
+    len: LEN
+  });
+  if (UNDO.length > 500) UNDO.shift();
+}
+
+function covered() {
+  let n = 0;
+  for (let i = 0; i < INST.n; i++) if (ON[i]) n++;
+  return n;
+}
+
+/* a city can take a second edge only while it has exactly one; the move then
+ * joins two loose ends instead of extending the leg */
+function canLink(city) {
+  const cur = PATH[PATH.length - 1];
+  return !CLOSED && city !== cur && !!ON[city] &&
+    walkDegree(city) < 2 && walkDegree(cur) < 2;
+}
+
+function maybeFinish() {
+  if (CLOSED || covered() < INST.n) return false;
+  if (endpoints().length) return false;
+  CLOSED = true;
+  LEN = walkLen();
+  return true;
+}
+
+function moveTo(city) {
+  if (!INST) return;
+  if (CLOSED) { say('The tour is closed. <b>Undo</b> reopens it before moving.'); return; }
+  if (city == null || city < 0) { say('Click a city first.'); return; }
+  city = +city;
+  const cur = PATH[PATH.length - 1];
+  if (city === cur) { say('The cursor is already on <b>' + city + '</b>.'); return; }
+
+  if (ON[city]) {
+    if (!canLink(city)) {
+      FOCUS = city;
+      say('<b>' + city + '</b> is already on the walk with ' + walkDegree(city) +
+        ' edge' + (walkDegree(city) === 1 ? '' : 's') +
+        (walkDegree(city) === 1 ? ' — it can take one more, but the cursor needs a loose end too.'
+                                : ' — nothing more can be wired into it.') +
+        ' Focused it, did not move.');
+      render();
+      return;
+    }
+    snapshot();
+    LINKS.push({ a: cur, b: city });
+    if (PATH.length > 1) DONE.push(PATH.slice());
+    PATH = [city]; PREV = cur; FOCUS = city;
+    const done = maybeFinish();
+    say(done
+      ? 'Linked <b>' + cur + ' → ' + city + '</b> (' + INST.D[cur][city].toFixed(2) +
+        '). Every city now has two edges, so the tour is closed: ' + LEN.toFixed(2) + '.'
+      : 'Linked <b>' + cur + ' → ' + city + '</b> (' + INST.D[cur][city].toFixed(2) +
+        '). ' + freeNodes().length + ' cities left, ' + endpoints().length + ' loose end' +
+        (endpoints().length === 1 ? '' : 's') + '.');
+    render();
+    return;
+  }
+
+  snapshot();
+  PREV = cur;
+  PATH.push(city); ON[city] = 1; FOCUS = city;
+  say('Cursor moved <b>' + cur + ' → ' + city + '</b> (' +
+    INST.D[cur][city].toFixed(2) + '). ' + freeNodes().length + ' cities left.');
+  render();
+}
+
+function jumpTo(city) {
+  if (!INST) return;
+  if (CLOSED) { say('The tour is closed. <b>Undo</b> reopens it before jumping.'); return; }
+  if (city == null || city < 0) { say('Click a city first.'); return; }
+  city = +city;
+  if (city === PATH[PATH.length - 1]) { say('The cursor is already on <b>' + city + '</b>.'); return; }
+  snapshot();
+  const back = !!ON[city];
+  PREV = PATH[PATH.length - 1];
+  if (PATH.length > 1) DONE.push(PATH.slice());
+  PATH = [city]; ON[city] = 1; FOCUS = city;
+  say('Cursor jumped to <b>' + city + '</b> with no edge' +
+    (back ? ' — it is a city you already walked, so the walk can branch here' : '') +
+    '. A new leg starts here. ' +
+    freeNodes().length + ' cities left, ' + DONE.length + ' sealed leg' +
+    (DONE.length === 1 ? '' : 's') + '.');
+  render();
+}
+
+function undo() {
+  if (!INST) return;
+  if (!UNDO.length) { say('Nothing to undo — the walk is at its first state.'); return; }
+  const s = UNDO.pop();
+  PATH = s.path; DONE = s.done; LINKS = s.links; CLOSE = s.close; ON = s.on;
+  PREV = s.prev; FOCUS = s.focus; CLOSED = s.closed; LEN = s.len;
+  say('Undone. Cursor on <b>' + PATH[PATH.length - 1] + '</b>' +
+    (CLOSED ? ' (tour still closed).' : ', ' + freeNodes().length + ' cities left.'));
+  render();
+}
+
+function resetPath() {
+  if (!INST) return;
+  snapshot();
+  PATH = [START]; DONE = []; LINKS = []; CLOSE = null;
+  ON = new Uint8Array(INST.n); ON[START] = 1; PREV = -1;
+  FOCUS = START; CLOSED = false; LEN = 0; BEAMS = [];
+  say('Walk reset. Cursor back on <b>' + START + '</b>.');
+  render();
+}
+
+/* every walked city with fewer than two edges: the loose ends */
+function endpoints() {
+  const out = [];
+  for (let i = 0; i < INST.n; i++) if (ON[i] && walkDegree(i) < 2) out.push(i);
+  return out;
+}
+
+function closeTour() {
+  if (!INST || CLOSED) return;
+  if (covered() < INST.n) {
+    say('Only ' + covered() + ' of ' + INST.n + ' cities are on the walk — add them before closing.');
+    return;
+  }
+  const ends = endpoints();
+  if (ends.length === 0) {
+    snapshot();
+    CLOSED = true; LEN = walkLen();
+    if (!OPT) { OPT = { len: hkBoundTree(INST.D, LEN, 400).L }; OPTSRC = 'bound'; }
+    say('The walk already loops through every city — tour length ' + LEN.toFixed(2) + '.');
+    render();
+    return;
+  }
+  if (ends.length !== 2) {
+    say('The walk has <b>' + ends.length + '</b> loose ends (' + ends.join(', ') +
+      ') — link them down to two before closing.');
+    return;
+  }
+  snapshot();
+  CLOSE = { a: ends[0], b: ends[1] };
+  CLOSED = true;
+  LEN = walkLen();
+  if (!OPT) { OPT = { len: hkBoundTree(INST.D, LEN, 400).L }; OPTSRC = 'bound'; }
+  say('Closed: ' + ends[0] + ' → <b>' + ends[1] + '</b> (' +
+    INST.D[ends[0]][ends[1]].toFixed(2) + '). Tour length ' + LEN.toFixed(2) + '.');
+  render();
+}
+
+function walkLen() {
+  let s = 0;
+  for (const leg of DONE) {
+    for (let i = 0; i + 1 < leg.length; i++) s += INST.D[leg[i]][leg[i + 1]];
+  }
+  for (let i = 0; i + 1 < PATH.length; i++) s += INST.D[PATH[i]][PATH[i + 1]];
+  for (const l of LINKS) s += INST.D[l.a][l.b];
+  if (CLOSE) s += INST.D[CLOSE.a][CLOSE.b];
+  return s;
+}
+
+function edgeCount() {
+  let e = PATH.length - 1;
+  for (const leg of DONE) e += leg.length - 1;
+  e += LINKS.length;
+  if (CLOSE) e += 1;
+  return e;
+}
+
+/* =============================== render ================================ */
+
+function say(html) { $('hStage').innerHTML = html; }
+
+function chip(c, cls, d, attrs) {
+  const tag = attrs ? 'button' : 'span';
+  return '<' + tag + ' class="bch ' + (cls || '') + '"' + (attrs || '') + '>' + c +
+    (d == null ? '' : ' ' + d.toFixed(1)) + '</' + tag + '>';
+}
+
+/* How many far/corner rays already land on this city. Used to badge the nearest
+ * candidates: a near city that also shows up in a farthest or corner answer is
+ * pulled from two directions, which is the point of asking both. */
+function touchCount(node, excludeId) {
+  let n = 0;
+  const who = [];
+  for (const b of BEAMS) {
+    if (b.id === excludeId || b.kind !== 'far') continue;
+    for (const t of b.list) {
+      if (t.c === node) { n++; who.push(b.from + ' \u2192 ' + node); }
+      if (t.bo === node) { n++; who.push(t.c + ' \u2192 ' + t.bo); }
+    }
+  }
+  return { n: n, who: who };
+}
+
+function renderRequests() {
+  const el = $('reqList');
+  if (!BEAMS.length) {
+    el.innerHTML = '<p class="hintline">No beams yet. Focus a city and ask it something.</p>';
+    return;
+  }
+  const cur = PATH.length ? PATH[PATH.length - 1] : -1;
+  el.innerHTML = BEAMS.map(b => {
+    const tag = b.kind === 'near' ? (b.from === cur ? 'nearCur' : 'near') : 'far';
+    const tagText = b.kind === 'near' ? 'near' + (b.from === cur ? ' · cursor' : '') : 'far';
+    const src = 'from ' + b.from + (b.corner != null
+      ? ' · corner ' + (b.corner === 0 ? 'Z' : 'C' + b.corner) : '');
+    return '<div class="req">' +
+      '<div class="req-top"><span class="src">' + src + '</span>' +
+        '<span class="tag ' + tag + '">' + tagText + ' · ' + b.list.length + '</span>' +
+        '<button class="x" data-drop="' + b.id + '">clear</button></div>' +
+      '<div class="req-chips">' + b.list.map(t => {
+        const ch = chip(t.c, tag, t.d,
+          ' data-node="' + t.c + '" title="move the cursor to ' + t.c + '"');
+        if (tag !== 'near') return ch + (t.bo == null ? '' :
+          '<span class="bounce" title="' + t.c + ' bounces to ' + t.bo + ' (' + t.bd.toFixed(1) + ')">' +
+          '&#8618; ' + t.bo + '</span>');
+        const touch = touchCount(t.c, b.id);
+        return ch + (touch.n
+          ? '<span class="touch" title="' + touch.who.join(' · ') + '">&#8623; ' + touch.n + '</span>'
+          : '');
+      }).join('') +
+      '</div></div>';
+  }).join('');
+}
+
+function renderFocus() {
+  const cur = PATH.length ? PATH[PATH.length - 1] : -1;
+  $('focusId').textContent = FOCUS >= 0 ? FOCUS : '—';
+  $('moveTo').disabled = !INST || CLOSED || FOCUS < 0 || FOCUS === cur ||
+    (ON[FOCUS] && !canLink(FOCUS));
+  $('jumpTo').disabled = !INST || CLOSED || FOCUS < 0 || FOCUS === cur;
+  $('undo').disabled = !INST || !UNDO.length;
+  $('close').disabled = !INST || CLOSED;
+  $('beamNear').disabled = $('beamFar').disabled = $('askCorners').disabled = !INST;
+  $('clearBeams').disabled = !BEAMS.length;
+  const has = k => BEAMS.some(b => b.key === k);
+  $('beamNear').classList.toggle('on', has('near:' + FOCUS));
+  $('beamFar').classList.toggle('on', has('far:' + FOCUS));
+  $('askCorners').classList.toggle('on', BEAMS.some(b => b.key && b.key.indexOf('corner:') === 0));
+  $('focusBar').innerHTML = INST
+    ? 'cursor <b>' + cur + '</b> · focus <b>' + FOCUS + '</b> · path ' + PATH.length + ' / ' +
+      INST.n + (DONE.length ? ' · ' + DONE.length + ' sealed leg' + (DONE.length === 1 ? '' : 's') : '') +
+      ' · ' + BEAMS.length + ' request' + (BEAMS.length === 1 ? '' : 's') + ' on the map'
+    : 'no map yet';
+}
+
+function renderStats() {
+  const n = INST ? INST.n : 0;
+  $('sPairs').textContent = RANK ? RANK.ord.length.toLocaleString() : '—';
+  $('sEdges').textContent = INST ? String(edgeCount()) : '—';
+  $('sOpen').textContent = INST ? String(freeNodes().length) : '—';
+  $('sWalk').textContent = INST ? walkLen().toFixed(2) : '—';
+  $('sLen').textContent = CLOSED ? LEN.toFixed(2) : '—';
+  if (CLOSED && OPT) {
+    const gap = (LEN / OPT.len - 1) * 100;
+    $('sGap').textContent = (gap >= 0 ? '+' : '') + gap.toFixed(2) + '%' +
+      (OPTSRC === 'exact' ? ' exact' : ' (≤)');
+  } else $('sGap').textContent = '—';
+  $('sTime').textContent = INST ? Math.round(T_SOLVE) + ' ms' : '—';
+  $('hLen').textContent = CLOSED ? LEN.toFixed(2) : INST ? walkLen().toFixed(2) + ' open' : '—';
+}
+
+function markRows() {
+  if (!ROWS.length || !INST) return;
+  const edges = new Set();
+  const addLeg = leg => {
+    for (let i = 0; i + 1 < leg.length; i++) {
+      const a = Math.min(leg[i], leg[i + 1]), b = Math.max(leg[i], leg[i + 1]);
+      edges.add(a + '-' + b);
+    }
+  };
+  for (const leg of DONE) addLeg(leg);
+  addLeg(PATH);
+  for (const l of LINKS) {
+    edges.add(Math.min(l.a, l.b) + '-' + Math.max(l.a, l.b));
+  }
+  if (CLOSED && CLOSE) {
+    edges.add(Math.min(CLOSE.a, CLOSE.b) + '-' + Math.max(CLOSE.a, CLOSE.b));
+  }
+  const focusPair = FOCUS >= 0 && PATH.length ? (() => {
+    const cur = PATH[PATH.length - 1];
+    return Math.min(cur, FOCUS) + '-' + Math.max(cur, FOCUS);
+  })() : '';
+  for (const row of ROWS) {
+    const key = row.a + '-' + row.b;
+    const isStart = row.rank === 0;
+    const used = edges.has(key);
+    const cur = key === focusPair;
+    row.el.classList.toggle('pole', isStart && !used);
+    row.el.classList.toggle('past', used);
+    row.el.classList.toggle('cur', cur && !used);
+    row.s.textContent = used ? 'edge' : isStart ? 'start' : cur ? 'cursor' : '';
+  }
+}
+
+function render() {
+  drawMap();
+  renderRequests();
+  renderFocus();
+  renderStats();
+  markRows();
+}
+
+/* =============================== wiring =============================== */
+
+$('run').addEventListener('click', newMap);
+$('dice').addEventListener('click', () => {
+  $('seed').value = 1 + Math.floor(Math.random() * 99);
+  if (INST) newMap();
+});
+$('n').addEventListener('input', () => { $('nOut').textContent = $('n').value; });
+$('seed').addEventListener('change', () => { if (INST) newMap(); });
+$('kind').addEventListener('change', () => { if (INST) newMap(); });
+$('k').addEventListener('change', () => { if (INST) render(); });
+$('allCities').addEventListener('change', () => {
+  if (!INST) return;
+  say($('allCities').checked
+    ? 'Beams now consider <b>every</b> city, walked ones included. Existing answers keep their lists; ask again to refresh.'
+    : 'Beams now skip cities already on the path. Existing answers keep their lists; ask again to refresh.');
+  render();
+});
+
+$('beamNear').addEventListener('click', () => toggleAsk(FOCUS, 'near', 'near:' + FOCUS));
+$('beamFar').addEventListener('click', () => toggleAsk(FOCUS, 'far', 'far:' + FOCUS));
+$('askCorners').addEventListener('click', askCorners);
+$('clearBeams').addEventListener('click', clearBeams);
+$('moveTo').addEventListener('click', () => moveTo(FOCUS));
+$('jumpTo').addEventListener('click', () => jumpTo(FOCUS));
+$('undo').addEventListener('click', undo);
+$('resetPath').addEventListener('click', resetPath);
+$('close').addEventListener('click', closeTour);
+$('resetCta').addEventListener('click', () => {
+  document.querySelector('.controls').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  newMap();
+});
+
+/* one delegated listener: result chips move, x drops a request */
+$('reqList').addEventListener('click', e => {
+  const drop = e.target.closest('[data-drop]');
+  if (drop) { BEAMS = BEAMS.filter(b => b.id !== +drop.dataset.drop); render(); return; }
+  const node = e.target.closest('[data-node]');
+  if (node) moveTo(+node.dataset.node);
+});
+
+/* click the map to focus a city */
+$('cv1').addEventListener('click', e => {
+  if (!INST || !LASTG) return;
+  if (SKIP_CLICK) { SKIP_CLICK = false; return; }
+  const r = $('cv1').getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  let best = -1, bd = 16;
+  for (let i = 0; i < INST.n; i++) {
+    const dx = LASTG.X(INST.pts[i]) - mx, dy = LASTG.Y(INST.pts[i]) - my;
+    const d = Math.hypot(dx, dy);
+    if (d < bd) { bd = d; best = i; }
+  }
+  if (best < 0) return;
+  if (e.shiftKey) { moveTo(best); return; }
+  FOCUS = best;
+  say('Focus on <b>' + best + '</b>' + (ON[best] ? ' (already on the path)' : '') +
+    '. Ask it for beams, shift-click to move there, double-click to jump.');
+  render();
+});
+
+window.addEventListener('keydown', e => {
+  if (e.target && e.target.matches && e.target.matches('input, select, textarea')) return;
+  if (e.key === 'Escape' || e.key === 'n' || e.key === 'N') { clearBeams(); }
+  else if (e.key === 'c' || e.key === 'C') { $('beamNear').click(); }
+  else if (e.key === 'f' || e.key === 'F') { $('beamFar').click(); }
+  else if (e.key === 'z' || e.key === 'Z') { if (!$('undo').disabled) undo(); }
+  else if (e.key === 'j' || e.key === 'J') { if (!$('jumpTo').disabled) jumpTo(FOCUS); }
+  else if (e.key === '0') { resetView(); }
+});
+
+/* ------------------- hover: distance of the edge under the pointer ------------------- */
+
+function segDist(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  const L = dx * dx + dy * dy;
+  let t = L ? ((px - ax) * dx + (py - ay) * dy) / L : 0;
+  t = t < 0 ? 0 : t > 1 ? 1 : t;
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+/* every segment currently drawn, with its endpoints and the number it encodes */
+function edgeAt(mx, my) {
+  if (!INST || !LASTG) return null;
+  const P = INST.pts, X = LASTG.X, Y = LASTG.Y;
+  const cand = [];
+  const add = (a, b, kind) => cand.push({
+    a: a, b: b, kind: kind, d: INST.D[a][b],
+    seg: [X(P[a]), Y(P[a]), X(P[b]), Y(P[b])]
+  });
+  for (const leg of DONE) {
+    for (let i = 0; i + 1 < leg.length; i++) add(leg[i], leg[i + 1], 'walk');
+  }
+  for (let i = 0; i + 1 < PATH.length; i++) add(PATH[i], PATH[i + 1], 'walk');
+  for (const l of LINKS) add(l.a, l.b, 'link');
+  if (CLOSED && CLOSE) add(CLOSE.a, CLOSE.b, 'closing');
+  if (POLE) add(POLE.a, POLE.z, 'pole');
+  for (const b of BEAMS) {
+    for (const t of b.list) {
+      add(b.from, t.c, b.kind === 'near' ? 'nearest beam' : 'farthest beam');
+      if (t.bo != null) add(t.c, t.bo, 'bounce');
+    }
+  }
+  let best = null, bd = 7;
+  for (const c of cand) {
+    const d = segDist(mx, my, c.seg[0], c.seg[1], c.seg[2], c.seg[3]);
+    if (d < bd - 0.5) { bd = d; best = c; }
+    else if (best && d < 7 && Math.abs(d - bd) <= 0.5 &&
+             Math.min(best.a, best.b) === Math.min(c.a, c.b) &&
+             Math.max(best.a, best.b) === Math.max(c.a, c.b) &&
+             best.kind.split(' + ').indexOf(c.kind) < 0) {
+      best.kind += ' + ' + c.kind;
+    }
+  }
+  return best;
+}
+
+function hideTip() { const t = $('tip'); t.classList.remove('on'); }
+
+function nodeAt(mx, my) {
+  let best = -1, bd = 11;
+  for (let i = 0; i < INST.n; i++) {
+    const d = Math.hypot(LASTG.X(INST.pts[i]) - mx, LASTG.Y(INST.pts[i]) - my);
+    if (d < bd) { bd = d; best = i; }
+  }
+  return best;
+}
+
+/* every line touching a city, grouped by what asked for it */
+function nodeEdgeCounts(node) {
+  const c = { near: 0, far: 0, corner: 0, walk: 0 };
+  for (const b of BEAMS) {
+    const slot = b.kind === 'near' ? 'near' : b.corner != null ? 'corner' : 'far';
+    for (const t of b.list) {
+      if (t.c === node) c[slot]++;
+      if (t.bo === node) c[slot]++;
+    }
+  }
+  c.walk = walkDegree(node);
+  return c;
+}
+
+$('cv1').addEventListener('mousemove', e => {
+  const r = $('cv1').getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const node = INST && LASTG ? nodeAt(mx, my) : -1;
+  const hit = node < 0 ? edgeAt(mx, my) : null;
+  const tip = $('tip');
+  if (node >= 0) {
+    const c = nodeEdgeCounts(node);
+    const total = c.near + c.far + c.corner + c.walk;
+    const parts = [];
+    if (c.far) parts.push(c.far + ' farthest');
+    if (c.near) parts.push(c.near + ' near');
+    if (c.corner) parts.push(c.corner + ' corner' + (c.corner === 1 ? '' : 's'));
+    if (c.walk) parts.push(c.walk + ' walk');
+    tip.innerHTML = 'city ' + node + ' &nbsp;<b>' + total + ' edge' + (total === 1 ? '' : 's') + '</b>' +
+      (parts.length ? ' <i>' + parts.join(' · ') + '</i>' : ' <i>nothing attached</i>');
+  } else if (hit) {
+    tip.innerHTML = hit.a + ' &#8594; ' + hit.b + ' &nbsp;<b>' + hit.d.toFixed(2) + '</b>' +
+      ' <i>' + hit.kind + '</i>';
+  } else { hideTip(); return; }
+  tip.classList.add('on');
+  const x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 10);
+  const y = Math.max(8, e.clientY - tip.offsetHeight - 12);
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+});
+$('cv1').addEventListener('mouseleave', hideTip);
+window.addEventListener('scroll', hideTip, { passive: true });
+
+/* ---------------------------------- zoom ---------------------------------- */
+
+function resetView() {
+  VIEW = { k: 1, tx: 0, ty: 0 };
+  if (INST) drawMap();
+  hideTip();
+}
+
+function zoomAt(px, py, factor) {
+  if (!INST || !LASTG) return;
+  const wx = (px - LASTG.ox) / LASTG.s, wy = (py - LASTG.oy) / LASTG.s;
+  VIEW.k = Math.max(0.6, Math.min(8, VIEW.k * factor));
+  VIEW.tx = px - (LASTG.w - 100 * LASTG.s0) / 2 - wx * LASTG.s0 * VIEW.k;
+  VIEW.ty = py - (LASTG.h - 100 * LASTG.s0) / 2 - wy * LASTG.s0 * VIEW.k;
+  drawMap();
+  hideTip();
+}
+
+$('cv1').addEventListener('wheel', e => {
+  if (!INST) return;
+  e.preventDefault();
+  const r = $('cv1').getBoundingClientRect();
+  zoomAt(e.clientX - r.left, e.clientY - r.top, Math.exp(-e.deltaY * 0.0015));
+}, { passive: false });
+
+/* drag pans; a drag that never moves is still a click, so focus keeps working */
+let DRAG = null;
+let SKIP_CLICK = false;
+
+$('cv1').addEventListener('pointerdown', e => {
+  if (!INST || e.button !== 0) return;
+  DRAG = { x: e.clientX, y: e.clientY, tx: VIEW.tx, ty: VIEW.ty, moved: false };
+  SKIP_CLICK = false;
+});
+
+$('cv1').addEventListener('pointermove', e => {
+  if (!DRAG) return;
+  const dx = e.clientX - DRAG.x, dy = e.clientY - DRAG.y;
+  if (!DRAG.moved && Math.hypot(dx, dy) > 3) DRAG.moved = true;
+  if (!DRAG.moved) return;
+  VIEW.tx = DRAG.tx + dx; VIEW.ty = DRAG.ty + dy;
+  SKIP_CLICK = true;
+  drawMap();
+  hideTip();
+});
+
+const endDrag = () => { DRAG = null; };
+$('cv1').addEventListener('pointerup', endDrag);
+$('cv1').addEventListener('pointercancel', endDrag);
+$('cv1').addEventListener('dblclick', e => {
+  if (!INST || !LASTG) { resetView(); return; }
+  const r = $('cv1').getBoundingClientRect();
+  const node = nodeAt(e.clientX - r.left, e.clientY - r.top);
+  if (node >= 0) jumpTo(node);
+  else resetView();
+});
+
+window.addEventListener('resize', () => { if (INST) drawMap(); });
+
+$('legend').innerHTML = [
+  '<span style="color:var(--algo)"><i></i>walked edge</span>',
+  '<span style="color:var(--algo2)"><i class="dash"></i>nearest from cursor</span>',
+  '<span style="color:var(--algo)"><i class="dash"></i>nearest, older cursor</span>',
+  '<span style="color:var(--pa)"><i class="dash"></i>farthest beam (bounces)</span>',
+  '<span style="color:var(--child)"><i class="dash"></i>corner beam</span>',
+  '<span style="color:var(--child)"><i class="dot"></i>cursor</span>',
+  '<span style="color:var(--pb)"><i class="dash"></i>farthest pole (A–Z)</span>',
+  '<span style="color:var(--pa)"><i class="sq"></i>far corner</span>',
+  '<span style="color:var(--held)"><i></i>closing edge</span>',
+  '<span style="color:var(--muted)"><i class="dot"></i>not on the path</span>'
+].join('');
+
+$('hNote').innerHTML = 'Click a city to focus it. The cursor is the orange node; corners are blue squares.';
+
+newMap();
+</script>
+</body>
+</html>

@@ -77,6 +77,7 @@ Known limitations found:
 | `src/hybrid/hybrid_vis.js` | Isolated demo logic for `docs/hybrid_tsp.html`: `makeInstance`, `buildSnapshots`, `effortOptions`, `heldKarp`, `hkBound` (browser global + CommonJS). |
 | `bench/runtime_bench.js` | Wall-clock runtime and quality of every algorithm (greedy, beam, tuned beam+tunnel, nature, BGMA levels, 1-tree, Held–Karp) at n=20..400; writes `docs/runtime.json` and `docs/runtime_data.js`. Results: `docs/gerdal.md`, "Measured runtime". |
 | `docs/runtime_table.js` | Renders the measured-runtime table in both pages. |
+| `experiments/christofides-1p5/bench.js` | Instance families (diameter-2 two-cluster, prism/cylinder) that drive Christofides to `CT/OPT → 1.5` with `OPT = n` known by construction; compares against BGMA `mid` at n=10..200. |
 | `bench/att48_bench.js` | TSPLIB att48 (ATT distances). |
 | `bench/dantzig42_bench.js` | TSPLIB dantzig42 (explicit lower-diagonal matrix). |
 | `bench/fri26_bench.js` | TSPLIB fri26 (explicit lower-diagonal matrix). |

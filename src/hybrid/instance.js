@@ -14,12 +14,22 @@ function buildFromPoints(pts, opts) {
    * that objective, so `opts.round` rounds each entry before anything else sees
    * it (neighbour lists included). */
   const rnd = !!(opts && opts.round);
-  const n = pts.length, D = new Float64Array(n * n), rows = [];
-  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
-    const d = i === j ? 0 : Math.hypot(pts[i][0] - pts[j][0], pts[i][1] - pts[j][1]);
-    D[i * n + j] = rnd ? Math.floor(d + 0.5) : d;
+  const n = pts.length, M = [];
+  for (let i = 0; i < n; i++) {
+    const row = new Float64Array(n);
+    for (let j = 0; j < n; j++) {
+      const d = i === j ? 0 : Math.hypot(pts[i][0] - pts[j][0], pts[i][1] - pts[j][1]);
+      row[j] = rnd ? Math.floor(d + 0.5) : d;
+    }
+    M.push(row);
   }
-  for (let i = 0; i < n; i++) rows.push(D.subarray(i * n, (i + 1) * n));
+  return buildFromRows(M);
+}
+
+/* Same base object, from an explicit (already metric) n x n distance matrix. */
+function buildFromRows(M) {
+  const n = M.length, D = new Float64Array(n * n), rows = [];
+  for (let i = 0; i < n; i++) { D.set(M[i], i * n); rows.push(D.subarray(i * n, (i + 1) * n)); }
   const order = [], orderFlat = new Int32Array(n * (n - 1));
   for (let i = 0; i < n; i++) {
     const idx = [];
@@ -52,4 +62,4 @@ function instanceFromSpec(B, spec) {
   return inst;
 }
 
-module.exports = { buildFromPoints, instanceFromSpec };
+module.exports = { buildFromPoints, buildFromRows, instanceFromSpec };

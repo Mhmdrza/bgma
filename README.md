@@ -265,6 +265,7 @@ node experiments/beam-screen-only/bench.js               # ablation: beam + fast
 node experiments/beam-screen-only/tune_nscale.js --ns=100,200,300,400 --seeds=2  # n-scaled two-step knobs
 node experiments/one-tree-seed/bench.js                  # 1-tree bound as a seed + a stop floor
 node experiments/farthest-insert/bench.js                 # farthest-pole insertion (FPI) vs BGMA
+node experiments/christofides-1p5/bench.js                # shapes that push Christofides to 1.5x; BGMA mid vs it
 node tuning/stress_parallel.js --ns=1000 --families=uniform,cluster --levels=max --jobs=3
 node tuning/stress_max.js --ns=1000 --families=uniform --levels=max   # serial reference
 node tuning/validate_christofides.js                     # matching vs brute force, Christofides <= 1.5x
@@ -279,6 +280,9 @@ with a proof: on any metric instance its tour is at most **1.5× the optimum**. 
 here with a real minimum-weight perfect matching (Edmonds' blossom algorithm), checked against
 brute force and against Held–Karp. Its measured excess is **+10–13%** at every n, while BGMA's
 `low` level is within +0.1–2.2% of the best tour from n=50 to 400 and BGMA gives up the proof.
+The 1.5 band is reachable, but only on adversarial metrics: see
+[experiments/christofides-1p5](experiments/christofides-1p5/) — a two-cluster diameter-2 metric
+drives it to 1.495x at n=190, and BGMA `mid` still returns the optimum there.
 
 ## Runtime
 

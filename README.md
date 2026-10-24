@@ -22,7 +22,7 @@ reproduces the exact optimum on every tested instance up to n ≈ 400, and then 
   bound claimed +3.02% for a tour that is actually +2.10% long, and on `fl417` it claims +5.64% for a
   tour that is optimal.
 
-**[Open the interactive demo →](docs/hybrid_tsp.html)** — 18 cities with the exact optimum side by side.
+**[Open the demo →](https://mhmdrza.github.io/polynomialTSP/)** — 18 cities with the exact optimum side by side.
 Drag the effort dial, roll a new seed, and watch the gap.
 
 | | Held–Karp (exact) | BGMA |

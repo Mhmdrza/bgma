@@ -848,7 +848,51 @@ node experiments/one-tree-seed/bench.js --fams=uniform,cluster --levels=low --md
 
 ---
 
-## 13. Open threads
+## 13. Farthest-pole construction: zigzag vs insertion (FPI)
+
+The farthest pair A–Z is where every constructor in the repo starts. This experiment grows the
+tour *from* those two poles and lets the far list of the opposite pole decide each step: the city
+nearest to A is taken only if it also sits far from Z; if it sits close to Z it belongs to the
+other end and the other front takes the move. [`src/farthest/farthest_insert.js`](../src/farthest/farthest_insert.js)
+implements that literally (rules `elim`/`far`/`nn2`/`alt`/`veto`) and also as **farthest-pole
+insertion (FPI)**: start the cycle as A–Z and repeatedly splice in the city farthest from the
+cycle so far (rules `fi`/`ni`, `fi` the default). The full record — harness, recorded run,
+longer write-up — is in [`experiments/farthest-insert/`](../experiments/farthest-insert/README.md).
+
+Verdict, from 40 instances (n=50...400, 2 seeds × uniform/cluster/convex/line):
+
+- **The literal two-front zigzag loses structurally.** Its only closing edge is A–Z, the longest
+  pair on the map. Median +34.02% over the best tour found (worst +82.88%, convex), against
+  +26.10% for greedy and +25.06% for the farthest-pole walk already in the repo. The elimination
+  adds nothing: `elim`, `nn2` (no elimination) and the one-front `veto` all sit in a 31–34% band.
+- **The same poles and the same far list, read as insertion, are the strong form.** Start the
+  cycle as A–Z and repeatedly insert the city *farthest from the cycle so far* at its cheapest
+  position; the first insertion lands between A and Z and deletes the diameter. That is FPI:
+  **+8.11% median on uniform/cluster** (against 26.10% greedy, 25.06% FBW, 16.74% nearest
+  insertion), +0.35% over all 40, exact on all 20 convex/line rows, in 0.26 ms — the best pure
+  constructor measured in this repo.
+- **Still a construction.** One candidate-list screen takes FPI to +4.35% on the hard families
+  (1 ms, closing half the gap to BGMA low's +0.58%); FPI + screen is an **83× cheaper tier** that
+  trades 3.2 pp. Same shape as sections 11 and 12: the cheap local search does the work.
+- **A good seed is not a good search.** Handing the +8% FPI tour to BGMA as `seedTours` changes
+  the final tour by +0.00% on average (5 better, 4 worse, 31 equal). Third independent
+  construction measured to vanish inside the hybrid.
+
+Where the idea breaks is the closing edge, not the far list: the far list labelled the map well
+enough to build a +8% tour, but making the two poles *adjacent* put the diameter in every zigzag
+tour. Reading the same list as an insertion order is what clicks.
+
+Reproduce:
+
+```bash
+node experiments/farthest-insert/bench.js
+node experiments/farthest-insert/bench.js --fams=uniform,cluster --levels=low --md=1   # the hard families
+node experiments/farthest-insert/bench.js --ns=50,100,200 --fams=convex,line           # the certificate
+```
+
+---
+
+## 14. Open threads
 
 - **EAX / AB-cycle recombination** instead of ERX in `src/hybrid/hybrid_tsp.js` — the natural next
   step after ERX; edge voting on raw finals already scored ~0.

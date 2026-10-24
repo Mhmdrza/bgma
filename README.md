@@ -1,6 +1,6 @@
 # tsp-lab
 
-**The closest ever to P = NP — but not!**
+**Almost collapsed P=NP**
 
 **Claim:** The polynomial algorithm in this repo gives **optimum solutions for n up to 400**, but **deviates from the optimum by up to ~1% when n grows to 1000**.
 
@@ -185,7 +185,7 @@ fewer generations — not more hardware.
 ### Honest fine print
 
 Every number here comes from a run you can reproduce — nothing is a marketing estimate. The headline
-claim — *the closest ever to P = NP, but not!* — is literal: BGMA is a polynomial-time algorithm that
+claim — *almost collapsed P=NP* — is literal: BGMA is a polynomial-time algorithm that
 gives **optimum solutions for n up to 400** on every benchmark we could verify, and **deviates from the
 optimum by up to ~1% (1–2% worst case) when n grows to 1000**. It is a heuristic, not a proof that
 P = NP. The exact check covers n ≤ 22 (26/26 instances); past that, tours were checked against
@@ -221,6 +221,7 @@ src/
   beam/                 beam + tunnel solvers          (beam_fast, beam_simple)
   nature/               population / annealing solver  (nature_tsp, nature_core, nature_effort)
   hybrid/               BGMA: solver, effort ladder, CLI, demo core
+  farthest/             farthest-pole constructions (walk, farthest-pole insertion, FPI)
 bench/                  TSPLIB, dataset and comparison benchmarks
 tuning/                 knob / effort sweeps and Held-Karp validation
 experiments/            self-contained experiments with their own write-up and results
@@ -263,6 +264,7 @@ node tuning/validate_effort.js --ns=18,20,22 --seeds=5   # exact Held-Karp check
 node experiments/beam-screen-only/bench.js               # ablation: beam + fast screen only vs BGMA
 node experiments/beam-screen-only/tune_nscale.js --ns=100,200,300,400 --seeds=2  # n-scaled two-step knobs
 node experiments/one-tree-seed/bench.js                  # 1-tree bound as a seed + a stop floor
+node experiments/farthest-insert/bench.js                 # farthest-pole insertion (FPI) vs BGMA
 node tuning/stress_parallel.js --ns=1000 --families=uniform,cluster --levels=max --jobs=3
 node tuning/stress_max.js --ns=1000 --families=uniform --levels=max   # serial reference
 node tuning/validate_christofides.js                     # matching vs brute force, Christofides <= 1.5x

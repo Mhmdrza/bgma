@@ -2,7 +2,7 @@
 
 **Beam-Guided Memetic Annealing (BGMA): a TSP heuristic with an effort dial, measured against known optima.**
 
-BGMA is an anytime heuristic for the symmetric Euclidean travelling salesman problem, written in
+BGMA is a fixed-budget heuristic for the symmetric Euclidean travelling salesman problem, written in
 dependency-free JavaScript. It combines beam-search construction, edge-recombination crossover,
 short annealing kicks and 2-opt / Or-opt polishing, and exposes five effort levels (`low` → `max`).
 This repository holds the solver, several baselines, and the harnesses behind every number below.
@@ -11,12 +11,13 @@ What was measured:
 
 - **Small instances, exact reference.** Every effort level matched the Held–Karp optimum on
   **26 of 26** instances at n = 18, 20 and 22 (uniform and clustered).
-- **TSPLIB, published optima.** At `max`, BGMA returned the published optimum on **all 9 instances
-  up to n = 417** (`eil51` through `fl417`). On the five instances from n = 442 to 1060 it was
-  **+0.33% to +2.10%** above the optimum (+0.71% `pcb442`, +0.33% `u574`, +1.05% `rat783`,
-  +2.10% `pr1002`, +1.45% `u1060`). One `max` run per instance.
-- **Cost.** `low` solves n = 400 in 0.6 s (+2.2% over the best tour found); `max` takes 49 s there
-  and 72 min at n = 1000. Measured runtime grows like n^2.0–2.3 up to 400 and n^3.7–4.6 beyond.
+- **TSPLIB, published optima.** At `max`, with ten seeds per instance up to n = 442, BGMA returned
+  the published optimum in **89 of 100 runs**: on every seed for 8 of the 10 instances, on 9 of 10
+  for `eil51`, and on **none** for `pcb442` (median +0.66%). From n = 574 to 1060 the median gap is
+  **+0.50% to +2.10%** (1–3 seeds per instance).
+- **Cost.** `low` solves n = 400 in 0.6 s (+2.2% over the best tour found); `max` takes 49 s there,
+  and one `max` run on `pr1002` costs 40 min of CPU (14 min on three threads). Runtime grows like
+  n^2.1–2.2 from n = 20 to 400, steepening to n^2.9–3.1 between 100 and 400.
 - **The 1-tree bound is a loose ceiling.** It overstated the true gap by 0.00–5.34 percentage
   points on TSPLIB (`fl417`: +5.64% claimed for an optimal tour).
 
@@ -40,16 +41,16 @@ references people often conflate — exact optima, published optima, and a lower
 
 | | Held–Karp DP (exact) | BGMA |
 |---|---|---|
-| time at n=20 | 302 ms | **1.4 ms** (`low`) · 71 ms (`max`) |
-| time at n=22 | 1.3–1.6 s, 378 MiB | **2–60 ms** |
-| growth | doubles with every extra city | **≈ n² to 400, ≈ n³–n⁴ beyond** (measured 2.0–2.3, then 3.7–4.6) |
-| n=30 | ≈ 100 GiB of table | ≈ 13 ms (`low`) |
+| time at n=20 | 299 ms | **1.3 ms** (`low`) · 65 ms (`max`) |
+| time at n=22 | 1.2–1.5 s, 378 MiB | **4–72 ms** (mean, `low`–`max`) |
+| growth | doubles with every extra city | **≈ n^2.1–2.2 from 20 to 400, ≈ n^3 between 100 and 400** |
+| n=30 | ≈ 100 GiB of table | ≈ 2 ms (`low`) |
 | n=400 | out of reach for the DP | 0.6 s (`low`) · 49 s (`max`) |
-| n=1000 | out of reach for the DP | 24 s (`low`) · 72 min (`max`) |
+| n≈1000 | out of reach for the DP | `max` on `pr1002`: 40 min of CPU (serial cost of the 3-unit portfolio) |
 | tour excess vs best, n=400 | 0 (exact, n ≤ 22 only) | `low` +2.21% · `max` 0.00% (Christofides: +13.02%) |
 | tour gap vs bound, n=1000 (*ceiling*) | — | `low` +3.72% · `xhigh`/`max` +2.16% (single instance) |
 | **true gap vs optimum**, n≈1000 | — | **+2.10%** (`pr1002`, 1002 cities) · **+1.45%** (`u1060`) |
-| quality guarantee | exact | none proven; Christofides has a proven 1.5× but is 6–80× worse in practice |
+| quality guarantee | exact | none proven; Christofides has a proven 1.5× but its excess is 6–86× that of `low` from n=50 |
 
 "Out of reach" refers to the Held–Karp dynamic program only; branch-and-cut solvers handle these sizes.
 

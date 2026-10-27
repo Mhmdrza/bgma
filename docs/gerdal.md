@@ -874,7 +874,7 @@ budgets so a `max` run stays watchable; it is not the exact Node code path.
 | document date | 2026-10-20 |
 | scope | algorithm description, parameters, validation (n=4–1000), demo-claim audit, reproduction |
 | language | Markdown |
-| license | The repository does not currently include a LICENSE file. |
+| license | MIT (see `LICENSE`) |
 
 <!-- End of archival note. If this document is exported, keep the commit hash and the
 "what is proven" section with the export; they are part of the provenance. -->

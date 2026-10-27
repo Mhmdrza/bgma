@@ -44,7 +44,7 @@ references people often conflate — exact optima, published optima, and a lower
 | time at n=22 | 1.3–1.6 s, 378 MiB | **2–60 ms** |
 | growth | doubles with every extra city | **≈ n² to 400, ≈ n³–n⁴ beyond** (measured 2.0–2.3, then 3.7–4.6) |
 | n=30 | ≈ 100 GiB of table | ≈ 13 ms (`low`) |
-| n=400 | out of reach for the DP | 0.7 s (`low`) · 64 s (`max`) |
+| n=400 | out of reach for the DP | 0.6 s (`low`) · 49 s (`max`) |
 | n=1000 | out of reach for the DP | 24 s (`low`) · 72 min (`max`) |
 | tour excess vs best, n=400 | 0 (exact, n ≤ 22 only) | `low` +2.21% · `max` 0.00% (Christofides: +13.02%) |
 | tour gap vs bound, n=1000 (*ceiling*) | — | `low` +3.72% · `xhigh`/`max` +2.16% (single instance) |
@@ -210,7 +210,7 @@ tour), so it should not be read as an excess over the optimum.
 To rerun the TSPLIB table, download the `.tsp` files from
 [TSPLIB95](https://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/) (they are not redistributed here)
 and pass each to `tuning/tsplib_bench.js` with its published optimum. The raw outputs of the large
-runs are in `tuning/out/`; the per-instance outputs for n ≤ 417 were not kept.
+runs are in `tuning/out/`; the per-instance outputs for n ≤ 417 and for `pcb442` were not kept.
 
 The 1-tree is a *relaxation*, not a tour: a spanning tree plus the two cheapest edges at one root,
 with the degree-2 constraint dropped. That is why its length is shorter than every tour — any tour
@@ -476,14 +476,14 @@ No dependencies. Node 18+ only; the visual page is static HTML plus the `docs/js
 
 ## Cite this
 
-Metadata in [`CITATION.cff`](CITATION.cff); release [`v1.0.0`](https://github.com/Mhmdrza/polynomialTSP/releases/tag/v1.0.0).
+Metadata in [`CITATION.cff`](CITATION.cff).
 
 ```bibtex
 @software{aala_tsp_lab_2026,
   author  = {Aala, Mohammadreza},
   title   = {tsp-lab: Beam-Guided Memetic Annealing (BGMA), benchmarked against known TSP optima},
   year    = {2026},
-  version = {1.0.0},
+  version = {1.1.0},
   url     = {https://github.com/Mhmdrza/polynomialTSP}
 }
 ```

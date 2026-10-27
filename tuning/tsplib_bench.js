@@ -15,8 +15,11 @@
  *   node tuning/tsplib_bench.js --file=pr1002.tsp --opt=259045 --levels=max --jobs=3
  *   node tuning/tsplib_bench.js --file=eil51.tsp --opt=426 --levels=low,mid,high,xhigh,max
  *   node tuning/tsplib_bench.js --file=pr1002.tsp --opt=259045 --check
+ *   node tuning/tsplib_bench.js --file=eil51.tsp --opt=426 --levels=lk,max   # lk = src/lkh/lkh.js baseline
  *
- * flags: --file --opt --levels --jobs --boundIters --seed --json --check
+ *   node tuning/tsplib_bench.js --file=pcb442.tsp --opt=50778 --levels=lk --lkBudget=60000   # LK restarts for 60 s of CPU
+ *
+ * flags: --file --opt --levels --jobs --boundIters --seed --json --check --lkBudget
  */
 'use strict';
 const fs = require('fs');
@@ -25,12 +28,13 @@ const { unitsFor, combineUnits } = require('../src/hybrid/bgma.js');
 const { runPool } = require('../src/hybrid/pool.js');
 const { buildFromPoints } = require('../src/hybrid/instance.js');
 const { hkBound, greedy, tourLen } = require('../src/hybrid/hybrid_vis.js');
+const lkh = require('../src/lkh/lkh.js');
 
 const CFG = {
-  file: '', opt: 0, levels: 'max', seed: 1, boundIters: 600, json: '', check: 0,
+  file: '', opt: 0, levels: 'max', seed: 1, boundIters: 600, json: '', check: 0, lkBudget: 0,
   jobs: Math.min(6, Math.max(1, os.cpus().length - 1))
 };
-const NUM = new Set(['opt', 'seed', 'boundIters', 'jobs', 'check']);
+const NUM = new Set(['opt', 'seed', 'boundIters', 'jobs', 'check', 'lkBudget']);
 process.argv.slice(2).forEach(a => {
   if (a === '--check') { CFG.check = 1; return; }
   const m = /^--([a-zA-Z]+)=(.*)$/.exec(a);
@@ -111,19 +115,36 @@ const padL = (s, w) => { s = String(s); while (s.length < w) s = ' ' + s; return
 
   const LEVELS = CFG.levels.split(',');
   const tasks = [], meta = [];
-  for (const level of LEVELS) for (const u of unitsFor(level, T.n, CFG.seed)) {
+  for (const level of LEVELS) if (level !== 'lk') for (const u of unitsFor(level, T.n, CFG.seed)) {
     tasks.push({ instSpec: spec, seed: u.seed, preset: u.preset, restart: u.restart });
     meta.push({ level, arm: u.arm });
   }
 
   const t0 = Date.now();
   const out = await runPool(tasks, CFG.jobs);
+  /* the LK-style baseline runs in this thread, after the pool: one run, or with
+   * --lkBudget=ms independent restarts (seed, seed+1, ...) until that much CPU time is spent */
+  let lk = null;
+  if (LEVELS.includes('lk')) {
+    const runs = [];
+    let spent = 0, s = CFG.seed, best = null;
+    do {
+      const lt = process.hrtime.bigint();
+      const r = lkh.solve(inst.rows, { seed: s });
+      const ms = Number(process.hrtime.bigint() - lt) / 1e6;
+      spent += ms;
+      runs.push({ seed: s++, len: r.len, ms });
+      if (!best || r.len < best.len) best = { len: r.len, tour: Array.from(r.tour) };
+    } while (spent < CFG.lkBudget);
+    lk = { len: best.len, tour: best.tour, ms: spent, runs };
+  }
   const wall = Date.now() - t0;
-  const serial = out.reduce((a, r) => a + r.ms, 0);
+  const serial = out.reduce((a, r) => a + r.ms, 0) + (lk ? lk.ms : 0);
 
   /* fold units into the level's answer, keeping per-arm detail for `max` */
   const rows = [];
   for (const level of LEVELS) {
+    if (level === 'lk') { rows.push({ level, res: lk, units: [] }); continue; }
     const units = out.map((r, i) => meta[i].level === level ? { ...r, arm: meta[i].arm } : null).filter(Boolean);
     const best = combineUnits(level, units);
     rows.push({ level, res: best, units });
@@ -171,9 +192,12 @@ const padL = (s, w) => { s = String(s); while (s.length < w) s = ' ' + s; return
 
   if (CFG.json) {
     fs.writeFileSync(CFG.json, JSON.stringify({
-      name: T.name, n: T.n, optimum: CFG.opt || null, bound, bestLen, wallMs: wall, serialMs: serial,
+      name: T.name, n: T.n, seed: CFG.seed, jobs: CFG.jobs, optimum: CFG.opt || null, bound, bestLen,
+      wallMs: wall, serialMs: serial,
       rows: rows.map(r => ({ level: r.level, len: r.res.len, ms: r.res.ms,
-        units: r.units.map(u => ({ arm: u.arm, len: u.len, ms: u.ms })) }))
+        units: r.units.map(u => ({ arm: u.arm, len: u.len, ms: u.ms })),
+        runs: r.res.runs,
+        tour: Array.from(r.res.tour) }))
     }, null, 2) + '\n');
     console.log('wrote ' + CFG.json);
   }

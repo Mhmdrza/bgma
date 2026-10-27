@@ -1,0 +1,14 @@
+rat783  n=783  EUC_2D (rounded)  optimum=8806  greedy=11054
+
+level        wall        tour   true gap  gap<=bound
+lk           1.7s    8914.000    +1.226%     +1.613%
+max        182.1s    8898.000    +1.045%     +1.430%
+
+max/xhigh        182.1s    8898.000    +1.045%
+max/restart      188.6s    8972.000    +1.885%
+max/restart      195.7s    8940.000    +1.522%
+
+best tour 8898.000   optimum 8806   true gap +1.045%   tours valid (2/2)
+1-tree certificate 8772.51 (1.2s, 600 iters)   0.380% below optimum  ->  the reported ceiling overstates the true gap by 0.382% of tour length
+wall 197.5s for 568.1s of work (2.88x with 3 jobs)
+wrote paper/data/tsplib/rat783_s1.json

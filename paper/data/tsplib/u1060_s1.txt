@@ -1,0 +1,14 @@
+u1060  n=1060  EUC_2D (rounded)  optimum=224094  greedy=308980
+
+level        wall        tour   true gap  gap<=bound
+lk           6.7s  228701.000    +2.056%     +2.937%
+max       1163.4s  227345.000    +1.451%     +2.327%
+
+max/xhigh       1168.1s  228476.000    +1.955%
+max/restart     1170.8s  228354.000    +1.901%
+max/restart     1163.4s  227345.000    +1.451%
+
+best tour 227345.000   optimum 224094   true gap +1.451%   tours valid (2/2)
+1-tree certificate 222175.83 (1.7s, 600 iters)   0.856% below optimum  ->  the reported ceiling overstates the true gap by 0.863% of tour length
+wall 1177.7s for 3509.1s of work (2.98x with 3 jobs)
+wrote paper/data/tsplib/u1060_s1.json

@@ -1,0 +1,14 @@
+berlin52  n=52  EUC_2D (rounded)  optimum=7542  greedy=8980
+
+level        wall        tour   true gap  gap<=bound
+lk           43ms    7542.000    +0.000%     +0.000%
+max         136ms    7542.000    +0.000%     +0.000%
+
+max/xhigh         113ms    7542.000    +0.000%
+max/restart       136ms    7542.000    +0.000%
+max/restart       136ms    7542.000    +0.000%
+
+best tour 7542.000   optimum 7542   true gap +0.000%   tours valid (2/2)
+1-tree certificate 7542.00 (3ms, 600 iters)   0.000% below optimum  ->  the reported ceiling overstates the true gap by 0.000% of tour length
+wall 196ms for 428ms of work (2.18x with 3 jobs)
+wrote paper/data/tsplib/berlin52_s1.json

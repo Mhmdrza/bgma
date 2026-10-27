@@ -1,0 +1,14 @@
+bier127  n=127  EUC_2D (rounded)  optimum=118282  greedy=135737
+
+level        wall        tour   true gap  gap<=bound
+lk          191ms  119259.000    +0.826%     +1.557%
+max         524ms  118282.000    +0.000%     +0.725%
+
+max/xhigh         523ms  118326.000    +0.037%
+max/restart       524ms  118282.000    +0.000%
+max/restart       556ms  118313.000    +0.026%
+
+best tour 118282.000   optimum 118282   true gap +0.000%   tours valid (2/2)
+1-tree certificate 117430.93 (39ms, 600 iters)   0.720% below optimum  ->  the reported ceiling overstates the true gap by 0.725% of tour length
+wall 768ms for 1.8s of work (2.34x with 3 jobs)
+wrote paper/data/tsplib/bier127_s9.json

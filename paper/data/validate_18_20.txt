@@ -1,0 +1,30 @@
+n=18 s=1 uniform    opt=324.751  hk=72ms  low=-0.000%/9ms  mid=-0.000%/11ms  high=-0.000%/11ms  xhigh=-0.000%/21ms  max=-0.000%/64ms
+n=18 s=1 cluster    opt=241.588  hk=64ms  low=+0.000%/1ms  mid=+0.000%/4ms  high=-0.000%/8ms  xhigh=-0.000%/14ms  max=-0.000%/55ms
+n=18 s=2 uniform    opt=316.853  hk=62ms  low=+0.000%/1ms  mid=-0.000%/5ms  high=-0.000%/9ms  xhigh=-0.000%/16ms  max=-0.000%/59ms
+n=18 s=2 cluster    opt=222.416  hk=57ms  low=+0.000%/1ms  mid=-0.000%/4ms  high=-0.000%/8ms  xhigh=-0.000%/14ms  max=-0.000%/59ms
+n=18 s=3 uniform    opt=384.655  hk=58ms  low=+0.000%/1ms  mid=-0.000%/4ms  high=-0.000%/7ms  xhigh=-0.000%/15ms  max=-0.000%/60ms
+n=18 s=3 cluster    opt=235.795  hk=56ms  low=-0.000%/1ms  mid=-0.000%/3ms  high=-0.000%/7ms  xhigh=-0.000%/13ms  max=-0.000%/54ms
+n=18 s=4 uniform    opt=351.709  hk=54ms  low=-0.000%/1ms  mid=-0.000%/4ms  high=-0.000%/8ms  xhigh=-0.000%/16ms  max=-0.000%/57ms
+n=18 s=4 cluster    opt=124.557  hk=59ms  low=+0.000%/1ms  mid=+0.000%/4ms  high=+0.000%/9ms  xhigh=+0.000%/15ms  max=+0.000%/60ms
+n=18 s=5 uniform    opt=331.434  hk=57ms  low=+0.000%/1ms  mid=+0.000%/5ms  high=+0.000%/8ms  xhigh=+0.000%/14ms  max=+0.000%/58ms
+n=18 s=5 cluster    opt=171.442  hk=60ms  low=+0.000%/1ms  mid=+0.000%/5ms  high=+0.000%/9ms  xhigh=+0.000%/15ms  max=+0.000%/56ms
+n=20 s=1 uniform    opt=382.546  hk=283ms  low=-0.000%/1ms  mid=-0.000%/5ms  high=-0.000%/9ms  xhigh=-0.000%/17ms  max=-0.000%/64ms
+n=20 s=1 cluster    opt=248.597  hk=271ms  low=+0.000%/1ms  mid=+0.000%/4ms  high=+0.000%/8ms  xhigh=+0.000%/15ms  max=+0.000%/60ms
+n=20 s=2 uniform    opt=317.501  hk=247ms  low=-0.000%/1ms  mid=-0.000%/5ms  high=-0.000%/10ms  xhigh=-0.000%/16ms  max=-0.000%/64ms
+n=20 s=2 cluster    opt=253.246  hk=269ms  low=+0.000%/1ms  mid=+0.000%/5ms  high=+0.000%/10ms  xhigh=+0.000%/16ms  max=+0.000%/64ms
+n=20 s=3 uniform    opt=316.802  hk=274ms  low=+0.000%/1ms  mid=+0.000%/5ms  high=-0.000%/10ms  xhigh=-0.000%/18ms  max=-0.000%/70ms
+n=20 s=3 cluster    opt=196.708  hk=289ms  low=+0.000%/1ms  mid=+0.000%/5ms  high=-0.000%/10ms  xhigh=-0.000%/18ms  max=-0.000%/69ms
+n=20 s=4 uniform    opt=313.218  hk=282ms  low=+0.000%/2ms  mid=-0.000%/5ms  high=-0.000%/10ms  xhigh=-0.000%/16ms  max=-0.000%/68ms
+n=20 s=4 cluster    opt=218.937  hk=273ms  low=-0.000%/2ms  mid=-0.000%/5ms  high=-0.000%/10ms  xhigh=-0.000%/17ms  max=-0.000%/70ms
+n=20 s=5 uniform    opt=347.549  hk=277ms  low=+0.000%/1ms  mid=-0.000%/5ms  high=-0.000%/9ms  xhigh=-0.000%/17ms  max=-0.000%/69ms
+n=20 s=5 cluster    opt=205.401  hk=273ms  low=-0.000%/2ms  mid=-0.000%/5ms  high=-0.000%/11ms  xhigh=-0.000%/18ms  max=-0.000%/69ms
+
+OPTIMALITY SUMMARY  (20 instances)
+
+level     optimal  mean gap    worst   mean ms
+low         20/20   -0.000%  +0.000%       2ms
+mid         20/20   -0.000%  +0.000%       5ms
+high        20/20   -0.000%  +0.000%       9ms
+xhigh       20/20   -0.000%  +0.000%      16ms
+max         20/20   -0.000%  +0.000%      62ms
+

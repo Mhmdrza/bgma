@@ -1,0 +1,14 @@
+pcb442  n=442  EUC_2D (rounded)  optimum=50778  greedy=61979
+
+level        wall        tour   true gap  gap<=bound
+lk           1.2s   51284.000    +0.996%     +1.568%
+max         21.7s   51214.000    +0.859%     +1.429%
+
+max/xhigh         20.8s   51216.000    +0.863%
+max/restart       21.7s   51250.000    +0.930%
+max/restart       21.7s   51214.000    +0.859%
+
+best tour 51214.000   optimum 50778   true gap +0.859%   tours valid (2/2)
+1-tree certificate 50492.39 (399ms, 600 iters)   0.562% below optimum  ->  the reported ceiling overstates the true gap by 0.566% of tour length
+wall 22.9s for 65.4s of work (2.85x with 3 jobs)
+wrote paper/data/tsplib/pcb442_s10.json

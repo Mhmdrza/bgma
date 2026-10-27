@@ -1,0 +1,14 @@
+st70  n=70  EUC_2D (rounded)  optimum=675  greedy=830
+
+level        wall        tour   true gap  gap<=bound
+lk          106ms     680.000    +0.741%     +1.341%
+max         190ms     675.000    +0.000%     +0.596%
+
+max/xhigh         152ms     675.000    +0.000%
+max/restart       190ms     675.000    +0.000%
+max/restart       180ms     675.000    +0.000%
+
+best tour 675.000   optimum 675   true gap +0.000%   tours valid (2/2)
+1-tree certificate 671.00 (15ms, 600 iters)   0.593% below optimum  ->  the reported ceiling overstates the true gap by 0.596% of tour length
+wall 315ms for 629ms of work (2.00x with 3 jobs)
+wrote paper/data/tsplib/st70_s4.json

@@ -4,3 +4,12 @@ stress_*.json
 stress_*.log
 tuning/out/*.log
 graphify-out/
+
+# paper build outputs
+paper/*.aux
+paper/*.log
+paper/*.bbl
+paper/*.blg
+paper/*.out
+paper/arxiv/
+paper/arxiv.tar.gz

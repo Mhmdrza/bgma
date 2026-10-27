@@ -1,0 +1,446 @@
+{
+  "meta": {
+    "date": "2026-10-27",
+    "node": "v22.23.2",
+    "cpu": "Apple M3 Pro",
+    "platform": "darwin/arm64",
+    "seeds": 2,
+    "kinds": [
+      "uniform",
+      "cluster"
+    ],
+    "instancesPerCell": 4,
+    "note": "median wall time of the solve; gapPct is the mean excess over the best tour any method found on the same instance"
+  },
+  "ns": [
+    20,
+    50,
+    100,
+    200,
+    400
+  ],
+  "methods": [
+    {
+      "id": "greedy",
+      "label": "greedy nearest-neighbour",
+      "note": "O(n^2)",
+      "ref": false,
+      "exponent": 0.907209021973413,
+      "cells": {
+        "20": {
+          "ms": 0.0032915,
+          "gapPct": 14.02900581730916,
+          "instances": 4
+        },
+        "50": {
+          "ms": 0.0062915,
+          "gapPct": 27.719656510407447,
+          "instances": 4
+        },
+        "100": {
+          "ms": 0.0125625,
+          "gapPct": 31.90253678788724,
+          "instances": 4
+        },
+        "200": {
+          "ms": 0.0240625,
+          "gapPct": 31.047532582311824,
+          "instances": 4
+        },
+        "400": {
+          "ms": 0.049854,
+          "gapPct": 26.464704633665193,
+          "instances": 4
+        }
+      }
+    },
+    {
+      "id": "beam",
+      "label": "beam only (K=n/3)",
+      "note": "O(n K log K)",
+      "ref": false,
+      "exponent": 1.7848882283229872,
+      "cells": {
+        "20": {
+          "ms": 0.203646,
+          "gapPct": 14.936754155795796,
+          "instances": 4
+        },
+        "50": {
+          "ms": 0.495854,
+          "gapPct": 32.1330852392981,
+          "instances": 4
+        },
+        "100": {
+          "ms": 2.0550625,
+          "gapPct": 32.42657621304576,
+          "instances": 4
+        },
+        "200": {
+          "ms": 9.408145999999999,
+          "gapPct": 37.63692624259183,
+          "instances": 4
+        },
+        "400": {
+          "ms": 42.763082999999995,
+          "gapPct": 38.87982063960989,
+          "instances": 4
+        }
+      }
+    },
+    {
+      "id": "tuned",
+      "label": "beam + tunnel (tuned)",
+      "note": "beam + 2-opt/Or-opt on n finals x4 restarts",
+      "ref": false,
+      "exponent": 2.750140093844203,
+      "cells": {
+        "20": {
+          "ms": 1.0843120000000002,
+          "gapPct": 4.9960036108132044e-14,
+          "instances": 4
+        },
+        "50": {
+          "ms": 5.9255625,
+          "gapPct": 0.041690973098273965,
+          "instances": 4
+        },
+        "100": {
+          "ms": 43.2508745,
+          "gapPct": 0.686624053278273,
+          "instances": 4
+        },
+        "200": {
+          "ms": 440.76268749999997,
+          "gapPct": 1.5353538654506393,
+          "instances": 4
+        },
+        "400": {
+          "ms": 4103.6377704999995,
+          "gapPct": 2.2214959927277733,
+          "instances": 4
+        }
+      }
+    },
+    {
+      "id": "nature",
+      "label": "nature (population + anneal)",
+      "note": "M=48 wave, 8+6 anneals",
+      "ref": false,
+      "exponent": 1.3024717836168578,
+      "cells": {
+        "20": {
+          "ms": 11.168166500000002,
+          "gapPct": 5.551115123125783e-15,
+          "instances": 4
+        },
+        "50": {
+          "ms": 63.6438125,
+          "gapPct": 0.06727999429139708,
+          "instances": 4
+        },
+        "100": {
+          "ms": 85.10925,
+          "gapPct": 0.6926403195416486,
+          "instances": 4
+        },
+        "200": {
+          "ms": 178.0133545,
+          "gapPct": 3.397847770064211,
+          "instances": 4
+        },
+        "400": {
+          "ms": 552.7601665,
+          "gapPct": 35.39238897604538,
+          "instances": 4
+        }
+      }
+    },
+    {
+      "id": "christofides",
+      "label": "Christofides (1.5-approx)",
+      "note": "MST + blossom matching on odd vertices + Euler tour",
+      "ref": false,
+      "exponent": 1.6074138723347682,
+      "cells": {
+        "20": {
+          "ms": 0.21960449999999998,
+          "gapPct": 10.496402804164978,
+          "instances": 4
+        },
+        "50": {
+          "ms": 0.613479,
+          "gapPct": 10.06523209078416,
+          "instances": 4
+        },
+        "100": {
+          "ms": 1.0508125000000001,
+          "gapPct": 13.066145907816217,
+          "instances": 4
+        },
+        "200": {
+          "ms": 11.2259165,
+          "gapPct": 13.486059611259225,
+          "instances": 4
+        },
+        "400": {
+          "ms": 27.097853999999998,
+          "gapPct": 13.025549661494617,
+          "instances": 4
+        }
+      }
+    },
+    {
+      "id": "lkh",
+      "label": "LK-style (5-opt, iterated)",
+      "note": "K=8 nearest candidates, double-bridge kicks, auto kick count",
+      "ref": false,
+      "exponent": 1.5581238709917213,
+      "cells": {
+        "20": {
+          "ms": 13.195708,
+          "gapPct": 7.216449660063518e-14,
+          "instances": 4
+        },
+        "50": {
+          "ms": 50.0395205,
+          "gapPct": 5.551115123125783e-14,
+          "instances": 4
+        },
+        "100": {
+          "ms": 97.1516455,
+          "gapPct": 4.9960036108132044e-14,
+          "instances": 4
+        },
+        "200": {
+          "ms": 671.834667,
+          "gapPct": 0.11075555781583923,
+          "instances": 4
+        },
+        "400": {
+          "ms": 1404.7485415,
+          "gapPct": 0.3705743276748996,
+          "instances": 4
+        }
+      }
+    },
+    {
+      "id": "bgma-low",
+      "label": "BGMA low",
+      "note": "effort level",
+      "ref": false,
+      "exponent": 2.057733365037173,
+      "cells": {
+        "20": {
+          "ms": 1.3088959999999998,
+          "gapPct": 4.9960036108132044e-14,
+          "instances": 4
+        },
+        "50": {
+          "ms": 4.0826665,
+          "gapPct": 0.11753908626450094,
+          "instances": 4
+        },
+        "100": {
+          "ms": 11.6074375,
+          "gapPct": 0.522068217519811,
+          "instances": 4
+        },
+        "200": {
+          "ms": 82.967938,
+          "gapPct": 1.695106921348427,
+          "instances": 4
+        },
+        "400": {
+          "ms": 622.4120205,
+          "gapPct": 2.215125448353894,
+          "instances": 4
+        }
+      }
+    },
+    {
+      "id": "bgma-mid",
+      "label": "BGMA mid",
+      "note": "effort level",
+      "ref": false,
+      "exponent": 1.9920837997550722,
+      "cells": {
+        "20": {
+          "ms": 5.0012715,
+          "gapPct": 4.9960036108132044e-14,
+          "instances": 4
+        },
+        "50": {
+          "ms": 14.2382915,
+          "gapPct": 1.1102230246251565e-14,
+          "instances": 4
+        },
+        "100": {
+          "ms": 37.437479499999995,
+          "gapPct": 0.03319538819216428,
+          "instances": 4
+        },
+        "200": {
+          "ms": 222.3592085,
+          "gapPct": 0.693518602575266,
+          "instances": 4
+        },
+        "400": {
+          "ms": 1953.6250205000001,
+          "gapPct": 1.1345148751025158,
+          "instances": 4
+        }
+      }
+    },
+    {
+      "id": "bgma-high",
+      "label": "BGMA high",
+      "note": "effort level",
+      "ref": false,
+      "exponent": 2.169512792516494,
+      "cells": {
+        "20": {
+          "ms": 9.57875,
+          "gapPct": 4.9960036108132044e-14,
+          "instances": 4
+        },
+        "50": {
+          "ms": 30.8658125,
+          "gapPct": 1.1102230246251565e-14,
+          "instances": 4
+        },
+        "100": {
+          "ms": 84.402958,
+          "gapPct": 0.018232569560028278,
+          "instances": 4
+        },
+        "200": {
+          "ms": 624.887104,
+          "gapPct": 0.31408209839915435,
+          "instances": 4
+        },
+        "400": {
+          "ms": 6366.636542,
+          "gapPct": 0.5955282327989642,
+          "instances": 4
+        }
+      }
+    },
+    {
+      "id": "bgma-xhigh",
+      "label": "BGMA xhigh",
+      "note": "effort level",
+      "ref": false,
+      "exponent": 2.2839568517288935,
+      "cells": {
+        "20": {
+          "ms": 16.051833000000002,
+          "gapPct": 4.440892098500626e-14,
+          "instances": 4
+        },
+        "50": {
+          "ms": 52.406853999999996,
+          "gapPct": 1.1102230246251565e-14,
+          "instances": 4
+        },
+        "100": {
+          "ms": 212.057104,
+          "gapPct": 0,
+          "instances": 4
+        },
+        "200": {
+          "ms": 1814.8984165,
+          "gapPct": 0.023228605334263408,
+          "instances": 4
+        },
+        "400": {
+          "ms": 15032.1467085,
+          "gapPct": 0.11929248730282449,
+          "instances": 4
+        }
+      }
+    },
+    {
+      "id": "bgma-max",
+      "label": "BGMA max",
+      "note": "effort level",
+      "ref": false,
+      "exponent": 2.2108276489115894,
+      "cells": {
+        "20": {
+          "ms": 64.647542,
+          "gapPct": 4.440892098500626e-14,
+          "instances": 4
+        },
+        "50": {
+          "ms": 203.15689600000002,
+          "gapPct": 0,
+          "instances": 4
+        },
+        "100": {
+          "ms": 675.9021035000001,
+          "gapPct": 0,
+          "instances": 4
+        },
+        "200": {
+          "ms": 5455.643749999999,
+          "gapPct": 0.007784777769381801,
+          "instances": 4
+        },
+        "400": {
+          "ms": 48630.0933745,
+          "gapPct": 0.0015871319354154867,
+          "instances": 4
+        }
+      }
+    },
+    {
+      "id": "bound",
+      "label": "1-tree lower bound",
+      "note": "400 subgradient iterations",
+      "ref": true,
+      "exponent": 2.6405269950707875,
+      "cells": {
+        "20": {
+          "ms": 0.09643750000000001,
+          "gapPct": null,
+          "instances": 4
+        },
+        "50": {
+          "ms": 3.4760210000000002,
+          "gapPct": null,
+          "instances": 4
+        },
+        "100": {
+          "ms": 14.5308545,
+          "gapPct": null,
+          "instances": 4
+        },
+        "200": {
+          "ms": 66.20445799999999,
+          "gapPct": null,
+          "instances": 4
+        },
+        "400": {
+          "ms": 262.815375,
+          "gapPct": null,
+          "instances": 4
+        }
+      }
+    },
+    {
+      "id": "exact",
+      "label": "Held-Karp exact",
+      "note": "O(n^2 2^n), n <= 20",
+      "ref": true,
+      "exponent": null,
+      "cells": {
+        "20": {
+          "ms": 298.70279200000004,
+          "gapPct": null,
+          "instances": 4
+        }
+      }
+    }
+  ]
+}

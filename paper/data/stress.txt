@@ -1,0 +1,50 @@
+n=20   convex   s=1  low    13ms          513.84   bound 513.84  gap<=+0.000% true+0.000%
+n=20   convex   s=1  max    55ms          513.84   bound 513.84  gap<=+0.000% true+0.000%
+n=20   line     s=1  low    2ms           185.60   bound 185.60  gap<=+0.000% true-0.000%
+n=20   line     s=1  max    34ms          185.60   bound 185.60  gap<=+0.000% true-0.000%
+n=20   grid     s=1  low    5ms            20.00    bound 20.00  gap<=+0.000%
+n=20   grid     s=1  max    42ms           20.00    bound 20.00  gap<=+0.000%
+n=20   dup      s=1  low    1ms           273.85   bound 273.85  gap<=-0.000%
+n=20   dup      s=1  max    26ms          273.85   bound 273.85  gap<=-0.000%
+n=20   same     s=1  low    1ms             0.00     bound 0.00  gap<=+0.000% true+0.000%
+n=20   same     s=1  max    24ms            0.00     bound 0.00  gap<=+0.000% true+0.000%
+n=20   fine     s=1  low    1ms             0.37     bound 0.37  gap<=-0.000%
+n=20   fine     s=1  max    28ms            0.37     bound 0.37  gap<=-0.000%
+n=20   coarse   s=1  low    1ms      371236241.09bound 371236241.09  gap<=+0.000%
+n=20   coarse   s=1  max    23ms     371236241.09bound 371236241.09  gap<=+0.000%
+n=100  convex   s=1  low    10ms          515.88   bound 515.88  gap<=-0.000% true-0.000%
+n=100  convex   s=1  max    212ms         515.88   bound 515.88  gap<=-0.000% true-0.000%
+n=100  line     s=1  low    9ms           191.18   bound 139.74 gap<=+36.814% true-0.000%
+n=100  line     s=1  max    248ms         191.18   bound 139.74 gap<=+36.814% true-0.000%
+n=100  grid     s=1  low    11ms          100.00   bound 100.00  gap<=+0.000%
+n=100  grid     s=1  max    257ms         100.00   bound 100.00  gap<=+0.000%
+n=100  dup      s=1  low    7ms           545.36   bound 538.85  gap<=+1.209%
+n=100  dup      s=1  max    240ms         541.56   bound 538.85  gap<=+0.504%
+n=100  same     s=1  low    9ms             0.00     bound 0.00  gap<=+0.000% true+0.000%
+n=100  same     s=1  max    201ms           0.00     bound 0.00  gap<=+0.000% true+0.000%
+n=100  fine     s=1  low    11ms            0.70     bound 0.70  gap<=+0.953%
+n=100  fine     s=1  max    274ms           0.70     bound 0.70  gap<=+0.942%
+n=100  coarse   s=1  low    10ms     704724459.75bound 698075292.02  gap<=+0.953%
+n=100  coarse   s=1  max    214ms    704651576.05bound 698075292.02  gap<=+0.942%
+n=400  convex   s=1  low    685ms         515.96   bound 515.96  gap<=-0.000% true-0.000%
+n=400  convex   s=1  max    13.2s         515.96   bound 515.96  gap<=-0.000% true-0.000%
+n=400  line     s=1  low    375ms         199.53   bound 117.90 gap<=+69.233% true-0.000%
+n=400  line     s=1  max    10.9s         199.53   bound 117.90 gap<=+69.233% true-0.000%
+n=400  grid     s=1  low    469ms         401.66   bound 400.00  gap<=+0.414%
+n=400  grid     s=1  max    12.0s         400.00   bound 400.00  gap<=+0.000%
+n=400  dup      s=1  low    974ms        1091.29  bound 1066.50  gap<=+2.324%
+n=400  dup      s=1  max    18.6s        1075.60  bound 1066.50  gap<=+0.853%
+n=400  same     s=1  low    492ms           0.00     bound 0.00  gap<=+0.000% true+0.000%
+n=400  same     s=1  max    12.3s           0.00     bound 0.00  gap<=+0.000% true+0.000%
+n=400  fine     s=1  low    554ms           1.38     bound 1.33  gap<=+3.837%
+n=400  fine     s=1  max    17.2s           1.35     bound 1.33  gap<=+1.647%
+n=400  coarse   s=1  low    577ms    1383751717.04bound 1331083179.56  gap<=+3.957%
+n=400  coarse   s=1  max    16.3s    1353022057.97bound 1331083179.56  gap<=+1.648%
+
+SUMMARY  (jobs=3, units=84, serial=301.4s, wall=102.6s, speedup=2.94x)
+level    runs  median gap<=  worst gap<=  median wall
+low        21       +0.000%     +69.233%         10ms
+max        21       +0.000%     +69.233%        240ms
+
+invalid tours: 0   length mismatches: 0   bound violations: 0
+json -> paper/data/stress.json

@@ -1,0 +1,10 @@
+n=1000 convex   s=1  low    17.2s         515.96   bound 515.96  gap<=-0.000% true-0.000%
+n=1000 convex   s=1  max    308.7s        515.96   bound 515.96  gap<=-0.000% true-0.000%
+
+SUMMARY  (jobs=3, units=4, serial=916.9s, wall=311.8s, speedup=2.94x)
+level    runs  median gap<=  worst gap<=  median wall
+low         1       +0.000%      +0.000%        17.2s
+max         1       +0.000%      +0.000%       308.7s
+
+invalid tours: 0   length mismatches: 0   bound violations: 0
+json -> paper/data/convex1000.json

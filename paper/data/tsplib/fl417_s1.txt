@@ -1,0 +1,14 @@
+fl417  n=417  EUC_2D (rounded)  optimum=11861  greedy=15013
+
+level        wall        tour   true gap  gap<=bound
+lk           2.8s   11919.000    +0.489%     +6.155%
+max         18.8s   11861.000    +0.000%     +5.639%
+
+max/xhigh         17.2s   11861.000    +0.000%
+max/restart       19.3s   11869.000    +0.067%
+max/restart       18.8s   11861.000    +0.000%
+
+best tour 11861.000   optimum 11861   true gap +0.000%   tours valid (2/2)
+1-tree certificate 11227.91 (321ms, 600 iters)   5.338% below optimum  ->  the reported ceiling overstates the true gap by 5.639% of tour length
+wall 22.2s for 58.1s of work (2.62x with 3 jobs)
+wrote paper/data/tsplib/fl417_s1.json

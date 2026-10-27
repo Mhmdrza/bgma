@@ -1,0 +1,41 @@
+n=100  uniform  s=1  low    44ms          694.08   bound 687.46  gap<=+0.963%
+n=100  uniform  s=1  low    44ms          694.08   bound 687.46  gap<=+0.963%
+n=100  uniform  s=1  low    42ms          694.08   bound 687.46  gap<=+0.963%
+n=100  uniform  s=1  mid    53ms          694.08   bound 687.46  gap<=+0.963%
+n=100  uniform  s=1  mid    53ms          694.08   bound 687.46  gap<=+0.963%
+n=100  uniform  s=1  mid    52ms          694.08   bound 687.46  gap<=+0.963%
+n=100  uniform  s=1  high   106ms         694.08   bound 687.46  gap<=+0.963%
+n=100  uniform  s=1  high   98ms          694.08   bound 687.46  gap<=+0.963%
+n=100  uniform  s=1  high   106ms         694.08   bound 687.46  gap<=+0.963%
+n=100  uniform  s=1  xhigh  221ms         693.72   bound 687.46  gap<=+0.911%
+n=100  uniform  s=1  xhigh  221ms         693.72   bound 687.46  gap<=+0.911%
+n=100  uniform  s=1  xhigh  220ms         693.72   bound 687.46  gap<=+0.911%
+n=100  uniform  s=1  max    249ms         693.72   bound 687.46  gap<=+0.911%
+n=100  uniform  s=1  max    246ms         693.72   bound 687.46  gap<=+0.911%
+n=100  uniform  s=1  max    246ms         693.72   bound 687.46  gap<=+0.911%
+n=100  cluster  s=1  low    11ms          433.37   bound 430.96  gap<=+0.558%
+n=100  cluster  s=1  low    11ms          433.37   bound 430.96  gap<=+0.558%
+n=100  cluster  s=1  low    11ms          433.37   bound 430.96  gap<=+0.558%
+n=100  cluster  s=1  mid    40ms          432.47   bound 430.96  gap<=+0.349%
+n=100  cluster  s=1  mid    40ms          432.47   bound 430.96  gap<=+0.349%
+n=100  cluster  s=1  mid    40ms          432.47   bound 430.96  gap<=+0.349%
+n=100  cluster  s=1  high   84ms          432.47   bound 430.96  gap<=+0.349%
+n=100  cluster  s=1  high   85ms          432.47   bound 430.96  gap<=+0.349%
+n=100  cluster  s=1  high   84ms          432.47   bound 430.96  gap<=+0.349%
+n=100  cluster  s=1  xhigh  220ms         432.47   bound 430.96  gap<=+0.349%
+n=100  cluster  s=1  xhigh  222ms         432.47   bound 430.96  gap<=+0.349%
+n=100  cluster  s=1  xhigh  220ms         432.47   bound 430.96  gap<=+0.349%
+n=100  cluster  s=1  max    246ms         432.47   bound 430.96  gap<=+0.349%
+n=100  cluster  s=1  max    246ms         432.47   bound 430.96  gap<=+0.349%
+n=100  cluster  s=1  max    241ms         432.47   bound 430.96  gap<=+0.349%
+
+SUMMARY  (jobs=3, units=42, serial=6.5s, wall=2.2s, speedup=2.91x)
+level    runs  median gap<=  worst gap<=  median wall
+low         6       +0.963%      +0.963%         42ms
+mid         6       +0.963%      +0.963%         52ms
+high        6       +0.963%      +0.963%         99ms
+xhigh       6       +0.911%      +0.911%        221ms
+max         6       +0.911%      +0.911%        246ms
+
+invalid tours: 0   length mismatches: 0   bound violations: 0
+json -> paper/data/repeat.json

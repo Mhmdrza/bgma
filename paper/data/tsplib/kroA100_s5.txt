@@ -1,0 +1,14 @@
+kroA100  n=100  EUC_2D (rounded)  optimum=21282  greedy=27807
+
+level        wall        tour   true gap  gap<=bound
+lk          104ms   21282.000    +0.000%     +1.650%
+max         316ms   21282.000    +0.000%     +1.650%
+
+max/xhigh         304ms   21282.000    +0.000%
+max/restart       316ms   21282.000    +0.000%
+max/restart       330ms   21282.000    +0.000%
+
+best tour 21282.000   optimum 21282   true gap +0.000%   tours valid (2/2)
+1-tree certificate 20936.48 (25ms, 600 iters)   1.624% below optimum  ->  the reported ceiling overstates the true gap by 1.650% of tour length
+wall 455ms for 1.1s of work (2.32x with 3 jobs)
+wrote paper/data/tsplib/kroA100_s5.json

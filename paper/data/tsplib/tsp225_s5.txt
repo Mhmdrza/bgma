@@ -1,0 +1,14 @@
+tsp225  n=225  EUC_2D (rounded)  optimum=3916  greedy=5030
+
+level        wall        tour   true gap  gap<=bound
+lk          737ms    3916.000    +0.000%     +0.982%
+max          2.6s    3916.000    +0.000%     +0.982%
+
+max/xhigh          2.5s    3916.000    +0.000%
+max/restart        2.6s    3916.000    +0.000%
+max/restart        2.7s    3916.000    +0.000%
+
+best tour 3916.000   optimum 3916   true gap +0.000%   tours valid (2/2)
+1-tree certificate 3877.91 (106ms, 600 iters)   0.973% below optimum  ->  the reported ceiling overstates the true gap by 0.982% of tour length
+wall 3.4s for 8.4s of work (2.45x with 3 jobs)
+wrote paper/data/tsplib/tsp225_s5.json

@@ -1,0 +1,14 @@
+u574  n=574  EUC_2D (rounded)  optimum=36905  greedy=50459
+
+level        wall        tour   true gap  gap<=bound
+lk           3.2s   37208.000    +0.821%     +1.363%
+max         65.0s   37088.000    +0.496%     +1.036%
+
+max/xhigh         68.5s   37408.000    +1.363%
+max/restart       65.0s   37088.000    +0.496%
+max/restart       73.6s   37377.000    +1.279%
+
+best tour 37088.000   optimum 36905   true gap +0.496%   tours valid (2/2)
+1-tree certificate 36707.82 (570ms, 600 iters)   0.534% below optimum  ->  the reported ceiling overstates the true gap by 0.537% of tour length
+wall 76.9s for 210.3s of work (2.74x with 3 jobs)
+wrote paper/data/tsplib/u574_s3.json

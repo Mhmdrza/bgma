@@ -359,6 +359,7 @@ same 1-tree bound, defaults everywhere (`--kicks` auto):
 | BGMA mid | +1.22% | +0.65% | 218 | 1 |
 | BGMA high | +0.97% | +0.30% | 624 | 3 |
 | BGMA xhigh | +0.76% | +0.00% | 1814 | 9 |
+| BGMA max | **+0.76%** | +0.00% | 5478 | 10 |
 
 12 instances (n=100/200/400; 2 seeds × uniform/cluster), medians. Per n (median excess over the bound):
 
@@ -370,7 +371,12 @@ same 1-tree bound, defaults everywhere (`--kicks` auto):
 
 LKH is shorter than BGMA `high` on most instances (median −0.11%) at the same median cost, and
 loses to `xhigh` from n=200 up — `xhigh` pays ~3× the time for that last 0.2–0.3 pp.
-Reproduce: `node bench/lkh_bench.js --ns=100,200,400 --seeds=2 --json=bench/lkh_results.json`.
+
+Against `max` (n=100/200/400, 2 seeds × uniform/cluster): `max` is the better tour on 10/12
+instances but by a median of **0.03%** only; at n=100 the two are tied (+0.54% vs +0.54%), and the
+gap opens with n (n=200 +0.58% vs +0.69%, n=400 +1.16% vs +1.47%). `max` pays **5.48 s** per
+instance against LKH's 0.66 s — 8× the time for 0.03 pp.
+Reproduce: `node bench/lkh_bench.js --ns=100,200,400 --seeds=2 --levels=low,mid,high,xhigh,max --json=bench/lkh_results.json`.
 Validation: `node src/lkh/lkh.js --check=1` matches Held–Karp on 6/6 instances at n=11.
 
 ### Nature, with an effort dial

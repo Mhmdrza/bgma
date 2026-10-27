@@ -61,4 +61,6 @@ for (const level of LEVELS) {
               padL(ms(mean(rr.map(r => r.ms))), 10));
 }
 console.log('');
+// the README's 26/26 claim rests on this run; runs are deterministic, so a miss is a regression
+if (rows.some(r => r.gap > 1e-6)) process.exitCode = 1;
 function ms(x) { return x < 1 ? (x * 1000).toFixed(0) + 'us' : x.toFixed(0) + 'ms'; }

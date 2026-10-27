@@ -329,9 +329,8 @@
   valid tour; <em>Undo</em> and <em>Reset walk</em> rebuild that state, and a jump seals the current leg instead of
   inventing an edge, so nothing is ever drawn that you did not accept or explicitly refuse. Distances are Euclidean on the
   unit square, so the numbers are map units, not kilometres. The demo caps n at 60 to keep the requests
-  and the ranked list readable. For the full polynomial solver in this repo (<a href="hybrid_tsp.html">BGMA</a>) —
-  <em>claim: the closest ever to P = NP, but not!</em> — it gives optimum solutions in n up to 400 and
-  deviates from the optimum by up to ~1% when n grows to 1000.
+  and the ranked list readable. The full solver in this repo, <a href="hybrid_tsp.html">BGMA</a>, matched the published optimum on
+  all 9 TSPLIB instances up to n = 417 and stayed within +0.33–2.10% of it at n = 442–1060.
 </footer>
 
 <div id="tip" class="tip" role="status" aria-live="polite"></div>

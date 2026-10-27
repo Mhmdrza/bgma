@@ -2,4 +2,5 @@
 results.csv
 stress_*.json
 stress_*.log
-tuning/out/
+tuning/out/*.log
+graphify-out/

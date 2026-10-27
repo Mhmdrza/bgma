@@ -1,0 +1,24 @@
+[
+ {
+  "n": 2000,
+  "family": "uniform",
+  "seed": 1,
+  "level": "max",
+  "rep": 0,
+  "ms": 39569399.8,
+  "serialMs": 113923865.8,
+  "units": 3,
+  "bound": 2979.3836,
+  "boundMs": 9648.6,
+  "len": 3073.9912,
+  "gapBound": 3.1754,
+  "gapKnown": null,
+  "gapExact": null,
+  "known": null,
+  "exact": null,
+  "ok": true,
+  "lenOk": true,
+  "rssMB": 560,
+  "tourDigest": "917-1821-1107-624-244-1605"
+ }
+]

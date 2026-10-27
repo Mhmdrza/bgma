@@ -1,0 +1,13 @@
+{
+  "name": "tsp-lab",
+  "version": "1.0.0",
+  "description": "Beam-Guided Memetic Annealing (BGMA): a TSP heuristic with an effort dial, benchmarked against known optima",
+  "license": "MIT",
+  "author": "Mohammadreza Aala <mrala@ut.ac.ir>",
+  "repository": "github:Mhmdrza/polynomialTSP",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node tuning/validate_effort.js --ns=18,20 --seeds=5 && node tuning/validate_effort.js --ns=22 --seeds=3 && node tuning/validate_christofides.js && node src/lkh/lkh.js --check=1 && node bench/sync_docs.js --check"
+  }
+}

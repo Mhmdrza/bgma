@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The closest ever to P = NP, but not! — BGMA, a polynomial TSP solver</title>
-<meta name="description" content="Claim: the closest ever to P = NP, but not! The polynomial algorithm in this repo gives optimum solutions in n up to 400, but deviates from the optimum by up to ~1% when n grows to 1000.">
+<title>BGMA — an anytime TSP heuristic, measured against known optima</title>
+<meta name="description" content="Beam-Guided Memetic Annealing (BGMA): a TSP heuristic with an effort dial. At max effort it matched the published optimum on all 9 TSPLIB instances up to n=417 and stayed within +0.33–2.10% at n=442–1060.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --ink:#16181d; --muted:#6b7280; --line:#e2e2de;
@@ -59,27 +59,27 @@
 <body>
 <main>
 
-  <p class="kicker">Claim · Polynomial TSP solver · beam-guided memetic annealing</p>
-  <h1>The closest ever to P = NP — but not!</h1>
+  <p class="kicker">TSP heuristic · beam-guided memetic annealing · effort dial</p>
+  <h1>A TSP heuristic, measured against known optima</h1>
   <p class="lede">
-    The polynomial algorithm in this repo gives <strong>optimum solutions in n up to 400</strong>,
-    but <strong>deviates from the optimum by up to ~1% when n grows to 1000</strong>.
-    BGMA returned the published optimum on <strong>35 of 40</strong> instances where one is known —
-    26/26 in the Held–Karp range and all 9/9 TSPLIB instances up to n=417 — and as n grows toward
-    1000 it deviates from the true optimum by ~1% (+0.33% at 574, +1.05% at 783, +1.45% at 1060,
-    +2.10% at 1002).
+    BGMA is an anytime heuristic for the Euclidean travelling salesman problem with five effort
+    levels. At <code>max</code> effort it returned the <strong>published optimum on all 9 TSPLIB
+    instances up to n&nbsp;=&nbsp;417</strong>, and stayed within <strong>+0.33% to +2.10%</strong> of
+    the optimum on the five instances from n&nbsp;=&nbsp;442 to 1060. Every level matched the
+    Held–Karp optimum on 26/26 small instances (n&nbsp;=&nbsp;18–22). It is a heuristic: it proves
+    nothing about tours it does not match, and it says nothing about P vs NP.
   </p>
 
   <div class="evidence">
-    <div class="ev"><span class="ev-n">Optimum ≤ 400</span>
-      <span class="ev-l">optimum solutions for n up to 400: 26/26 at 18, 20 and 22 cities on the
-        cheapest setting, and 9/9 TSPLIB instances up to n=417 (35/40 overall)</span></div>
-    <div class="ev"><span class="ev-n">~1% at n → 1000</span>
-      <span class="ev-l">deviates from the optimum by up to ~1% when n grows to 1000 (+0.33% at 574,
-        +1.05% at 783, +1.45% at 1060, +2.10% at 1002) — why it is <em>not</em> P = NP</span></div>
-    <div class="ev"><span class="ev-n">215× faster</span>
-      <span class="ev-l">polynomial algorithm: 1.4&nbsp;ms against 302&nbsp;ms for the exact solver at
-        20 cities for the identical, provably shortest route</span></div>
+    <div class="ev"><span class="ev-n">9 / 9 TSPLIB ≤ 417</span>
+      <span class="ev-l">published optimum matched at <code>max</code>, eil51 through fl417; plus
+        26/26 Held–Karp instances at n = 18–22 on every effort level</span></div>
+    <div class="ev"><span class="ev-n">+0.33–2.10%</span>
+      <span class="ev-l">true gap to the published optimum at n = 442–1060 (+1.05% at 783, +1.45% at
+        1060, +2.10% at 1002)</span></div>
+    <div class="ev"><span class="ev-n">Effort dial</span>
+      <span class="ev-l">each level costs ~3× the previous and roughly halves the gap up to n = 400;
+        <code>low</code> solves n = 400 in 0.6&nbsp;s</span></div>
   </div>
 
   <div class="cta">
@@ -96,13 +96,16 @@
       <tr><th>median time per instance</th><th>n = 20</th><th>n = 22</th><th>n = 30</th><th>n = 400</th><th>n = 1000</th></tr>
     </thead>
     <tbody>
-      <tr><td>Held–Karp (exact)</td><td>302 ms</td><td>1.3–1.6 s, 378 MiB</td><td>≈ 100 GiB table</td><td>impossible</td><td>impossible</td></tr>
+      <tr><td>Held–Karp (exact)</td><td>302 ms</td><td>1.3–1.6 s, 378 MiB</td><td>≈ 100 GiB table</td><td>out of reach</td><td>out of reach</td></tr>
       <tr><td>BGMA <code>low</code></td><td>1.4 ms</td><td>milliseconds</td><td>≈ 13 ms</td><td>0.73 s</td><td>24 s</td></tr>
       <tr><td>Christofides (1.5-approx)</td><td>0.2 ms</td><td>sub-ms</td><td>—</td><td>30 ms</td><td>—</td></tr>
       <tr><td>BGMA <code>max</code></td><td>71 ms</td><td>tens of ms</td><td>—</td><td>64 s</td><td>72 min</td></tr>
     </tbody>
   </table>
-  <p class="note">Apple M3 Pro, Node v22. Exact runtimes: <code>bench/runtime_bench.js</code>.</p>
+  <p class="note">Apple M3 Pro, Node v22. Exact runtimes: <code>bench/runtime_bench.js</code>.
+    “Out of reach” applies to the Held–Karp dynamic program only. Branch-and-cut solvers such as
+    Concorde, and Helsgaun’s LKH, solve instances of this size and far larger to optimality; they
+    were not run here.</p>
 
   <h2>What the measurements show</h2>
   <div class="cards">
@@ -120,17 +123,15 @@
     Up to n&nbsp;=&nbsp;400 each effort level costs about 3× the previous one and roughly halves the
     remaining gap to the best tour found. At n&nbsp;=&nbsp;400 the gap goes +2.21%, +1.13%, +0.59%,
     +0.12%, 0.00% for <code>low</code> through <code>max</code>. <code>low</code> matches the tuned beam
-    + tunnel at that size (+2.21% vs +2.22%) in 0.73 s instead of 6.4 s. The ladder flattens past 400:
+    + tunnel at that size (+2.22% vs +2.22%) in 0.60 s instead of 4.2 s. The ladder flattens past 400:
     at n&nbsp;=&nbsp;1000 <code>max</code> is the same tour as <code>xhigh</code> for 4.5× the runtime.
   </p>
 
   <p class="fine">
-    <b>The fine print.</b> Every number here comes from a run you can reproduce. The claim —
-    <em>the closest ever to P = NP, but not!</em> — sums up what the experiments show: this polynomial
-    algorithm gives optimum solutions in n up to 400 (26/26 Held–Karp instances at n&nbsp;≤&nbsp;22 and
-    all 9/9 published TSPLIB optima up to n&nbsp;=&nbsp;417), and deviates from the optimum by up to ~1%
-    as n grows to 1000 (+0.33% at 574, +1.05% at 783, +1.45% on <code>u1060</code>, +2.10% on
-    <code>pr1002</code>). A gap to the 1-tree bound is only a ceiling, and a loose one: on
+    <b>The fine print.</b> Every number here comes from a script in the repository. “Optimal” means
+    equal to a known optimum: Held–Karp at n&nbsp;≤&nbsp;22, published TSPLIB optima beyond. The TSPLIB
+    results are 14 instances, one <code>max</code> run each; they are evidence on those instances, not a
+    guarantee for others. Mature solvers (Concorde, LKH) solve every instance listed here to optimality. A gap to the 1-tree bound is only a ceiling, and a loose one: on
     <code>fl417</code> the bound claims 5.6% for a provably optimal tour.
   </p>
 
@@ -144,7 +145,7 @@
   </p>
 
   <footer>
-    tsp-lab · Mohammadreza Aala · the original polynomial-TSP canvas demo lives at the repository root.
+    tsp-lab · Mohammadreza Aala · MIT licensed.
   </footer>
 </main>
 </body>

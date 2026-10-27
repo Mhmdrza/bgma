@@ -116,9 +116,8 @@
   right panel instead computes a proven lower bound (1-tree + subgradient ascent); when the
   heuristic tour meets that bound, the tour is <em>proven optimal</em> without enumerating
   anything. When it doesn't, the gap shown is an upper bound on the true gap, not a guess.
-  In the full <a href="hybrid_tsp.html">BGMA polynomial solver</a> — <em>the closest ever to P = NP,
-  but not!</em> — the algorithm gives optimum solutions in n up to 400 and deviates from the optimum
-  by up to ~1% when n grows to 1000.
+  The full <a href="hybrid_tsp.html">BGMA solver</a> matched the published optimum on all 9 TSPLIB
+  instances up to n = 417 and stayed within +0.33–2.10% of it at n = 442–1060.
 </footer>
 
 <script src="runtime_data.js"></script>

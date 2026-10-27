@@ -1,42 +1,57 @@
 # tsp-lab
 
-**Almost collapsed P=NP**
+**Beam-Guided Memetic Annealing (BGMA): a TSP heuristic with an effort dial, measured against known optima.**
 
-**Claim:** The polynomial algorithm in this repo gives **optimum solutions for n up to 400**, but **deviates from the optimum by up to ~1% when n grows to 1000**.
+BGMA is an anytime heuristic for the symmetric Euclidean travelling salesman problem, written in
+dependency-free JavaScript. It combines beam-search construction, edge-recombination crossover,
+short annealing kicks and 2-opt / Or-opt polishing, and exposes five effort levels (`low` → `max`).
+This repository holds the solver, several baselines, and the harnesses behind every number below.
 
-Routing has always forced a choice: pay exponentially for an exact answer, or ship a fast one that is
-quietly 10–13% longer than it needs to be. Beam-Guided Memetic Annealing (BGMA) is a polynomial-time
-algorithm that gets as close to P = NP as a practical solver can — without crossing the line: it
-reproduces the exact optimum on every tested instance up to n ≈ 400, and then bends away by ~1% (up to
-1–2% on the hardest instances) as n grows to 1000.
+What was measured:
 
-- **Optimum solutions for n up to 400 (35 of 40 known-optimum instances overall)** — 26/26 at n = 18,
-  20 and 22 (Held–Karp, at *every* effort level including the cheapest) and **9 of 9 published TSPLIB
-  instances up to n = 417** (`eil51` through `fl417`) returned the exact optimum.
-- **Deviates from the optimum by up to ~1% when n grows to 1000 (not P = NP!)** — measured against
-  published optima, not a loose bound: +0.71% at n = 442 (`pcb442`), +0.33% at n = 574 (`u574`),
-  **+1.05% at n = 783 (`rat783`)**, **+1.45% at n = 1060 (`u1060`)**, and +2.10% at n = 1002 (`pr1002`).
-- **215× faster than the exact solver** at 20 cities: 1.4 ms against 302 ms for the identical, provably
-  shortest tour, scaling polynomially in n.
-- **The 1-tree bound was a pessimistic ceiling.** It reports +2.16% at n=1000; on `pr1002` the same
-  bound claimed +3.02% for a tour that is actually +2.10% long, and on `fl417` it claims +5.64% for a
-  tour that is optimal.
+- **Small instances, exact reference.** Every effort level matched the Held–Karp optimum on
+  **26 of 26** instances at n = 18, 20 and 22 (uniform and clustered).
+- **TSPLIB, published optima.** At `max`, BGMA returned the published optimum on **all 9 instances
+  up to n = 417** (`eil51` through `fl417`). On the five instances from n = 442 to 1060 it was
+  **+0.33% to +2.10%** above the optimum (+0.71% `pcb442`, +0.33% `u574`, +1.05% `rat783`,
+  +2.10% `pr1002`, +1.45% `u1060`). One `max` run per instance.
+- **Cost.** `low` solves n = 400 in 0.6 s (+2.2% over the best tour found); `max` takes 49 s there
+  and 72 min at n = 1000. Measured runtime grows like n^2.0–2.3 up to 400 and n^3.7–4.6 beyond.
+- **The 1-tree bound is a loose ceiling.** It overstated the true gap by 0.00–5.34 percentage
+  points on TSPLIB (`fl417`: +5.64% claimed for an optimal tour).
 
-**[Open the demo →](https://mhmdrza.github.io/polynomialTSP/)** — 18 cities with the exact optimum side by side.
-Drag the effort dial, roll a new seed, and watch the gap.
+**[Open the demo →](https://mhmdrza.github.io/polynomialTSP/)** — 18 cities with the exact optimum
+side by side. Drag the effort dial, roll a new seed, and watch the gap.
 
-| | Held–Karp (exact) | BGMA |
+### Where this sits
+
+BGMA is a heuristic. It carries no approximation guarantee and proves nothing about tours it does
+not match; like any bounded-budget heuristic it runs in polynomial time, which says nothing about
+P vs NP. It is **not** state of the art: [Concorde](https://www.math.uwaterloo.ca/tsp/concorde.html)
+(branch-and-cut) proves optimality for instances far larger than any here, and Helsgaun's
+[LKH](http://akira.ruc.dk/~keld/research/LKH-3/) is the standard heuristic and typically finds the
+optimal tour on TSPLIB instances of this size. Neither was run in this repository. The solver in `src/lkh/` is an
+independent LK-style local search (5-opt chains, kicks, no alpha-nearness, no tour merging), not
+Helsgaun's LKH; at equal runtime it beats BGMA `high` (see below).
+
+What this repository does offer: a readable, dependency-free implementation; an effort dial whose
+cost/quality trade-off is measured level by level; and an evaluation that separates three
+references people often conflate — exact optima, published optima, and a lower bound.
+
+| | Held–Karp DP (exact) | BGMA |
 |---|---|---|
 | time at n=20 | 302 ms | **1.4 ms** (`low`) · 71 ms (`max`) |
 | time at n=22 | 1.3–1.6 s, 378 MiB | **2–60 ms** |
 | growth | doubles with every extra city | **≈ n² to 400, ≈ n³–n⁴ beyond** (measured 2.0–2.3, then 3.7–4.6) |
 | n=30 | ≈ 100 GiB of table | ≈ 13 ms (`low`) |
-| n=400 | impossible | 0.7 s (`low`) · 64 s (`max`) |
-| n=1000 | impossible | 24 s (`low`) · 72 min (`max`) |
+| n=400 | out of reach for the DP | 0.7 s (`low`) · 64 s (`max`) |
+| n=1000 | out of reach for the DP | 24 s (`low`) · 72 min (`max`) |
 | tour excess vs best, n=400 | 0 (exact, n ≤ 22 only) | `low` +2.21% · `max` 0.00% (Christofides: +13.02%) |
-| tour gap vs bound, n=1000 (*ceiling*) | impossible | `low` +3.72% · `xhigh`/`max` +2.16% (single instance) |
-| **true gap vs optimum**, n≈1000 | 0 (exact, n ≤ 22 only) | **+2.10%** (`pr1002`, 1002 cities) · **+1.45%** (`u1060`) |
+| tour gap vs bound, n=1000 (*ceiling*) | — | `low` +3.72% · `xhigh`/`max` +2.16% (single instance) |
+| **true gap vs optimum**, n≈1000 | — | **+2.10%** (`pr1002`, 1002 cities) · **+1.45%** (`u1060`) |
 | quality guarantee | exact | none proven; Christofides has a proven 1.5× but is 6–80× worse in practice |
+
+"Out of reach" refers to the Held–Karp dynamic program only; branch-and-cut solvers handle these sizes.
 
 ### n ≤ 22: matched the exact optimum, every time
 
@@ -52,7 +67,7 @@ instances are therefore also scored against **published TSPLIB optima**, which g
 
 - On **fri26** the tour meets the bound exactly (937 = 937), so it is **proven optimal** without
   trusting any reference answer.
-- Against published optima, **9 of 14 TSPLIB instances up to n=417 are exactly optimal** — including
+- Against published optima, **all 9 TSPLIB instances up to n=417 are exactly optimal** — including
   `fl417`, where the bound claims a 5.64% gap for that optimal tour.
 - At n = 80–200 the median tour is within **+0.71%** of the bound at `xhigh`/`max`. That is a ceiling:
   wherever an optimum exists the true gap is smaller, and through n=417 it is zero.
@@ -105,7 +120,7 @@ collinear, integer grid, duplicated cities, coincident cities), at every effort 
 - **Memory**: 367 MB at n = 1000.
 - **Provably optimal wherever a proof exists**: convex position at n = 20, 100, 200, 400 and
   **1000** (the hull cycle), a 20×20 grid at n = 400 (400 against a bound of 400), collinear sets at
-  every size tested, and 9 of 14 published TSPLIB instances up to n = 417.
+  every size tested, and all 9 published TSPLIB instances up to n = 417.
 
 What does not survive is the certificate's *tightness*: on a collinear instance at n = 400 the tour is
 provably optimal while the 1-tree bound sits **69% below it** (28–37% at n = 100). A gap to that bound
@@ -182,18 +197,20 @@ native WebGPU compute. The parallelisable dimension is *independent runs*, which
 already exploit. The remaining lever is algorithmic — a stronger local search (3-opt / LK) that needs
 fewer generations — not more hardware.
 
-### Honest fine print
+### Fine print
 
-Every number here comes from a run you can reproduce — nothing is a marketing estimate. The headline
-claim — *almost collapsed P=NP* — is literal: BGMA is a polynomial-time algorithm that
-gives **optimum solutions for n up to 400** on every benchmark we could verify, and **deviates from the
-optimum by up to ~1% (1–2% worst case) when n grows to 1000**. It is a heuristic, not a proof that
-P = NP. The exact check covers n ≤ 22 (26/26 instances); past that, tours were checked against
-**published TSPLIB optima** (14 instances, 51–1060 cities): all 9 up to n = 417 are exact (0.000% gap),
-and the deviation as n grows toward 1000 is real — +0.33% at n = 574, **+1.05% at n = 783**, **+1.45%
-on `u1060`**, and **+2.10% on `pr1002`**. The older "+2.16% at n=1000" is a gap to the 1-tree bound — a
-*ceiling* that is 0.00–5.34 percentage points loose here (on `fl417` it claims 5.64% for a provably
-optimal tour), so it should not be read as an excess over the optimum.
+Every number here comes from a script in this repository. BGMA is a heuristic, not an exact
+solver. The exact check covers n ≤ 22 (26/26 instances); past that, tours were checked against
+**published TSPLIB optima** (14 instances, 51–1060 cities, one `max` run each): all 9 up to n = 417
+are exact (0.000% gap), and the five above that are +0.33% to +2.10% long. That is evidence on these
+instances, not a guarantee for others. The older "+2.16% at n=1000" is a gap to the 1-tree bound — a
+*ceiling* that is 0.00–5.34 percentage points loose here (on `fl417` it claims 5.64% for an optimal
+tour), so it should not be read as an excess over the optimum.
+
+To rerun the TSPLIB table, download the `.tsp` files from
+[TSPLIB95](https://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/) (they are not redistributed here)
+and pass each to `tuning/tsplib_bench.js` with its published optimum. The raw outputs of the large
+runs are in `tuning/out/`; the per-instance outputs for n ≤ 417 were not kept.
 
 The 1-tree is a *relaxation*, not a tour: a spanning tree plus the two cheapest edges at one root,
 with the degree-2 constraint dropped. That is why its length is shorter than every tour — any tour
@@ -204,24 +221,26 @@ Details and caveats: [docs/gerdal.md](docs/gerdal.md).
 
 ---
 
-Experiments around a quantum-inspired TSP demo: a fast beam + tunnelling solver, a readable
+How the project grew: it started as a quantum-inspired TSP demo (the vocabulary is borrowed; there
+is no quantum mechanics in it) and became a fast beam + tunnelling solver, a readable
 reference implementation, a nature-model rewrite (weighted population, soft selection,
 annealing with kicks, recombination), and two tuned solvers with `--effort` dials — BGMA and
 the nature solver — plus benchmarks against TSPLIB instances and a CSV dataset.
 
-Read **[docs/TSP_NOTES.md](docs/TSP_NOTES.md)** first — it holds the findings, measured numbers,
+The design note is **[docs/gerdal.md](docs/gerdal.md)** (algorithm, pseudocode, validation, claim audit). Read **[docs/TSP_NOTES.md](docs/TSP_NOTES.md)** next — it holds the findings, measured numbers,
 known pitfalls, and every command. Knob-tuning observations and future ideas are in
-**[docs/TUNING_NOTES.md](docs/TUNING_NOTES.md)**.
+**[docs/TUNING_NOTES.md](docs/TUNING_NOTES.md)**; [docs/philosophy.md](docs/philosophy.md) is an informal note on what
+the search actually does (one wide expansion, then repeated selection).
 
 ## Layout
 
 ```
-index.html, app.js      original polynomial-TSP canvas demo (untouched)
+index.html, app.js      the original 2020 canvas demo (untouched)
 src/
   beam/                 beam + tunnel solvers          (beam_fast, beam_simple)
   nature/               population / annealing solver  (nature_tsp, nature_core, nature_effort)
   hybrid/               BGMA: solver, effort ladder, CLI, demo core
-  lkh/                  Lin-Kernighan-Helsgaun style solver (LK chains + kicks)
+  lkh/                  LK-style solver (LK chains + kicks; not Helsgaun's LKH)
   farthest/             farthest-pole constructions (walk, farthest-pole insertion, FPI)
 bench/                  TSPLIB, dataset and comparison benchmarks
 tuning/                 knob / effort sweeps and Held-Karp validation
@@ -239,6 +258,7 @@ mirror is stale).
 ## Quick start
 
 ```bash
+npm test                                               # ~20 s: 26/26 Held-Karp check, Christofides <= 1.5x, docs mirror
 node bench/fri26_bench.js                              # TSPLIB, optimum known
 node bench/dantzig42_bench.js
 node bench/att48_bench.js
@@ -262,9 +282,9 @@ node src/hybrid/hybrid_effort.js --n=200 --effort=max --bound=1
 node src/hybrid/hybrid_effort.js --ns=50,100,200 --efforts=low,mid,high,xhigh,max --seeds=2
 node tuning/tune_effort.js --ns=40,80,150 --seeds=2      # learn the effort knobs
 node tuning/validate_effort.js --ns=18,20,22 --seeds=5   # exact Held-Karp check
-node src/lkh/lkh.js --n=200 --seeds=3                    # Lin-Kernighan-Helsgaun style
+node src/lkh/lkh.js --n=200 --seeds=3                    # LK-style local search (not Helsgaun's LKH)
 node src/lkh/lkh.js --check=1                            # validate vs Held-Karp, n <= 12
-node bench/lkh_bench.js --ns=100,200,400 --seeds=2       # LKH vs BGMA, head to head
+node bench/lkh_bench.js --ns=100,200,400 --seeds=2       # LK-style vs BGMA, head to head
 node experiments/beam-screen-only/bench.js               # ablation: beam + fast screen only vs BGMA
 node experiments/beam-screen-only/tune_nscale.js --ns=100,200,300,400 --seeds=2  # n-scaled two-step knobs
 node experiments/one-tree-seed/bench.js                  # 1-tree bound as a seed + a stop floor
@@ -301,7 +321,7 @@ exponent in time ∝ n^k between n=20 and n=400.
 | beam + tunnel (tuned) | 1.1 ms | 6.0 ms | 45 ms | 441 ms | 4.22 s | 2.77 |
 | nature (population + anneal) | 12 ms | 66 ms | 86 ms | 180 ms | 553 ms | 1.29 |
 | Christofides (1.5-approx) | 225 µs | 606 µs | 1.1 ms | 11 ms | 27 ms | 1.60 |
-| LKH (5-opt, iterated) | 13 ms | 50 ms | 98 ms | 660 ms | 1.36 s | 1.54 |
+| LK-style (5-opt, iterated) | 13 ms | 50 ms | 98 ms | 660 ms | 1.36 s | 1.54 |
 | BGMA low | 1.3 ms | 4.0 ms | 12 ms | 83 ms | 596 ms | 2.04 |
 | BGMA mid | 5.0 ms | 15 ms | 38 ms | 220 ms | 1.96 s | 1.99 |
 | BGMA high | 9.7 ms | 31 ms | 86 ms | 643 ms | 6.37 s | 2.17 |
@@ -319,7 +339,7 @@ Mean excess over the best tour any method found on the same instance:
 | beam + tunnel (tuned) | +0.00% | +0.04% | +0.69% | +1.54% | +2.22% |
 | nature (population + anneal) | +0.00% | +0.07% | +0.69% | +3.40% | +35.39% |
 | Christofides (1.5-approx) | +10.50% | +10.07% | +13.07% | +13.49% | +13.03% |
-| LKH (5-opt, iterated) | +0.00% | +0.00% | +0.00% | +0.11% | +0.37% |
+| LK-style (5-opt, iterated) | +0.00% | +0.00% | +0.00% | +0.11% | +0.37% |
 | BGMA low | +0.00% | +0.12% | +0.52% | +1.70% | +2.22% |
 | BGMA mid | +0.00% | +0.00% | +0.03% | +0.69% | +1.13% |
 | BGMA high | +0.00% | +0.00% | +0.02% | +0.31% | +0.60% |
@@ -337,7 +357,7 @@ What it shows:
   n^2.8 (it polishes every beam final).
 - Greedy and beam-only cost microseconds to milliseconds but stay 26–39% above the best tour.
 - Nature looks cheap at n=400 (0.55 s) only because its annealing budget is capped; it is +35% there.
-- **LKH** reaches +0.37% at n=400 in 1.36 s — better than `high` (6.4 s, +0.60%), worse than `xhigh`
+- **LK-style** reaches +0.37% at n=400 in 1.36 s — better than `high` (6.4 s, +0.60%), worse than `xhigh`
   (15 s, +0.12%) and `max` (49 s, +0.00%). Its time grows like n^1.5, the flattest of the strong methods.
 - **Christofides** is the only method here with a proof: its tour is at most 1.5× optimal on any metric instance.
   In practice it lands 10–13% above the best tour at every n, and it runs in 27 ms at n=400.
@@ -346,15 +366,16 @@ What it shows:
 - The 1-tree bound costs about 45–80% of a `low` run at n=200–400; Held–Karp needs 0.30 s at n=20 and
   doubles per city. At n=1000 the bound takes 2.6 s against 24 s for `low` and 72 minutes for `max`.
 
-### LKH, head to head against BGMA
+### LK-style local search, head to head against BGMA
 
-`src/lkh/lkh.js` is a Lin–Kernighan–Helsgaun shaped search: candidate-restricted LK chains
-(up to 5-opt) plus double-bridge kicks, no alpha-nearness and no tour merging. Same instances,
+`src/lkh/lkh.js` is a Lin–Kernighan style search modelled loosely on LKH: candidate-restricted LK
+chains (up to 5-opt) plus double-bridge kicks, no alpha-nearness and no tour merging. It is a
+from-scratch reimplementation, far simpler than Helsgaun's LKH, and is used here as a baseline. Same instances,
 same 1-tree bound, defaults everywhere (`--kicks` auto):
 
 | method | vs 1-tree bound | vs best-of-all | median ms | wins / 12 |
 |---|---:|---:|---:|---:|
-| LKH (5-opt, iterated) | **+0.80%** | +0.03% | 665 | 6 |
+| LK-style (5-opt, iterated) | **+0.80%** | +0.03% | 665 | 6 |
 | BGMA low | +2.31% | +1.45% | 83 | 0 |
 | BGMA mid | +1.22% | +0.65% | 218 | 1 |
 | BGMA high | +0.97% | +0.30% | 624 | 3 |
@@ -363,19 +384,19 @@ same 1-tree bound, defaults everywhere (`--kicks` auto):
 
 12 instances (n=100/200/400; 2 seeds × uniform/cluster), medians. Per n (median excess over the bound):
 
-| n | LKH | BGMA low | BGMA mid | BGMA high | BGMA xhigh |
+| n | LK-style | BGMA low | BGMA mid | BGMA high | BGMA xhigh |
 |---|---:|---:|---:|---:|---:|
 | 100 | +0.54% | +1.08% | +0.57% | +0.54% | +0.54% |
 | 200 | +0.69% | +2.31% | +1.22% | +0.92% | +0.58% |
 | 400 | +1.47% | +3.36% | +2.02% | +1.67% | +1.23% |
 
-LKH is shorter than BGMA `high` on most instances (median −0.11%) at the same median cost, and
+The LK-style search is shorter than BGMA `high` on most instances (median −0.11%) at the same median cost, and
 loses to `xhigh` from n=200 up — `xhigh` pays ~3× the time for that last 0.2–0.3 pp.
 
 Against `max` (n=100/200/400, 2 seeds × uniform/cluster): `max` is the better tour on 10/12
 instances but by a median of **0.03%** only; at n=100 the two are tied (+0.54% vs +0.54%), and the
 gap opens with n (n=200 +0.58% vs +0.69%, n=400 +1.16% vs +1.47%). `max` pays **5.48 s** per
-instance against LKH's 0.66 s — 8× the time for 0.03 pp.
+instance against the LK-style search's 0.66 s — 8× the time for 0.03 pp.
 Reproduce: `node bench/lkh_bench.js --ns=100,200,400 --seeds=2 --levels=low,mid,high,xhigh,max --json=bench/lkh_results.json`.
 Validation: `node src/lkh/lkh.js --check=1` matches Held–Karp on 6/6 instances at n=11.
 
@@ -425,8 +446,8 @@ runtime of each panel. Analysis and caveats: [docs/gerdal.md](docs/gerdal.md) (s
 | `docs/runtime_table.js` | renders the measured-runtime table inside both pages |
 | `src/christofides/christofides.js` | Christofides 1.5-approximation: MST, blossom minimum-weight perfect matching, Euler tour |
 | `tuning/validate_christofides.js` | checks the matching against brute force and the tour against Held–Karp (≤ 1.5×) |
-| `src/lkh/lkh.js` | Lin–Kernighan–Helsgaun style solver: LK chains over 8 nearest candidates, don't-look bits, double-bridge kicks |
-| `bench/lkh_bench.js` | LKH vs every BGMA effort level on the same instances, scored against the 1-tree bound and best-of-all |
+| `src/lkh/lkh.js` | LK-style solver (not Helsgaun's LKH): LK chains over 8 nearest candidates, don't-look bits, double-bridge kicks |
+| `bench/lkh_bench.js` | LK-style search vs every BGMA effort level on the same instances, scored against the 1-tree bound and best-of-all |
 | `bench/knob_bench.js` | greedy vs nature vs beam+tunnel under n-based knob presets |
 | `tuning/tune_knobs.js` | knob sweep against greedy/nature/random-start heuristics; finds `--preset=tuned` |
 | `src/hybrid/hybrid_tsp.js` | Beam-Guided Memetic Annealing: beam islands + ERX + nature anneal + selective base polish |
@@ -450,7 +471,7 @@ runtime of each panel. Analysis and caveats: [docs/gerdal.md](docs/gerdal.md) (s
 | `bench/fri26_bench.js`, `bench/dantzig42_bench.js`, `bench/att48_bench.js` | TSPLIB runs |
 | `bench/n22_bench.js` | n=22 greedy vs beam+tunnel vs exact (never executed) |
 
-No dependencies. Node only; the visual page is static HTML plus the `docs/js/` mirror of
+No dependencies. Node 18+ only; the visual page is static HTML plus the `docs/js/` mirror of
 `src/hybrid/hybrid_vis.js` (regenerate with `node bench/sync_docs.js`).
 
 ## Cite this
@@ -460,14 +481,13 @@ Metadata in [`CITATION.cff`](CITATION.cff); release [`v1.0.0`](https://github.co
 ```bibtex
 @software{aala_tsp_lab_2026,
   author  = {Aala, Mohammadreza},
-  title   = {tsp-lab: Beam-Guided Memetic Annealing (BGMA) and LKH, benchmarked},
+  title   = {tsp-lab: Beam-Guided Memetic Annealing (BGMA), benchmarked against known TSP optima},
   year    = {2026},
   version = {1.0.0},
-  url     = {https://github.com/Mhmdrza/polynomialTSP},
-  note    = {Proprietary, all rights reserved. Use requires written permission: mrala@ut.ac.ir}
+  url     = {https://github.com/Mhmdrza/polynomialTSP}
 }
 ```
 
-**License: proprietary, all rights reserved** ([`LICENSE`](LICENSE)). Reading and forking on
-GitHub only; running it, reusing the code, or publishing results obtained from it requires prior
-written permission — contact **mrala@ut.ac.ir**.
+## License
+
+MIT — see [`LICENSE`](LICENSE). Questions and results from reruns are welcome: **mrala@ut.ac.ir**.

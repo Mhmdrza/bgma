@@ -54,7 +54,7 @@ const METHODS = [
   { id: 'tuned', label: 'beam + tunnel (tuned)', note: 'beam + 2-opt/Or-opt on n finals x4 restarts' },
   { id: 'nature', label: 'nature (population + anneal)', note: 'M=48 wave, 8+6 anneals' },
   { id: 'christofides', label: 'Christofides (1.5-approx)', note: 'MST + blossom matching on odd vertices + Euler tour' },
-  { id: 'lkh', label: 'LKH (5-opt, iterated)', note: 'K=8 nearest candidates, double-bridge kicks, auto kick count' }
+  { id: 'lkh', label: 'LK-style (5-opt, iterated)', note: 'K=8 nearest candidates, double-bridge kicks, auto kick count' }
 ].concat(LEVELS.map(l => ({ id: 'bgma-' + l, label: 'BGMA ' + l, note: 'effort level', level: l })))
  .concat([
   { id: 'bound', label: '1-tree lower bound', note: CFG.boundIters + ' subgradient iterations', ref: true },

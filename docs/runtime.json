@@ -192,7 +192,7 @@
     },
     {
       "id": "lkh",
-      "label": "LKH (5-opt, iterated)",
+      "label": "LK-style (5-opt, iterated)",
       "note": "K=8 nearest candidates, double-bridge kicks, auto kick count",
       "ref": false,
       "exponent": 1.5390195479221391,

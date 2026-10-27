@@ -1,15 +1,16 @@
 cff-version: 1.2.0
-message: "If you refer to this software or its results, cite it as below. Any use beyond reading requires written permission: mrala@ut.ac.ir"
-title: "tsp-lab: Beam-Guided Memetic Annealing (BGMA) and LKH, benchmarked"
+message: "If you use this software or its results, please cite it as below."
+title: "tsp-lab: Beam-Guided Memetic Annealing (BGMA), benchmarked against known TSP optima"
 abstract: >-
-  A TSP laboratory in JavaScript. It contains Beam-Guided Memetic Annealing
-  (BGMA), an anytime polynomial-time heuristic with a low/mid/high/xhigh/max
-  effort ladder; an independent Lin-Kernighan-Helsgaun (LKH) solver; a
-  Held-Karp exact solver for n <= 22; a Held-Karp-style 1-tree lower bound; and
-  a benchmark suite scoring every method against exact optima, published TSPLIB
-  optima and the 1-tree bound. Headline measured results: BGMA returns the
-  published optimum on 9/9 TSPLIB instances up to n = 417 at every effort
-  level, and deviates by +0.33% to +2.10% at n = 574-1060; the 1-tree bound is
+  A TSP laboratory in dependency-free JavaScript. It contains Beam-Guided
+  Memetic Annealing (BGMA), an anytime heuristic with a low/mid/high/xhigh/max
+  effort ladder; an LK-style local search baseline; Christofides with blossom
+  matching; a Held-Karp exact solver for n <= 22; a Held-Karp-style 1-tree lower
+  bound; and a benchmark suite scoring every method against exact optima,
+  published TSPLIB optima and the 1-tree bound. Measured results: every effort
+  level matched the Held-Karp optimum on 26/26 instances at n = 18-22; at max
+  effort BGMA returned the published optimum on all 9 TSPLIB instances up to
+  n = 417 and was +0.33% to +2.10% above it at n = 442-1060. The 1-tree bound is
   shown to overstate the true gap by up to 5.34 percentage points.
 type: software
 authors:
@@ -18,7 +19,7 @@ authors:
     email: "mrala@ut.ac.ir"
 repository-code: "https://github.com/Mhmdrza/polynomialTSP"
 url: "https://mhmdrza.github.io/polynomialTSP/"
-license: "https://raw.githubusercontent.com/Mhmdrza/polynomialTSP/main/LICENSE"
+license: MIT
 version: "1.0.0"
 date-released: "2026-10-27"
 keywords:
@@ -27,7 +28,6 @@ keywords:
   - heuristic
   - memetic algorithm
   - beam search
-  - lin-kernighan-helsgaun
   - lin-kernighan
   - local search
   - held-karp bound

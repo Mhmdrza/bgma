@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Almost collapsed P=NP — BGMA, a polynomial TSP solver</title>
-<meta name="description" content="Claim: almost collapsed P=NP. The polynomial algorithm in this repo gives optimum solutions in n up to 400, but deviates from the optimum by up to ~1% when n grows to 1000.">
+<title>BGMA demo — heuristic vs the exact optimum</title>
+<meta name="description" content="Interactive demo: Beam-Guided Memetic Annealing (BGMA), a TSP heuristic with an effort dial, drawn next to the Held–Karp exact optimum.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --ink:#16181d; --muted:#6b7280; --line:#e2e2de;
@@ -139,27 +139,25 @@
 <body>
 
 <header>
-  <p class="kicker">Claim · Polynomial TSP solver · beam-guided memetic annealing</p>
-  <h1>Almost collapsed P=NP</h1>
+  <p class="kicker">TSP heuristic · beam-guided memetic annealing · effort dial</p>
+  <h1>A heuristic, next to the exact optimum</h1>
   <p class="lede">
-    The polynomial algorithm in this repo gives <b>optimum solutions in n up to 400</b>, but
-    <b>deviates from the optimum by up to ~1% when n grows to 1000</b>. BGMA returned the published
-    optimum on <strong>35 of 40</strong> instances where one is known — 26/26 in the Held–Karp range (in
-    1.4&nbsp;ms) and all 9/9 TSPLIB instances up to n=417 — and as n grows toward 1000 it deviates from
-    the true optimum by ~1% (+0.33% at 574 cities, +1.05% at 783, +1.45% at 1060, and +2.10% at 1002).
-    Where both references exist the 1-tree ceiling was never below the truth and was up to 5.3 percentage
-    points above it.
+    BGMA matched the Held–Karp optimum on <b>26/26</b> instances at n&nbsp;=&nbsp;18–22 on every effort
+    level, and at <code>max</code> the <b>published optimum on all 9 TSPLIB instances up to
+    n&nbsp;=&nbsp;417</b>. On the five instances from n&nbsp;=&nbsp;442 to 1060 it stayed within
+    <b>+0.33% to +2.10%</b> of the optimum. Where both references exist the 1-tree ceiling was never
+    below the truth and was up to 5.3 percentage points above it.
   </p>
   <div class="evidence">
-    <div class="ev"><span class="ev-n">Optimum ≤ 400</span>
-      <span class="ev-l">optimum solutions in n up to 400 — 26/26 at 18, 20 and 22 cities on the
-        cheapest setting, plus 9/9 TSPLIB instances up to n=417 (35/40 overall)</span></div>
-    <div class="ev"><span class="ev-n">~1% at n → 1000</span>
-      <span class="ev-l">deviates from the optimum by up to ~1% when n grows to 1000 (+0.33% at 574,
-        +1.05% at 783, +1.45% at 1060, +2.10% at 1002) — the closest to P = NP, but not!</span></div>
-    <div class="ev"><span class="ev-n">215× faster</span>
-      <span class="ev-l">polynomial algorithm: 1.4&nbsp;ms against 302&nbsp;ms for the exact solver at
-        20 cities for the identical, provably shortest route</span></div>
+    <div class="ev"><span class="ev-n">9 / 9 TSPLIB ≤ 417</span>
+      <span class="ev-l">published optimum matched at <code>max</code>, eil51 through fl417; plus
+        26/26 Held–Karp instances at n = 18–22 on every effort level</span></div>
+    <div class="ev"><span class="ev-n">+0.33–2.10%</span>
+      <span class="ev-l">true gap to the published optimum at n = 442–1060 (+1.05% at 783, +1.45% at
+        1060, +2.10% at 1002)</span></div>
+    <div class="ev"><span class="ev-n">1.4 ms at n = 20</span>
+      <span class="ev-l"><code>low</code> returns the same tour as Held–Karp’s 302&nbsp;ms dynamic
+        program on these instances — with no proof that it is optimal</span></div>
   </div>
   <div class="cta">
     <button id="tryCta" class="primary">Try it on your own map ↓</button>
@@ -303,12 +301,11 @@
 </main>
 
 <footer>
-  <b>The fine print, in full.</b> Every number on this page comes from a run you can reproduce; nothing
-  here is a marketing estimate. The claim — <em>almost collapsed P=NP</em> — means the
-  polynomial algorithm in this repo gives optimum solutions in n up to 400 (matched on every instance we
-  could verify: 26/26 Held–Karp optima up to n = 22 and all 9/9 published TSPLIB optima up to n = 417),
-  and deviates from the optimum by up to ~1% when n grows to 1000 (+0.33% at 574, +1.05% at 783, +1.45%
-  on <code>u1060</code>, +2.10% on <code>pr1002</code>). A gap to
+  <b>The fine print, in full.</b> Every number on this page comes from a script in the repository. BGMA is
+  a heuristic: it matched every known optimum we checked up to n = 417 (26/26 Held–Karp optima up to
+  n = 22, 9/9 published TSPLIB optima, one <code>max</code> run each) and was +0.33% to +2.10% above the
+  optimum from n = 442 to 1060. Mature solvers (Concorde, LKH) solve all of these instances optimally.
+  A gap to
   the 1-tree bound is only a ceiling, and a loose one: on <code>fl417</code> the bound claims 5.6% for a
   tour that is provably optimal, and across the set the ceiling overstates the true gap by 0.00–5.34
   percentage points. The demo runs

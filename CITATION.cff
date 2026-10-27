@@ -20,8 +20,8 @@ authors:
   - family-names: "Aala"
     given-names: "Mohammadreza"
     email: "mrala@ut.ac.ir"
-repository-code: "https://github.com/Mhmdrza/polynomialTSP"
-url: "https://mhmdrza.github.io/polynomialTSP/"
+repository-code: "https://github.com/Mhmdrza/bgma"
+url: "https://mhmdrza.github.io/bgma/"
 license: MIT
 version: "1.1.0"
 date-released: "2026-10-27"

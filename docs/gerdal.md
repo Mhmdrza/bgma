@@ -868,7 +868,7 @@ budgets so a `max` run stays watchable; it is not the exact Node code path.
 | title | Beam-Guided Memetic Annealing (BGMA) |
 | author | Mohammadreza Aala |
 | contact | [mrala@ut.ac.ir](mailto:mrala@ut.ac.ir) |
-| repository | <https://github.com/Mhmdrza/polynomialTSP> |
+| repository | <https://github.com/Mhmdrza/bgma> |
 | snapshot commit | `4f316ac3cf4a9ac54fc37274ff49c56fea3109ab` (stress harness + n=400–1000 data) |
 | snapshot date | 2026-10-20 |
 | document date | 2026-10-20 |

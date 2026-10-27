@@ -25,7 +25,7 @@ What was measured:
 - **The 1-tree bound is a loose ceiling.** It overstated the true gap by 0.00–5.34 percentage
   points on TSPLIB (`fl417`: +5.64% claimed for an optimal tour).
 
-**[Open the demo →](https://mhmdrza.github.io/polynomialTSP/)** — 18 cities with the exact optimum
+**[Open the demo →](https://mhmdrza.github.io/bgma/)** — 18 cities with the exact optimum
 side by side. Drag the effort dial, roll a new seed, and watch the gap.
 
 ### Where this sits
@@ -493,7 +493,7 @@ Metadata in [`CITATION.cff`](CITATION.cff).
   title   = {tsp-lab: Beam-Guided Memetic Annealing (BGMA), benchmarked against known TSP optima},
   year    = {2026},
   version = {1.1.0},
-  url     = {https://github.com/Mhmdrza/polynomialTSP}
+  url     = {https://github.com/Mhmdrza/bgma}
 }
 ```
 

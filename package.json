@@ -4,7 +4,7 @@
   "description": "Beam-Guided Memetic Annealing (BGMA): a TSP heuristic with an effort dial, benchmarked against known optima",
   "license": "MIT",
   "author": "Mohammadreza Aala <mrala@ut.ac.ir>",
-  "repository": "github:Mhmdrza/polynomialTSP",
+  "repository": "github:Mhmdrza/bgma",
   "private": true,
   "engines": { "node": ">=18" },
   "scripts": {

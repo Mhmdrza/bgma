@@ -209,8 +209,11 @@ tour), so it should not be read as an excess over the optimum.
 
 To rerun the TSPLIB table, download the `.tsp` files from
 [TSPLIB95](https://comopt.ifi.uni-heidelberg.de/software/TSPLIB95/) (they are not redistributed here)
-and pass each to `tuning/tsplib_bench.js` with its published optimum. The raw outputs of the large
-runs are in `tuning/out/`; the per-instance outputs for n ≤ 417 and for `pcb442` were not kept.
+(or a mirror such as [mastqe/tsplib](https://github.com/mastqe/tsplib)) and pass each to
+`tuning/tsplib_bench.js` with its published optimum, e.g.
+`node tuning/tsplib_bench.js --file=fl417.tsp --opt=11861 --levels=max`. The raw output of every run
+in the table is in `tuning/out/<instance>_max.json`; the ten instances up to `pcb442` take about a
+minute in total and reproduce the table to the unit.
 
 The 1-tree is a *relaxation*, not a tour: a spanning tree plus the two cheapest edges at one root,
 with the degree-2 constraint dropped. That is why its length is shorter than every tour — any tour

@@ -4,7 +4,10 @@
 All code is dependency-free JavaScript, run on Node.js \NodeVersion{} on an \CPU{} laptop
 (\Platform). Times are wall clock for the solve, measured with \code{process.hrtime}. Instance
 generation and distance matrices are excluded. BGMA and the LK-style baseline build their own
-candidate lists, and that cost is included. Synthetic and runtime experiments are single-threaded. For
+candidate lists, and in the synthetic benchmark that cost is included. On TSPLIB the BGMA unit
+times exclude instance construction (matrix and neighbour lists), while every LK-style run pays for
+its own matrix copy and candidate lists. That asymmetry favours BGMA in the equal-time comparison.
+Synthetic and runtime experiments are single-threaded. For
 \lvl{max} on TSPLIB, the three portfolio units run on three worker threads. For those runs we report
 the \emph{serial cost}, the sum of the three unit times, which is what \lvl{max} costs on one core, and
 separately the wall clock with three workers. All randomness is seeded, so a run is a deterministic

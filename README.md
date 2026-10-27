@@ -18,6 +18,10 @@ What was measured:
 - **Cost.** `low` solves n = 400 in 0.6 s (+2.2% over the best tour found); `max` takes 49 s there,
   and one `max` run on `pr1002` costs 40 min of CPU (14 min on three threads). Runtime grows like
   n^2.1–2.2 from n = 20 to 400, steepening to n^2.9–3.1 between 100 and 400.
+- **A simpler baseline wins at equal time.** Restarted for the CPU time of one `max` run, the
+  LK-style search in `src/lkh/` matches or beats BGMA `max` on all 14 TSPLIB instances (on `pr1002`
+  it reaches BGMA's tour in 12 s instead of 40 min). The full write-up is the paper,
+  [`paper/main.pdf`](paper/main.pdf).
 - **The 1-tree bound is a loose ceiling.** It overstated the true gap by 0.00–5.34 percentage
   points on TSPLIB (`fl417`: +5.64% claimed for an optimal tour).
 
@@ -33,7 +37,8 @@ P vs NP. It is **not** state of the art: [Concorde](https://www.math.uwaterloo.c
 [LKH](http://akira.ruc.dk/~keld/research/LKH-3/) is the standard heuristic and typically finds the
 optimal tour on TSPLIB instances of this size. Neither was run in this repository. The solver in `src/lkh/` is an
 independent LK-style local search (5-opt chains, kicks, no alpha-nearness, no tour merging), not
-Helsgaun's LKH; at equal runtime it beats BGMA `high` (see below).
+Helsgaun's LKH; restarted for equal CPU time it matches or beats BGMA `max` on every TSPLIB instance
+tested (see the paper).
 
 What this repository does offer: a readable, dependency-free implementation; an effort dial whose
 cost/quality trade-off is measured level by level; and an evaluation that separates three

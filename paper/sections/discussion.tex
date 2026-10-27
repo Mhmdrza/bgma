@@ -24,9 +24,11 @@ an explicit budget dial and a measurement record that can be reproduced end to e
 \paragraph{Why the top of the ladder stops paying.}
 For $n\ge 80$, \lvl{xhigh} and \lvl{max} use the same beam width ($n/2$) and the same number of
 generations ($n/8$). What \lvl{max} adds is more islands, a larger pool, more final polishing and a
-second restart, and it pays for all of it in full. It also polishes \emph{fewer} children per
-generation once $n\gtrsim 120$ ($\max(10,r(n/12))$ against $\max(10,r(n/10))$), which may be why the
-\lvl{xhigh} unit wins on rat783. With ERX, a 2-opt/Or-opt polish and weak
+second restart, and it pays for all of it in full. Beyond $n\approx 210$ both levels polish all
+$c=18$ children of every generation, so their polishing work per generation is identical. \lvl{max} polishes \emph{fewer} tours of the initial pool ($r(n/12)$ against $r(n/10)$), and
+its second parent is drawn from a pool of $n/2$ tours rather than $n/3$, so it is more often a weak
+tour. Either may be why the \lvl{xhigh} unit wins on rat783; we have not tested which. With ERX, a
+2-opt/Or-opt polish and weak
 perturbation, more of the same search mostly revisits the same basins. A stronger local search
 (Or-3opt, LK) inside the memetic loop, as the equal-time results also suggest, or a recombination that preserves more structure (EAX), is the
 likely lever, not more budget.

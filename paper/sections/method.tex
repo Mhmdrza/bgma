@@ -26,9 +26,10 @@ the tour quality comes from.
 Every beam final and every child is improved by a candidate-list local search: 2-opt~\citep{croes1958}
 over the $m$-nearest lists with don't-look bits and a work queue~\citep{bentley1992}, then Or-opt
 relocation of segments of length $\le 3$~\citep{or1976} (both orientations, insertion next to a
-candidate neighbour), then 2-opt again. Iteration caps bound the work (at most $200n$ queue pops
-for 2-opt, 20 passes for Or-opt), so the result is a near-local optimum at a cost that is close to
-linear in $n$ in practice.
+candidate neighbour), then 2-opt again. Iteration caps bound the work: at most $200n$ queue pops for 2-opt, and at most 20 accepted Or-opt
+moves, each followed by a rescan from the start of the tour. The cost is close to linear in $n$ in
+practice, but the result is not in general a local optimum: on large instances the Or-opt cap binds,
+and the full polish below does the remaining work.
 
 \paragraph{Elite pool and recombination.}
 Screened tours are de-duplicated by canonical form, sorted by length and truncated to the best $e$.
@@ -49,10 +50,10 @@ cap, and returns the best tour it saw. $T_0$ is in absolute length units and is 
 instance scale; we return to this in Section~\ref{sec:limits}.
 
 \paragraph{Selective full polish.}
-After screening, the children are sorted and only the best $q$ receive the expensive local search:
+After screening, the children are sorted and only the best $\min(q,c)$ receive the expensive local search:
 first-improvement 2-opt over all $O(n^2)$ pairs followed by Or-opt with segments up to $L_p$ cities.
 The scan restarts after every accepted move and stops at a true local optimum for that
-neighbourhood. The same polish is applied to the best $q$ tours of the initial pool and, if
+neighbourhood. The same polish is applied to the best $\min(q,|P|)$ tours of the initial pool and, if
 \code{finalPolish}~$>0$, to that many pool tours at the end. Restricting the quadratic search to
 contenders is the main cost-control device: the fast screen is the filter, the full polish is the
 refinement.
@@ -75,7 +76,7 @@ poles is run, its finals are screened and merged into the pool, and the counter 
     \State with probability \code{annealRate} (independently): $x\gets$ anneal$(x)$
     \State $C_j\gets$ fast-screen$(x)$
   \EndFor
-  \State polish the best $q$ of $C$;\quad $P\gets$ best $e$ distinct tours of $P\cup C$
+  \State polish the best $\min(q,c)$ of $C$;\quad $P\gets$ best $e$ distinct tours of $P\cup C$
   \If{no improvement for 2 generations} merge one screened random-pole beam island into $P$ \EndIf
 \EndFor
 \State polish the best \code{finalPolish} tours of $P$ and merge;\quad \Return best tour in $P$
@@ -96,7 +97,9 @@ threads; the repository's worker pool does this and returns bit-identical result
 \centering\footnotesize
 \caption{The effort ladder (\code{src/hybrid/effort\_profiles.js}). $r(x)=\max(1,\operatorname{round}(x))$.
 $A$ and $p_A$ are the anneal cap and probability, $p_k$ the kick probability, $L_p$ the polish
-Or-opt segment cap. \lvl{max} additionally runs one \lvl{xhigh} unit (portfolio).}
+Or-opt segment cap. \lvl{max} additionally runs one \lvl{xhigh} unit (portfolio). At most $c$
+children are polished per generation, so the cap $q$ binds per generation only while $q<c$: from
+$n\approx 200$, 175 and 210 on, \lvl{high}, \lvl{xhigh} and \lvl{max} polish all $c$ children.}
 \label{tab:ladder}
 \setlength{\tabcolsep}{2.5pt}
 \begin{tabular}{@{}lccccccccccc@{}}
@@ -114,9 +117,10 @@ level & $I$ & $K$ & $e$ & $G$ & $c$ & $q$ & final & $R$ & $A$ / $p_A$ & $p_k$ & 
 
 \paragraph{Cost.}
 Per unit the work is roughly $I$ beam islands (about $4nK$ node creations, each copying an $n$-bit visited set),
-$IK+Gc$ fast screens, $q(G+1)+\text{final}$ full polishes, and up to $Gc\,p_A$ anneals of at most $A$
-proposals. The full polish dominates at large $n$. One scan is $O(n^2)$ and is restarted after every
-accepted move, and both $q$ and $G$ grow linearly with $n$ in the upper levels. The budgets are
+$IK+Gc$ fast screens, $\min(q,e)+G\min(q,c)+\text{final}$ full polishes, and up to $Gc\,p_A$ anneals
+of at most $A$ proposals. The full polish dominates at large $n$. One scan is $O(n^2)$ and is restarted
+after every accepted move, and in the upper levels $G$ grows linearly with $n$, while the polishes per
+generation are capped at $c$. The budgets are
 polynomial in $n$ by construction, so BGMA is a polynomial-time heuristic and carries no optimality or
 approximation guarantee. The Euclidean TSP is NP-hard~\citep{papadimitriou1977}, and the result of
 any such heuristic says nothing about P versus NP.

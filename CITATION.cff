@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: "If you refer to this software or its results, cite it as below. Any use beyond reading requires written permission: mr.ala72@gmail.com"
+message: "If you refer to this software or its results, cite it as below. Any use beyond reading requires written permission: mrala@ut.ac.ir"
 title: "tsp-lab: Beam-Guided Memetic Annealing (BGMA) and LKH, benchmarked"
 abstract: >-
   A TSP laboratory in JavaScript. It contains Beam-Guided Memetic Annealing
@@ -15,7 +15,7 @@ type: software
 authors:
   - family-names: "Aala"
     given-names: "Mohammadreza"
-    email: "mr.ala72@gmail.com"
+    email: "mrala@ut.ac.ir"
 repository-code: "https://github.com/Mhmdrza/polynomialTSP"
 url: "https://mhmdrza.github.io/polynomialTSP/"
 license: "https://raw.githubusercontent.com/Mhmdrza/polynomialTSP/main/LICENSE"

@@ -464,10 +464,10 @@ Metadata in [`CITATION.cff`](CITATION.cff); release [`v1.0.0`](https://github.co
   year    = {2026},
   version = {1.0.0},
   url     = {https://github.com/Mhmdrza/polynomialTSP},
-  note    = {Proprietary, all rights reserved. Use requires written permission: mr.ala72@gmail.com}
+  note    = {Proprietary, all rights reserved. Use requires written permission: mrala@ut.ac.ir}
 }
 ```
 
 **License: proprietary, all rights reserved** ([`LICENSE`](LICENSE)). Reading and forking on
 GitHub only; running it, reusing the code, or publishing results obtained from it requires prior
-written permission — contact **mr.ala72@gmail.com**.
+written permission — contact **mrala@ut.ac.ir**.

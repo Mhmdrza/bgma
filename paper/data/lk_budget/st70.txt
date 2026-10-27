@@ -1,0 +1,9 @@
+st70  n=70  EUC_2D (rounded)  optimum=675  greedy=830
+
+level        wall        tour   true gap  gap<=bound
+lk          558ms     675.000    +0.000%     +0.596%
+
+best tour 675.000   optimum 675   true gap +0.000%   tours valid (1/1)
+1-tree certificate 671.00 (15ms, 600 iters)   0.593% below optimum  ->  the reported ceiling overstates the true gap by 0.596% of tour length
+wall 558ms for 558ms of work (1.00x with 6 jobs)
+wrote paper/data/lk_budget/st70.json

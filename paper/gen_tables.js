@@ -228,6 +228,7 @@ for (const name of Object.keys(OPT)) {
     def('v@eqEqual', E.filter(T => cmp(T) === 0).length);
     def('v@eqWorse', E.filter(T => cmp(T) > 0).length);
     def('v@eqBetterList', E.filter(T => cmp(T) < 0).map(T => T.name).join(', ') || 'none');
+    def('v@eqWorsePhrase', E.some(T => cmp(T) > 0) ? `It was worse on ${E.filter(T => cmp(T) > 0).map(T => T.name).join(', ')}.` : 'It was never worse.');
     def('v@eqWorseList', E.filter(T => cmp(T) > 0).map(T => T.name).join(', ') || 'none');
     def('v@eqOptSmall', E.filter(T => T.n <= 442 && T.eqGap <= 1e-9).length);
     def('v@eqSmallCount', E.filter(T => T.n <= 442).length);

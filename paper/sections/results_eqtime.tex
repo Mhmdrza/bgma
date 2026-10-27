@@ -1,1 +1,12 @@
-% filled when the equal-time data exist
+\paragraph{At equal CPU time.}
+The comparison that matters is the one at equal cost, and it is unfavourable to BGMA. Restarted for
+the CPU time of one \lvl{max} run, the LK-style search matched BGMA's median tour on
+\val{eqEqual} instances and beat it on \val{eqBetter} (\val{eqBetterList}). \val{eqWorsePhrase} On the \val{eqSmallCount} instances up to $n=442$ it found the optimum on
+\val{eqOptSmall}, the same instances BGMA solves. On pcb442 it reached \ts{pcb442}{eqGap} against
+BGMA's \ts{pcb442}{maxMedGap}. On the large instances the difference is a matter of orders of
+magnitude, not percentages. The LK-style restarts reached BGMA's median pr1002 tour after
+\ts{pr1002}{eqMatchMs} of CPU time, where BGMA needs \ts{pr1002}{maxSerial}. On u1060 they reached it
+after \ts{u1060}{eqMatchMs} (BGMA: \ts{u1060}{maxSerial}), and they ended at \ts{pr1002}{eqGap} and
+\ts{u1060}{eqGap} against BGMA's \ts{pr1002}{maxMedGap} and \ts{u1060}{maxMedGap}. The reliability of
+\lvl{max} on small instances is therefore not an advantage per unit of CPU time: a simple
+multi-start LK search buys the same reliability more cheaply.

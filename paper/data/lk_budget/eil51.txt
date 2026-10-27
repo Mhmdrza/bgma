@@ -1,0 +1,9 @@
+eil51  n=51  EUC_2D (rounded)  optimum=426  greedy=511
+
+level        wall        tour   true gap  gap<=bound
+lk          364ms     426.000    +0.000%     +0.829%
+
+best tour 426.000   optimum 426   true gap +0.000%   tours valid (1/1)
+1-tree certificate 422.50 (11ms, 600 iters)   0.823% below optimum  ->  the reported ceiling overstates the true gap by 0.829% of tour length
+wall 365ms for 364ms of work (1.00x with 6 jobs)
+wrote paper/data/lk_budget/eil51.json

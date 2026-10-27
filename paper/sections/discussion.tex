@@ -8,9 +8,13 @@ regular way up to a few hundred cities. Beyond about 500 cities the residual is 
 \val{tsBigRange} (median over seeds), not an artefact of the bound, and the top of the ladder stops paying.
 
 \paragraph{What it does not support.}
-BGMA is not competitive with the state of the art. The clearest evidence is in this paper itself. An
-LK-style iterated local search of a few hundred lines, in the same language, matches or beats BGMA's
-lower levels at equal or lower cost (Section~\ref{sec:synthetic}). Real LK implementations are stronger
+BGMA is not competitive with the state of the art, or even with a simple baseline. The clearest
+evidence is in this paper itself. An LK-style iterated local search of a few hundred lines, in the same
+language, beats BGMA's lower levels on synthetic instances from $n=200$ (Section~\ref{sec:synthetic}).
+Restarted for the CPU time of one \lvl{max} run, it matches or beats \lvl{max} on every TSPLIB
+instance, and on the largest ones it is faster by orders of magnitude (Section~\ref{sec:tsplib}). The
+likely reason is that LK moves (up to 5-opt) reach much deeper local optima than BGMA's 2-opt/Or-opt
+polish, so each restart is worth more than a generation of recombination. Real LK implementations are stronger
 still: LKH~\citep{helsgaun2009} and EAX~\citep{nagata2013} find optimal or near-optimal tours on
 instances of these sizes in seconds, and Concorde~\citep{applegate2006} proves optimality for all of
 them. We did not run those codes, so we make no quantitative claim about them. A reader who needs good
@@ -22,7 +26,7 @@ For $n\ge 80$, \lvl{xhigh} and \lvl{max} use the same beam width ($n/2$) and the
 generations ($n/8$). What \lvl{max} adds is more islands, a larger pool, more final polishing and a
 second restart, and it pays for all of it in full. With ERX, a 2-opt/Or-opt polish and weak
 perturbation, more of the same search mostly revisits the same basins. A stronger local search
-(Or-3opt, LK) inside the memetic loop, or a recombination that preserves more structure (EAX), is the
+(Or-3opt, LK) inside the memetic loop, as the equal-time results also suggest, or a recombination that preserves more structure (EAX), is the
 likely lever, not more budget.
 
 \paragraph{The 1-tree bound is a poor yardstick for heuristics.}
@@ -43,9 +47,9 @@ because a single \lvl{max} run there costs \ts{u574}{maxSerial} to \ts{u1060}{ma
 observations, not distributions.
 \item \emph{One machine, one runtime.} All times come from one laptop and one Node.js version. Ratios
 between methods in the same harness are more portable than absolute times.
-\item \emph{Baselines.} The LK-style baseline is ours and simpler than LKH. It runs at its default
-budget, so it is not time-matched to the upper BGMA levels. Its ten-seed best is still far cheaper than
-one \lvl{max} run.
+\item \emph{Baselines.} The LK-style baseline is ours and simpler than LKH. On TSPLIB it is compared
+both per run and at equal CPU time. On the synthetic instances it runs at its default budget only, so
+those comparisons are not time-matched.
 \item \emph{Scale dependence.} The anneal temperature $T_0=\max(1,0.02n)$ is in absolute distance
 units. On instances with very large or very small coordinates the anneal degenerates into greedy
 descent or a random walk (it returns the best tour it saw, so it cannot make a child worse). The other

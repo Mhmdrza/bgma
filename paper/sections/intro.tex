@@ -20,9 +20,9 @@ a precise description of what each level does (Section~\ref{sec:method}).
 \item An evaluation against \emph{known optima} rather than bounds or best-found tours: Held--Karp at
 $n\le 22$, and the published optima of fourteen TSPLIB instances from $n=51$ to $1060$, with ten
 seeds up to $n=442$ (Section~\ref{sec:results}).
-\item A same-harness comparison with an LK-style iterated local search. It shows where BGMA's dial pays
-(the top levels at $n\le 400$) and where it does not (the lower levels from $n=200$, and the top of
-the dial past $n\approx 500$).
+\item A same-harness comparison with an LK-style iterated local search, including one at equal CPU
+time on TSPLIB. The result is negative for BGMA: restarted for the same time, the simpler search
+matches or beats BGMA's top level on every instance (Section~\ref{sec:tsplib}).
 \item Evidence that the Held--Karp 1-tree bound gap is unreliable as a quality measure for heuristics:
 its slack against the true optimum ranges from 0\% to over 5\% on TSPLIB, and is larger still on
 degenerate geometry (Sections~\ref{sec:tsplib} and~\ref{sec:robust}).

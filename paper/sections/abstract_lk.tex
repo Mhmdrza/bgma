@@ -1,2 +1,4 @@
-An LK-style iterated local search from the same code base is the better trade-off below BGMA's top two
-levels from $n=200$, and beats the top level outright on pcb442.
+The decisive comparison is negative. An LK-style iterated local search from the same code base,
+restarted for the CPU time of one top-level BGMA run, matches BGMA's median tour on \val{eqEqual} of
+these \val{eqCount} instances and beats it on the other \val{eqBetter}, and on pr1002 it reaches BGMA's
+quality in \ts{pr1002}{eqMatchMs} instead of \ts{pr1002}{maxSerial}.

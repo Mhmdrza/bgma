@@ -221,6 +221,7 @@ src/
   beam/                 beam + tunnel solvers          (beam_fast, beam_simple)
   nature/               population / annealing solver  (nature_tsp, nature_core, nature_effort)
   hybrid/               BGMA: solver, effort ladder, CLI, demo core
+  lkh/                  Lin-Kernighan-Helsgaun style solver (LK chains + kicks)
   farthest/             farthest-pole constructions (walk, farthest-pole insertion, FPI)
 bench/                  TSPLIB, dataset and comparison benchmarks
 tuning/                 knob / effort sweeps and Held-Karp validation
@@ -261,6 +262,9 @@ node src/hybrid/hybrid_effort.js --n=200 --effort=max --bound=1
 node src/hybrid/hybrid_effort.js --ns=50,100,200 --efforts=low,mid,high,xhigh,max --seeds=2
 node tuning/tune_effort.js --ns=40,80,150 --seeds=2      # learn the effort knobs
 node tuning/validate_effort.js --ns=18,20,22 --seeds=5   # exact Held-Karp check
+node src/lkh/lkh.js --n=200 --seeds=3                    # Lin-Kernighan-Helsgaun style
+node src/lkh/lkh.js --check=1                            # validate vs Held-Karp, n <= 12
+node bench/lkh_bench.js --ns=100,200,400 --seeds=2       # LKH vs BGMA, head to head
 node experiments/beam-screen-only/bench.js               # ablation: beam + fast screen only vs BGMA
 node experiments/beam-screen-only/tune_nscale.js --ns=100,200,300,400 --seeds=2  # n-scaled two-step knobs
 node experiments/one-tree-seed/bench.js                  # 1-tree bound as a seed + a stop floor
@@ -292,51 +296,82 @@ exponent in time ∝ n^k between n=20 and n=400.
 
 | method | n=20 | n=50 | n=100 | n=200 | n=400 | scaling ~ n^k |
 |---|---:|---:|---:|---:|---:|---:|
-| greedy nearest-neighbour | 3 µs | 6 µs | 12 µs | 24 µs | 52 µs | 0.94 |
-| beam only (K=n/3) | 194 µs | 517 µs | 2.1 ms | 9.5 ms | 43 ms | 1.81 |
-| beam + tunnel (tuned) | 1.7 ms | 9.2 ms | 66 ms | 664 ms | 6.41 s | 2.75 |
-| nature (population + anneal) | 11 ms | 68 ms | 87 ms | 179 ms | 561 ms | 1.32 |
-| Christofides (1.5-approx) | 195 µs | 628 µs | 1.1 ms | 11 ms | 30 ms | 1.68 |
-| BGMA low | 1.4 ms | 4.9 ms | 16 ms | 115 ms | 732 ms | 2.10 |
-| BGMA mid | 5.1 ms | 17 ms | 51 ms | 281 ms | 2.46 s | 2.06 |
-| BGMA high | 10 ms | 36 ms | 113 ms | 776 ms | 8.38 s | 2.24 |
-| BGMA xhigh | 18 ms | 64 ms | 276 ms | 2.21 s | 19.5 s | 2.33 |
-| BGMA max | 71 ms | 232 ms | 864 ms | 6.79 s | 64.1 s | 2.27 |
-| 1-tree lower bound | 98 µs | 3.5 ms | 14 ms | 64 ms | 267 ms | 2.64 |
-| Held-Karp exact | 302 ms | — | — | — | — | — |
+| greedy nearest-neighbour | 3 µs | 7 µs | 12 µs | 25 µs | 55 µs | 0.92 |
+| beam only (K=n/3) | 213 µs | 490 µs | 2.1 ms | 9.4 ms | 42 ms | 1.77 |
+| beam + tunnel (tuned) | 1.1 ms | 6.0 ms | 45 ms | 441 ms | 4.22 s | 2.77 |
+| nature (population + anneal) | 12 ms | 66 ms | 86 ms | 180 ms | 553 ms | 1.29 |
+| Christofides (1.5-approx) | 225 µs | 606 µs | 1.1 ms | 11 ms | 27 ms | 1.60 |
+| LKH (5-opt, iterated) | 13 ms | 50 ms | 98 ms | 660 ms | 1.36 s | 1.54 |
+| BGMA low | 1.3 ms | 4.0 ms | 12 ms | 83 ms | 596 ms | 2.04 |
+| BGMA mid | 5.0 ms | 15 ms | 38 ms | 220 ms | 1.96 s | 1.99 |
+| BGMA high | 9.7 ms | 31 ms | 86 ms | 643 ms | 6.37 s | 2.17 |
+| BGMA xhigh | 16 ms | 53 ms | 213 ms | 1.81 s | 15.0 s | 2.28 |
+| BGMA max | 65 ms | 202 ms | 676 ms | 5.50 s | 48.5 s | 2.21 |
+| 1-tree lower bound | 102 µs | 3.4 ms | 15 ms | 65 ms | 260 ms | 2.62 |
+| Held-Karp exact | 315 ms | — | — | — | — | — |
 
 Mean excess over the best tour any method found on the same instance:
 
 | method | n=20 | n=50 | n=100 | n=200 | n=400 |
 |---|---:|---:|---:|---:|---:|
-| greedy nearest-neighbour | +14.03% | +27.72% | +31.90% | +31.04% | +26.46% |
-| beam only (K=n/3) | +14.94% | +32.13% | +32.43% | +37.63% | +38.88% |
-| beam + tunnel (tuned) | +0.00% | +0.04% | +0.69% | +1.53% | +2.22% |
-| nature (population + anneal) | +0.00% | +0.07% | +0.69% | +3.39% | +35.39% |
-| Christofides (1.5-approx) | +10.50% | +10.07% | +13.07% | +13.48% | +13.02% |
-| BGMA low | +0.00% | +0.12% | +0.52% | +1.69% | +2.21% |
+| greedy nearest-neighbour | +14.03% | +27.72% | +31.90% | +31.05% | +26.46% |
+| beam only (K=n/3) | +14.94% | +32.13% | +32.43% | +37.64% | +38.88% |
+| beam + tunnel (tuned) | +0.00% | +0.04% | +0.69% | +1.54% | +2.22% |
+| nature (population + anneal) | +0.00% | +0.07% | +0.69% | +3.40% | +35.39% |
+| Christofides (1.5-approx) | +10.50% | +10.07% | +13.07% | +13.49% | +13.03% |
+| LKH (5-opt, iterated) | +0.00% | +0.00% | +0.00% | +0.11% | +0.37% |
+| BGMA low | +0.00% | +0.12% | +0.52% | +1.70% | +2.22% |
 | BGMA mid | +0.00% | +0.00% | +0.03% | +0.69% | +1.13% |
-| BGMA high | +0.00% | +0.00% | +0.02% | +0.31% | +0.59% |
+| BGMA high | +0.00% | +0.00% | +0.02% | +0.31% | +0.60% |
 | BGMA xhigh | +0.00% | +0.00% | +0.00% | +0.02% | +0.12% |
-| BGMA max | +0.00% | +0.00% | +0.00% | +0.00% | +0.00% |
+| BGMA max | +0.00% | +0.00% | +0.00% | +0.01% | +0.00% |
 
 What it shows:
 
 - Each BGMA effort level costs about **3×** the previous one and roughly **halves** the gap
-  (n=400: +2.21% → +1.13% → +0.59% → +0.12% → 0.00%, in 0.73 s → 2.5 s → 8.4 s → 19.5 s → 64 s).
+  (n=400: +2.22% → +1.13% → +0.60% → +0.12% → 0.00%, in 0.60 s → 2.0 s → 6.4 s → 15 s → 49 s).
   That holds up to 400; at n=1000 the last step buys nothing (see the stress section above).
-- `low` matches the tuned beam + tunnel at n=400 (+2.21% vs +2.22%) in **0.73 s instead of 6.4 s**;
-  at n=100 `mid` is both faster and better (51 ms, +0.03% vs 66 ms, +0.69%).
+- `low` matches the tuned beam + tunnel at n=400 (+2.22% vs +2.22%) in **0.60 s instead of 4.2 s**;
+  at n=100 `mid` is both faster and better (38 ms, +0.03% vs 45 ms, +0.69%).
 - BGMA grows like n^2.0–2.3 up to n=400 and like n^3.7–4.6 beyond it, the tuned beam + tunnel like
-  n^2.7 (it polishes every beam final).
+  n^2.8 (it polishes every beam final).
 - Greedy and beam-only cost microseconds to milliseconds but stay 26–39% above the best tour.
-- Nature looks cheap at n=400 (0.56 s) only because its annealing budget is capped; it is +35% there.
+- Nature looks cheap at n=400 (0.55 s) only because its annealing budget is capped; it is +35% there.
+- **LKH** reaches +0.37% at n=400 in 1.36 s — better than `high` (6.4 s, +0.60%), worse than `xhigh`
+  (15 s, +0.12%) and `max` (49 s, +0.00%). Its time grows like n^1.5, the flattest of the strong methods.
 - **Christofides** is the only method here with a proof: its tour is at most 1.5× optimal on any metric instance.
-  In practice it lands 10–13% above the best tour at every n, and it runs in 30 ms at n=400.
+  In practice it lands 10–13% above the best tour at every n, and it runs in 27 ms at n=400.
   On the n ≤ 20 instances checked against Held–Karp it averaged 1.07× optimal, worst 1.18×, never above 1.5×.
   From n=50 up, BGMA `low` has a 6 to 80 times smaller excess, at 8 to 24 times the runtime.
-- The 1-tree bound costs about 35–55% of a `low` run at n=200–400; Held–Karp needs 0.30 s at n=20 and
+- The 1-tree bound costs about 45–80% of a `low` run at n=200–400; Held–Karp needs 0.30 s at n=20 and
   doubles per city. At n=1000 the bound takes 2.6 s against 24 s for `low` and 72 minutes for `max`.
+
+### LKH, head to head against BGMA
+
+`src/lkh/lkh.js` is a Lin–Kernighan–Helsgaun shaped search: candidate-restricted LK chains
+(up to 5-opt) plus double-bridge kicks, no alpha-nearness and no tour merging. Same instances,
+same 1-tree bound, defaults everywhere (`--kicks` auto):
+
+| method | vs 1-tree bound | vs best-of-all | median ms | wins / 12 |
+|---|---:|---:|---:|---:|
+| LKH (5-opt, iterated) | **+0.80%** | +0.03% | 665 | 6 |
+| BGMA low | +2.31% | +1.45% | 83 | 0 |
+| BGMA mid | +1.22% | +0.65% | 218 | 1 |
+| BGMA high | +0.97% | +0.30% | 624 | 3 |
+| BGMA xhigh | +0.76% | +0.00% | 1814 | 9 |
+
+12 instances (n=100/200/400; 2 seeds × uniform/cluster), medians. Per n (median excess over the bound):
+
+| n | LKH | BGMA low | BGMA mid | BGMA high | BGMA xhigh |
+|---|---:|---:|---:|---:|---:|
+| 100 | +0.54% | +1.08% | +0.57% | +0.54% | +0.54% |
+| 200 | +0.69% | +2.31% | +1.22% | +0.92% | +0.58% |
+| 400 | +1.47% | +3.36% | +2.02% | +1.67% | +1.23% |
+
+LKH is shorter than BGMA `high` on most instances (median −0.11%) at the same median cost, and
+loses to `xhigh` from n=200 up — `xhigh` pays ~3× the time for that last 0.2–0.3 pp.
+Reproduce: `node bench/lkh_bench.js --ns=100,200,400 --seeds=2 --json=bench/lkh_results.json`.
+Validation: `node src/lkh/lkh.js --check=1` matches Held–Karp on 6/6 instances at n=11.
 
 ### Nature, with an effort dial
 
@@ -384,6 +419,8 @@ runtime of each panel. Analysis and caveats: [docs/gerdal.md](docs/gerdal.md) (s
 | `docs/runtime_table.js` | renders the measured-runtime table inside both pages |
 | `src/christofides/christofides.js` | Christofides 1.5-approximation: MST, blossom minimum-weight perfect matching, Euler tour |
 | `tuning/validate_christofides.js` | checks the matching against brute force and the tour against Held–Karp (≤ 1.5×) |
+| `src/lkh/lkh.js` | Lin–Kernighan–Helsgaun style solver: LK chains over 8 nearest candidates, don't-look bits, double-bridge kicks |
+| `bench/lkh_bench.js` | LKH vs every BGMA effort level on the same instances, scored against the 1-tree bound and best-of-all |
 | `bench/knob_bench.js` | greedy vs nature vs beam+tunnel under n-based knob presets |
 | `tuning/tune_knobs.js` | knob sweep against greedy/nature/random-start heuristics; finds `--preset=tuned` |
 | `src/hybrid/hybrid_tsp.js` | Beam-Guided Memetic Annealing: beam islands + ERX + nature anneal + selective base polish |

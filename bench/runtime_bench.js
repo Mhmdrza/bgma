@@ -23,6 +23,7 @@ const path = require('path');
 const { B, NAT, runEffort } = require('../src/hybrid/bgma.js');
 const { hkBound } = require('../src/hybrid/hybrid_vis.js');
 const { christofides } = require('../src/christofides/christofides.js');
+const lkh = require('../src/lkh/lkh.js');
 
 const CFG = {
   ns: '20,50,100,200,400', seeds: 2, kinds: 'uniform,cluster',
@@ -52,7 +53,8 @@ const METHODS = [
   { id: 'beam', label: 'beam only (K=n/3)', note: 'O(n K log K)' },
   { id: 'tuned', label: 'beam + tunnel (tuned)', note: 'beam + 2-opt/Or-opt on n finals x4 restarts' },
   { id: 'nature', label: 'nature (population + anneal)', note: 'M=48 wave, 8+6 anneals' },
-  { id: 'christofides', label: 'Christofides (1.5-approx)', note: 'MST + blossom matching on odd vertices + Euler tour' }
+  { id: 'christofides', label: 'Christofides (1.5-approx)', note: 'MST + blossom matching on odd vertices + Euler tour' },
+  { id: 'lkh', label: 'LKH (5-opt, iterated)', note: 'K=8 nearest candidates, double-bridge kicks, auto kick count' }
 ].concat(LEVELS.map(l => ({ id: 'bgma-' + l, label: 'BGMA ' + l, note: 'effort level', level: l })))
  .concat([
   { id: 'bound', label: '1-tree lower bound', note: CFG.boundIters + ' subgradient iterations', ref: true },
@@ -104,6 +106,11 @@ function run(method, n, seed, kind) {
     const inst = B.buildInstance(n, seed, kind, n - 1);
     inst.kind = kind;
     return natureRun(inst, seed);
+  }
+  if (method.id === 'lkh') {
+    const inst = B.buildInstance(n, seed, kind, rnd(n / 10, 10));
+    const [t, r] = clock(() => lkh.solve(inst.rows, { seed }));
+    return { ms: t, len: r.len, tour: r.tour };
   }
   if (method.level) {
     const inst = B.buildInstance(n, seed, kind, rnd(n / 10, 10));

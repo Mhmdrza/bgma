@@ -1,0 +1,54 @@
+\section{Experimental protocol}\label{sec:protocol}
+
+\paragraph{Implementation and machine.}
+All code is dependency-free JavaScript, run on Node.js \NodeVersion{} on an \CPU{} laptop
+(\Platform). Times are wall clock for the solve, measured with \code{process.hrtime}. Instance
+generation and distance matrices are excluded. BGMA and the LK-style baseline build their own
+candidate lists, and that cost is included. Synthetic and runtime experiments are single-threaded. For
+\lvl{max} on TSPLIB, the three portfolio units run on three worker threads. For those runs we report
+the \emph{serial cost}, the sum of the three unit times, which is what \lvl{max} costs on one core, and
+separately the wall clock with three workers. All randomness is seeded, so a run is a deterministic
+function of (instance, seed, level). Repeating a run returns the same tour; we test this in
+Section~\ref{sec:robust}. The paper's data were produced by \code{paper/verify.sh} at commit
+\code{\Commit}, and every table and number in it is generated from those files by
+\code{paper/gen\_tables.js}.
+
+\paragraph{Instances.}
+\emph{Synthetic:} uniform points in $[4,96]^2$, and clustered points (3--4 Gaussian clusters,
+$\sigma=8$, clipped to the same square), produced by a seeded generator. These are the families the
+ladder was tuned on. \emph{TSPLIB:} the fourteen \code{EUC\_2D} instances eil51, berlin52, st70,
+kroA100, pr124, bier127, ch130, tsp225, fl417, pcb442, u574, rat783, pr1002 and u1060, with their
+published optima~\citep{reinelt1991}. The distances are rounded as the library specifies, so tour
+lengths are directly comparable with the optima. \emph{Robustness families:} points in convex
+position, collinear points, an integer grid, duplicated and coincident points, and uniform points
+scaled by $10^{-3}$ and $10^{6}$.
+
+\paragraph{Quality measures.}
+We use three measures and keep them strictly apart.
+(i)~The \emph{true gap} $L/L^\ast-1$ against a known optimum $L^\ast$: Held--Karp at $n\le 22$,
+published optima on TSPLIB, or a construction (convex position, collinear points).
+(ii)~The \emph{bound gap} $L/\mathrm{LB}-1$ against the Held--Karp 1-tree bound after a fixed number
+of subgradient iterations. This is a valid \emph{upper bound} on the true gap.
+(iii)~The \emph{relative excess} over the shortest tour any tested method found on the same instance.
+This measure is used only to compare methods with each other. Every reported tour is checked to be a
+permutation, and its length is recomputed from the distance matrix.
+
+\paragraph{Baselines.}
+All baselines are in the same repository and are timed with the same harness:
+\begin{itemize}\itemsep0pt
+\item \emph{Greedy}: a nearest-neighbour tour from one pole.
+\item \emph{Christofides}~\citep{christofides1976}: MST, then a minimum-weight perfect matching on
+the odd-degree vertices (Edmonds' blossom algorithm~\citep{edmonds1965}), an Euler tour and
+shortcutting.
+\item \emph{LK-style ILS}: an iterated Lin--Kernighan search written for this repository. It is
+\emph{not} Helsgaun's LKH. It uses 8-nearest-neighbour candidate sets (not $\alpha$-nearness),
+sequential LK chains of depth~3 (moves up to 5-opt) with gain pruning, don't-look bits, and
+double-bridge kicks with chained acceptance. The initial tour is the best of four nearest-neighbour
+starts. It runs $\max(40,\operatorname{round}(30000/n))$ kicks and stops early after 50 kicks
+without improvement. We use its default budget throughout. Its seed changes only the kicks and
+starts.
+\item \emph{Beam + polish}: the beam of Section~\ref{sec:method} with every final fully polished
+($L_p=5$), best of four restarts. This was the pipeline before BGMA, so it doubles as an ablation of
+the memetic stage.
+\end{itemize}
+Concorde and LKH were not run. Section~\ref{sec:discussion} discusses what that omission means.

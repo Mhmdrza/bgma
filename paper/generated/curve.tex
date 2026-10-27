@@ -1,0 +1,25 @@
+\begin{tikzpicture}
+\begin{axis}[name=a0,width=0.47\textwidth,height=5.2cm,xmode=log,ymode=log,clip=false,title={$n=200$},xlabel={time (s)},ylabel={mean excess (\%)},grid=major,grid style={gray!20},legend style={font=\scriptsize,at={(0.03,0.03)},anchor=south west},tick label style={font=\scriptsize}]
+\addplot[thick,mark=*,blue!70!black] coordinates {(0.08297,1.695) (0.2224,0.694) (0.6249,0.314) (1.815,0.023) (5.456,0.008)};
+\node[font=\tiny,anchor=south west] at (axis cs:0.08297,1.695) {low};
+\node[font=\tiny,anchor=south west] at (axis cs:0.2224,0.694) {mid};
+\node[font=\tiny,anchor=south west] at (axis cs:0.6249,0.314) {high};
+\node[font=\tiny,anchor=south west] at (axis cs:1.815,0.023) {xhigh};
+\node[font=\tiny,anchor=south west] at (axis cs:5.456,0.008) {max};
+\addplot[only marks,mark=square*,red!70!black] coordinates {(0.6718,0.111)};
+\addplot[only marks,mark=triangle*,orange!80!black] coordinates {(0.4408,1.535)};
+\addplot[only marks,mark=diamond*,gray] coordinates {(0.01123,13.486)};
+\end{axis}
+\begin{axis}[name=a1,at={(a0.east)},anchor=west,xshift=1.2cm,width=0.47\textwidth,height=5.2cm,xmode=log,ymode=log,clip=false,title={$n=400$},xlabel={time (s)},grid=major,grid style={gray!20},legend style={font=\scriptsize,at={(0.03,0.03)},anchor=south west},tick label style={font=\scriptsize}]
+\addplot[thick,mark=*,blue!70!black] coordinates {(0.6224,2.215) (1.954,1.135) (6.367,0.596) (15.03,0.119) (48.63,0.003)};
+\node[font=\tiny,anchor=south west] at (axis cs:0.6224,2.215) {low};
+\node[font=\tiny,anchor=south west] at (axis cs:1.954,1.135) {mid};
+\node[font=\tiny,anchor=south west] at (axis cs:6.367,0.596) {high};
+\node[font=\tiny,anchor=south west] at (axis cs:15.03,0.119) {xhigh};
+\node[font=\tiny,anchor=south west] at (axis cs:48.63,0.003) {max};
+\addplot[only marks,mark=square*,red!70!black] coordinates {(1.405,0.371)};
+\addplot[only marks,mark=triangle*,orange!80!black] coordinates {(4.104,2.221)};
+\addplot[only marks,mark=diamond*,gray] coordinates {(0.02710,13.026)};
+\legend{BGMA levels,LK-style ILS,beam + polish,Christofides}
+\end{axis}
+\end{tikzpicture}

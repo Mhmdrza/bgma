@@ -1,0 +1,37 @@
+The stress harness ran \lvl{low} and \lvl{max} on seven families at $n=20$, $100$ and $400$
+(\val{stressRuns} runs, Table~\ref{tab:stress}). Every tour was checked to be a valid permutation with
+a correctly recomputed length. No run produced an invalid tour (\val{stressInvalid} failures), and no
+tour came out shorter than the proven bound (\val{stressViolations} violations).
+
+\begin{table}[t]
+\centering\footnotesize
+\caption{Degenerate and known-optimum families. ``Gap to bound'' is listed per $n$ ($20$, $100$, $400$)
+and is a ceiling on the true gap. \emph{fine} and \emph{coarse} are the same point set scaled by
+$10^{-3}$ and $10^{6}$.}
+\label{tab:stress}
+\setlength{\tabcolsep}{4pt}
+\input{generated/stress_table}
+\end{table}
+
+\paragraph{Known optima by construction.}
+For points in convex position the hull cycle is optimal, and both levels returned it at every size.
+At $n=1000$, \lvl{low} returned \val{convex1000@low@hull} in \val{convex1000@low} and \lvl{max}
+returned \val{convex1000@max@hull} in \val{convex1000@max} of CPU time. Collinear points (optimum: twice
+the span) and coincident points (optimum: 0) were solved exactly. On the $20\times 20$ grid,
+\lvl{max} met the 1-tree bound, which proves its tour optimal, while \lvl{low} did not.
+
+\paragraph{The bound can be very loose.}
+On collinear points the tour is optimal by construction, yet its bound gap reads
+\val{stress@line@max@100} at $n=100$ and \val{stress@line@max@400} at $n=400$. A degree-constrained relaxation cannot express the structure of a line. This
+is the same phenomenon as fl417 in Section~\ref{sec:tsplib}, in a more extreme form.
+
+\paragraph{Scale dependence.}
+The \emph{fine} and \emph{coarse} families are one point set at two scales, so a scale-free method
+would return the same relative gap on both. \lvl{max} nearly does (\val{stress@fine@max@400} against \val{stress@coarse@max@400} at
+$n=400$). \lvl{low} does not (\val{stress@fine@low@400} against \val{stress@coarse@low@400}), because the anneal temperature is set in absolute units (Section~\ref{sec:limits}).
+
+\paragraph{Determinism.}
+Every level was run three times on each of two $n=100$ instances (\val{repeatRuns} runs in
+\val{repeatGroups} groups). In \val{repeatIdentical} of the \val{repeatGroups} groups the repeats
+returned the same length and the same tour. Runs are a deterministic function of (instance, seed,
+level), also under the worker pool.

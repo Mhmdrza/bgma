@@ -1,0 +1,20 @@
+\begin{tabular}{@{}llrrrl@{}}
+\toprule
+family & level & $n$ & runs & invalid & result\\
+\midrule
+convex & \lvl{low} & 20, 100, 400 & 3 & 0 & hull cycle (optimal) at every $n$\\
+convex & \lvl{max} & 20, 100, 400 & 3 & 0 & hull cycle (optimal) at every $n$\\
+line & \lvl{low} & 20, 100, 400 & 3 & 0 & known optimum at every $n$\\
+line & \lvl{max} & 20, 100, 400 & 3 & 0 & known optimum at every $n$\\
+grid & \lvl{low} & 20, 100, 400 & 3 & 0 & gap to bound 0.00\%, 0.00\%, +0.41\%\\
+grid & \lvl{max} & 20, 100, 400 & 3 & 0 & gap to bound 0.00\%, 0.00\%, 0.00\%\\
+dup & \lvl{low} & 20, 100, 400 & 3 & 0 & gap to bound 0.00\%, +1.21\%, +2.32\%\\
+dup & \lvl{max} & 20, 100, 400 & 3 & 0 & gap to bound 0.00\%, +0.50\%, +0.85\%\\
+same & \lvl{low} & 20, 100, 400 & 3 & 0 & known optimum at every $n$\\
+same & \lvl{max} & 20, 100, 400 & 3 & 0 & known optimum at every $n$\\
+fine & \lvl{low} & 20, 100, 400 & 3 & 0 & gap to bound 0.00\%, +0.95\%, +3.84\%\\
+fine & \lvl{max} & 20, 100, 400 & 3 & 0 & gap to bound 0.00\%, +0.94\%, +1.65\%\\
+coarse & \lvl{low} & 20, 100, 400 & 3 & 0 & gap to bound 0.00\%, +0.95\%, +3.96\%\\
+coarse & \lvl{max} & 20, 100, 400 & 3 & 0 & gap to bound 0.00\%, +0.94\%, +1.65\%\\
+\bottomrule
+\end{tabular}

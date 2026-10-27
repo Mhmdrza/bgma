@@ -1,0 +1,22 @@
+\section{Conclusion}\label{sec:conclusion}
+
+BGMA is a compact memetic heuristic with an explicit effort dial. Measured against known optima it is
+exact on small instances, reliably optimal at its top level on most TSPLIB instances up to a few
+hundred cities, and \val{tsBigRange} above the optimum (median over seeds) from 574 to 1060 cities. The dial is regular up
+to 400 cities and flattens beyond. The same measurements show its limits plainly. An LK-style iterated
+local search of comparable size is the better trade-off below the top two levels from 200 cities up,
+and on pcb442 it beats the top level outright. Mature solvers are in a different class. We release the implementation, the harnesses and every data file behind this paper,
+so that each number can be regenerated with one script. Two changes are the most promising: a stronger
+local search inside the memetic loop, and scale-normalised annealing.
+
+\section*{Reproducibility}
+Code, data and this paper's sources are at \url{https://github.com/Mhmdrza/polynomialTSP} (MIT
+licence). \code{paper/verify.sh} reruns every experiment; TSPLIB files must be obtained separately.
+\code{paper/gen\_tables.js} regenerates every table and number from \code{paper/data/}, and
+Appendix~\ref{app:repro} lists the commands. Each TSPLIB result file stores the tour, so the reported
+lengths can be checked independently.
+
+\section*{Acknowledgements}
+Parts of the implementation, the experiment harnesses and the text were developed with the help of an
+AI coding assistant (Anthropic's Claude). All experiments were run by the author, and the author is
+responsible for the content.

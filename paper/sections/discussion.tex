@@ -1,0 +1,56 @@
+\section{Discussion}\label{sec:discussion}
+
+\paragraph{What the evidence supports.}
+BGMA is exact on every instance small enough for Held--Karp. At \lvl{max} it returns the published
+optimum on \val{tsSmallSomeSeed} of the \val{tsSmallCount} TSPLIB instances up to $n=442$, on nearly
+every seed, and on none of the ten seeds of pcb442 (Table~\ref{tab:tsplib}). On the synthetic families its effort dial trades time for quality in a
+regular way up to a few hundred cities. Beyond about 500 cities the residual is real tour excess of
+\val{tsBigRange} (median over seeds), not an artefact of the bound, and the top of the ladder stops paying.
+
+\paragraph{What it does not support.}
+BGMA is not competitive with the state of the art. The clearest evidence is in this paper itself. An
+LK-style iterated local search of a few hundred lines, in the same language, matches or beats BGMA's
+lower levels at equal or lower cost (Section~\ref{sec:synthetic}). Real LK implementations are stronger
+still: LKH~\citep{helsgaun2009} and EAX~\citep{nagata2013} find optimal or near-optimal tours on
+instances of these sizes in seconds, and Concorde~\citep{applegate2006} proves optimality for all of
+them. We did not run those codes, so we make no quantitative claim about them. A reader who needs good
+TSP tours should use them. What BGMA adds is a small, readable, dependency-free implementation with
+an explicit budget dial and a measurement record that can be reproduced end to end.
+
+\paragraph{Why the top of the ladder stops paying.}
+For $n\ge 80$, \lvl{xhigh} and \lvl{max} use the same beam width ($n/2$) and the same number of
+generations ($n/8$). What \lvl{max} adds is more islands, a larger pool, more final polishing and a
+second restart, and it pays for all of it in full. With ERX, a 2-opt/Or-opt polish and weak
+perturbation, more of the same search mostly revisits the same basins. A stronger local search
+(Or-3opt, LK) inside the memetic loop, or a recombination that preserves more structure (EAX), is the
+likely lever, not more budget.
+
+\paragraph{The 1-tree bound is a poor yardstick for heuristics.}
+The bound gap over-states the true gap by an amount that depends on the instance, not on the tour.
+On fl417 an optimal tour reads as \ts{fl417}{boundGap} above the bound, on berlin52 as \ts{berlin52}{boundGap}, and on collinear points an
+optimal tour reads \val{stress@line@max@400} above the bound (Section~\ref{sec:robust}). Two heuristics compared through bound gaps on
+different instances are therefore not compared at all. Wherever a true optimum is available it should
+be used.
+
+\section{Limitations and threats to validity}\label{sec:limits}
+
+\begin{itemize}\itemsep2pt
+\item \emph{In-sample tuning.} The ladder was tuned on the synthetic families of
+Section~\ref{sec:synthetic}. TSPLIB was held out, but there are only fourteen instances, chosen as
+standard \code{EUC\_2D} benchmarks of increasing size and not at random.
+\item \emph{Seeds.} TSPLIB instances up to $n=442$ use ten seeds. Larger instances use one to three,
+because a single \lvl{max} run there costs \ts{u574}{maxSerial} to \ts{u1060}{maxSerial} of CPU time. Their gaps are a few
+observations, not distributions.
+\item \emph{One machine, one runtime.} All times come from one laptop and one Node.js version. Ratios
+between methods in the same harness are more portable than absolute times.
+\item \emph{Baselines.} The LK-style baseline is ours and simpler than LKH. It runs at its default
+budget, so it is not time-matched to the upper BGMA levels. Its ten-seed best is still far cheaper than
+one \lvl{max} run.
+\item \emph{Scale dependence.} The anneal temperature $T_0=\max(1,0.02n)$ is in absolute distance
+units. On instances with very large or very small coordinates the anneal degenerates into greedy
+descent or a random walk (it returns the best tour it saw, so it cannot make a child worse). The other
+operators are scale-free. Normalising $T_0$ by the mean candidate edge length is the obvious fix and
+has not been done.
+\item \emph{Synthetic optima.} Above $n=22$ the synthetic families have no known optimum. For them
+we report only relative excess and the bound gap, which is a ceiling.
+\end{itemize}

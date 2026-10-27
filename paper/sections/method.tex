@@ -1,0 +1,127 @@
+\section{The algorithm}\label{sec:method}
+
+Given points $p_0,\dots,p_{n-1}$ in the plane with distance matrix $D_{ij}=\lVert p_i-p_j\rVert_2$
+(rounded to the nearest integer for TSPLIB \code{EUC\_2D} instances, as the library prescribes), BGMA
+returns a Hamiltonian cycle. A tour is an array of city indices; for de-duplication it is put in a
+canonical form that starts at city~0 and takes the lexicographically smaller of the two directions.
+Preprocessing sorts, for every city, all other cities by distance ($O(n^2\log n)$) and keeps a
+truncated candidate list of the $m=\max(10,\operatorname{round}(n/10))$ nearest.
+
+BGMA runs one or more independent \emph{units}. A unit (Algorithm~\ref{alg:unit}) has five parts.
+
+\paragraph{Beam islands.}
+A beam state is a partial path with a start city, a current city, a visited set and a length. An island
+starts from two \emph{poles}: the farthest pair of cities for the first island, and two seeded random
+cities for the others. Each pole seeds its own start state. At each of the $n-1$ extension steps
+every state proposes at most four successors: the nearest unvisited neighbour of the current city,
+the second-nearest unvisited neighbour of the previous city, the third-nearest unvisited neighbour of
+the city before that, and the second-nearest unvisited neighbour of the current city. Successors
+are merged on a Zobrist hash of (visited set, last city, start city), keeping the shorter path.
+They are scored by $f=\text{length}+D_{\text{last},\text{start}}$. The $K$ best survive. The $K$
+completed tours (the \emph{finals}) are all passed on. The beam is a cheap generator of diverse,
+structurally reasonable tours, in the spirit of filtered beam search~\citep{ow1988}; it is not where
+the tour quality comes from.
+
+\paragraph{Fast screen.}
+Every beam final and every child is improved by a candidate-list local search: 2-opt~\citep{croes1958}
+over the $m$-nearest lists with don't-look bits and a work queue~\citep{bentley1992}, then Or-opt
+relocation of segments of length $\le 3$~\citep{or1976} (both orientations, insertion next to a
+candidate neighbour), then 2-opt again. Iteration caps bound the work (at most $200n$ queue pops
+for 2-opt, 20 passes for Or-opt), so the result is a near-local optimum at a cost that is close to
+linear in $n$ in practice.
+
+\paragraph{Elite pool and recombination.}
+Screened tours are de-duplicated by canonical form, sorted by length and truncated to the best $e$.
+A generation creates $c$ children. The first parent is drawn uniformly from the best $\min(4,|P|)$
+tours, the second uniformly from the whole pool. The child is built by edge recombination
+(ERX)~\citep{whitley1989}: from a random start city, repeatedly move to the unvisited neighbour in the
+union of the parents' edges that has the fewest unvisited neighbours itself (ties: the shorter
+edge), and jump to the nearest unvisited city when no parental edge is available.
+
+\paragraph{Perturbation.}
+Two independent events may then modify the child. With probability \code{kickRate} it receives one
+double-bridge move~\citep{martin1991}. Independently, with probability \code{annealRate}, it receives a
+short simulated anneal~\citep{kirkpatrick1983}. The anneal uses candidate-list 2-opt proposals and
+Metropolis acceptance. The temperature starts at $T_0=\max(1,0.02n)$ and is multiplied by $0.99998$
+per proposal. After $50n$ proposals without a new best it applies a double bridge and reheats to
+$\max(T,0.4T_0)$. The anneal stops after $\min(A,\max(1000,200n))$ proposals, where $A$ is the level's
+cap, and returns the best tour it saw. $T_0$ is in absolute length units and is not normalised by the
+instance scale; we return to this in Section~\ref{sec:limits}.
+
+\paragraph{Selective full polish.}
+After screening, the children are sorted and only the best $q$ receive the expensive local search:
+first-improvement 2-opt over all $O(n^2)$ pairs followed by Or-opt with segments up to $L_p$ cities.
+The scan restarts after every accepted move and stops at a true local optimum for that
+neighbourhood. The same polish is applied to the best $q$ tours of the initial pool and, if
+\code{finalPolish}~$>0$, to that many pool tours at the end. Restricting the quadratic search to
+contenders is the main cost-control device: the fast screen is the filter, the full polish is the
+refinement.
+
+\paragraph{Stagnation injection.}
+If the best tour has not improved for two consecutive generations, one fresh beam island with random
+poles is run, its finals are screened and merged into the pool, and the counter resets.
+
+\begin{algorithm}[t]
+\caption{One BGMA unit. All random choices come from a generator seeded by (instance, seed).}
+\label{alg:unit}
+\begin{algorithmic}[1]
+\State $S\gets$ finals of $I$ beam islands (width $K$), each improved by the fast screen
+\State $P\gets$ best $e$ distinct tours of $S$;\quad polish the best $q$ tours of $P$ and merge them back
+\For{$g=1,\dots,G$}
+  \For{$j=1,\dots,c$}
+    \State $a\gets$ uniform from the best $\min(4,|P|)$ of $P$;\quad $b\gets$ uniform from $P$
+    \State $x\gets \mathrm{ERX}(a,b)$
+    \State with probability \code{kickRate}: $x\gets$ double-bridge$(x)$
+    \State with probability \code{annealRate} (independently): $x\gets$ anneal$(x)$
+    \State $C_j\gets$ fast-screen$(x)$
+  \EndFor
+  \State polish the best $q$ of $C$;\quad $P\gets$ best $e$ distinct tours of $P\cup C$
+  \If{no improvement for 2 generations} merge one screened random-pole beam island into $P$ \EndIf
+\EndFor
+\State polish the best \code{finalPolish} tours of $P$ and merge;\quad \Return best tour in $P$
+\end{algorithmic}
+\end{algorithm}
+
+\paragraph{Restarts and the effort dial.}
+A level with $R$ restarts runs $R$ units with seed offsets and keeps the shortest tour. The five levels
+\lvl{low}, \lvl{mid}, \lvl{high}, \lvl{xhigh} and \lvl{max} (Table~\ref{tab:ladder}) differ only in
+budgets. The top level is a portfolio: \lvl{max} runs the \lvl{xhigh} configuration once and the
+\lvl{max} configuration with $R=2$, i.e.\ three independent units, and returns the shortest of the three
+tours. By construction \lvl{max} is never worse than \lvl{xhigh} on the same instance and seed, and it
+costs the sum of its units. No other monotonicity between levels is guaranteed, and we observe
+violations (Section~\ref{sec:synthetic}). Because the units share nothing, they can run on separate
+threads; the repository's worker pool does this and returns bit-identical results.
+
+\begin{table}[t]
+\centering\footnotesize
+\caption{The effort ladder (\code{src/hybrid/effort\_profiles.js}). $r(x)=\max(1,\operatorname{round}(x))$.
+$A$ and $p_A$ are the anneal cap and probability, $p_k$ the kick probability, $L_p$ the polish
+Or-opt segment cap. \lvl{max} additionally runs one \lvl{xhigh} unit (portfolio).}
+\label{tab:ladder}
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{@{}lccccccccccc@{}}
+\toprule
+level & $I$ & $K$ & $e$ & $G$ & $c$ & $q$ & final & $R$ & $A$ / $p_A$ & $p_k$ & $L_p$\\
+\midrule
+\lvl{low}   & 2 & $\max(12,r(n/4))$  & $\max(8,r(n/20))$  & $\max(2,r(n/50))$  & 4  & 2                 & 0 & 1 & 8k / .25  & .30 & 5\\
+\lvl{mid}   & 4 & $\max(16,r(n/3))$  & $\max(16,r(n/10))$ & $\max(4,r(n/25))$  & 10 & 6                 & 2 & 1 & 20k / .35 & .35 & 5\\
+\lvl{high}  & 5 & $\max(20,r(n/2.5))$& $\max(24,r(n/6))$  & $\max(6,r(n/15))$  & 14 & $\max(6,r(n/15))$ & 3 & 1 & 30k / .40 & .40 & 6\\
+\lvl{xhigh} & 6 & $\max(24,r(n/2))$  & $\max(32,r(n/3))$  & $\max(8,r(n/8))$   & 18 & $\max(10,r(n/10))$& 6 & 1 & 50k / .45 & .45 & 8\\
+\lvl{max}   & 8 & $\max(32,r(n/2))$  & $\max(48,r(n/2))$  & $\max(10,r(n/8))$  & 18 & $\max(10,r(n/12))$& 8 & 2 & 60k / .50 & .50 & 8\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Cost.}
+Per unit the work is roughly $I$ beam islands (about $4nK$ node creations, each copying an $n$-bit visited set),
+$IK+Gc$ fast screens, $q(G+1)+\text{final}$ full polishes, and up to $Gc\,p_A$ anneals of at most $A$
+proposals. The full polish dominates at large $n$. One scan is $O(n^2)$ and is restarted after every
+accepted move, and both $q$ and $G$ grow linearly with $n$ in the upper levels. The budgets are
+polynomial in $n$ by construction, so BGMA is a polynomial-time heuristic and carries no optimality or
+approximation guarantee. The Euclidean TSP is NP-hard~\citep{papadimitriou1977}, and the result of
+any such heuristic says nothing about P versus NP.
+
+\paragraph{The parameters were tuned in-sample.}
+The ladder was set by one-factor sweeps on the same generator of uniform and clustered synthetic
+instances that Section~\ref{sec:synthetic} reports on. The TSPLIB instances in
+Section~\ref{sec:tsplib} were not used for tuning.

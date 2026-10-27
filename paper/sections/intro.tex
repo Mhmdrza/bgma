@@ -1,0 +1,41 @@
+\section{Introduction}\label{sec:intro}
+
+The symmetric Euclidean travelling salesman problem (TSP) is NP-hard~\citep{papadimitriou1977}, and it
+has an unusually mature algorithmic toolbox. Branch-and-cut proves optimality for instances with tens
+of thousands of cities~\citep{applegate2006}. Lin--Kernighan-type local search~\citep{lin1973,helsgaun2000,helsgaun2009}
+and edge-assembly genetic algorithms~\citep{nagata2013} find optimal or near-optimal tours for much
+larger ones. A new heuristic in this setting is only worth reporting if the report is precise about
+what was measured, against what reference, and at what cost.
+
+This paper describes Beam-Guided Memetic Annealing (BGMA) and audits it in that spirit. BGMA combines
+standard parts: a beam-search constructor, candidate-list 2-opt/Or-opt, an elite pool recombined by edge
+recombination, double-bridge and short-anneal perturbation, and a full 2-opt/Or-opt polish that is
+applied only to the few candidates that can win. Five \emph{effort levels} scale every budget with $n$
+and form a fixed-budget quality dial.
+
+\paragraph{Contributions.}
+\begin{enumerate}\itemsep2pt
+\item A complete, dependency-free and deterministic implementation with a five-level effort dial, and
+a precise description of what each level does (Section~\ref{sec:method}).
+\item An evaluation against \emph{known optima} rather than bounds or best-found tours: Held--Karp at
+$n\le 22$, and the published optima of fourteen TSPLIB instances from $n=51$ to $1060$, with ten
+seeds up to $n=442$ (Section~\ref{sec:results}).
+\item A same-harness comparison with an LK-style iterated local search. It shows where BGMA's dial pays
+(the top levels at $n\le 400$) and where it does not (the lower levels from $n=200$, and the top of
+the dial past $n\approx 500$).
+\item Evidence that the Held--Karp 1-tree bound gap is unreliable as a quality measure for heuristics:
+its slack against the true optimum ranges from 0\% to over 5\% on TSPLIB, and is larger still on
+degenerate geometry (Sections~\ref{sec:tsplib} and~\ref{sec:robust}).
+\end{enumerate}
+
+\paragraph{Non-claims.}
+BGMA carries no approximation guarantee. Its budgets are polynomial by construction, so its behaviour
+bears on nothing beyond its own empirical performance, and in particular not on P versus NP. We did
+not run Concorde, LKH or EAX, and we do not claim that BGMA is competitive with them; on the instances
+used here they are known to be stronger. The parameters were tuned on synthetic instances from the
+same generator used in Section~\ref{sec:synthetic}.
+
+The rest of the paper is organised as follows. Section~\ref{sec:related} reviews related work,
+Section~\ref{sec:method} describes the algorithm and Section~\ref{sec:protocol} the protocol.
+Section~\ref{sec:results} reports results, and Sections~\ref{sec:discussion} and~\ref{sec:limits}
+discuss them and their limits.

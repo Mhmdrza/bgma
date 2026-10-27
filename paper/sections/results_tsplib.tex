@@ -1,0 +1,50 @@
+\subsection{TSPLIB: true gaps against published optima}\label{sec:tsplib}
+
+Table~\ref{tab:tsplib} scores BGMA \lvl{max} and the LK-style baseline against the published optimum of
+each instance. Distances are rounded as \code{EUC\_2D} prescribes. Instances up to $n=442$ were run
+with ten seeds. The larger ones were run with one to three seeds, because one \lvl{max} run there costs
+minutes to over an hour of CPU time. \input{sections/eqtime_intro}
+
+\begin{table*}[t]
+\centering\scriptsize
+\caption{TSPLIB \code{EUC\_2D} instances against published optima. Gaps are true gaps $L/L^\ast-1$.
+``Serial time'' is the median CPU time of one \lvl{max} run (sum of its three units); with three worker
+threads the wall clock is about a third of it. ``Below opt.''\ is how far the 600-iteration 1-tree bound
+lies under the optimum, i.e.\ how much a bound gap would overstate the true gap.}
+\label{tab:tsplib}
+\setlength{\tabcolsep}{3pt}
+\input{generated/tsplib_table}
+\end{table*}
+
+\paragraph{Up to $n=442$.}
+BGMA \lvl{max} returned the optimum in \val{tsSmallHits} of \val{tsSmallRuns} runs. It did so on all ten
+seeds for \val{tsSmallAllSeeds} of the \val{tsSmallCount} instances and on nine seeds for eil51. It never
+did on pcb442 (median \ts{pcb442}{maxMedGap}, best \ts{pcb442}{maxBestGap}). Single LK-style runs are
+much less reliable: \val{tsSmallLkHits} of \val{tsSmallRuns} were optimal. They are also much cheaper,
+and the best of ten LK-style runs reaches the optimum on \val{tsSmallLkAny} of the \val{tsSmallCount} instances, the same ones as BGMA. On fl417 the
+ten LK-style runs together cost \ts{fl417}{lkTotal}, against \ts{fl417}{maxSerial} for one \lvl{max} run.
+On pcb442 the LK-style baseline is better outright: a median of \ts{pcb442}{lkMedGap} in \ts{pcb442}{lkMs}
+per run, against \ts{pcb442}{maxMedGap} for \lvl{max} in \ts{pcb442}{maxSerial}. Instance structure
+matters as much as size. fl417, with its dense clusters, is solved on every seed, while pcb442, which
+is only slightly larger, is solved on none.
+
+\paragraph{Beyond $n=500$.}
+The median gaps of \lvl{max} range from \val{tsBigRange}. These are true gaps: the excess is genuine tour excess,
+not slack in a bound. The three portfolio units show the top of the dial flattening. On u574 the
+\lvl{xhigh} unit reached \ts{u574}{armXhigh} and the two \lvl{max} restarts \ts{u574}{armMax}. On rat783
+they reached \ts{rat783}{armXhigh} against \ts{rat783}{armMax}. On pr1002 they reached
+\ts{pr1002}{armXhigh} against \ts{pr1002}{armMax}, and on u1060 \ts{u1060}{armXhigh} against
+\ts{u1060}{armMax}. The heavier \lvl{max} configuration is not reliably better than \lvl{xhigh} on the
+same instance. Its contribution is mostly that of extra independent samples. A single \lvl{max} run on
+pr1002 costs \ts{pr1002}{maxSerial} of CPU time (\ts{pr1002}{maxWall} on three threads).
+
+\input{sections/results_eqtime}
+
+\paragraph{The bound gap misleads.}
+The last column of Table~\ref{tab:tsplib} shows the 1-tree bound \val{boundBelowRange} below the optimum,
+depending on the instance. An optimal fl417 tour has a bound gap of \ts{fl417}{boundGap}, while an
+optimal berlin52 tour has \ts{berlin52}{boundGap}. Had we reported bound gaps, as is common when no
+optimum is known, fl417 would have looked like BGMA's worst instance. It is one of its best.
+
+\subsection{Robustness, determinism and degenerate inputs}\label{sec:robust}
+\input{sections/results_robust}

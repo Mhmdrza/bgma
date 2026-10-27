@@ -1,0 +1,66 @@
+\section{Results}\label{sec:results}
+
+\subsection{Exact optima at $n\le 22$}\label{sec:hk}
+On \val{hkInstances} synthetic instances (ten each at $n=18$ and $20$, six at $n=22$; uniform and
+clustered), every effort level returned the Held--Karp optimum: \val{hkHitsAll} at each of the five
+levels. Held--Karp itself took \val{hk20} per instance at $n=20$ and \val{hk22} at $n=22$, against
+\rt{bgma-low}{20}{ms} (\lvl{low}) to \rt{bgma-max}{20}{ms} (\lvl{max}) for BGMA (median, $n=20$). At
+these sizes all levels are equivalent, and the instances are too easy to separate them. This is a
+correctness check, not evidence of strength.
+
+\subsection{Synthetic instances, $n=20$ to $400$}\label{sec:synthetic}
+Table~\ref{tab:runtime} gives the median time and the mean excess over the best tour any method found,
+over four instances per size (two seeds, uniform and clustered). Figure~\ref{fig:curve} plots the same
+data at $n=200$ and $400$ as time against excess.
+
+\begin{table}[t]
+\centering\scriptsize
+\caption{Synthetic instances: median solve time and mean relative excess over the best tour any method
+found on the same instance (4 instances per cell). Excess is a \emph{relative} measure. At $n=20$ every
+listed heuristic except greedy and Christofides is optimal (Section~\ref{sec:hk}).}
+\label{tab:runtime}
+\setlength{\tabcolsep}{3pt}
+\input{generated/runtime_table}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\input{generated/curve}
+\caption{Time against mean relative excess on the synthetic instances (log--log; excess floored at
+0.003\% for plotting). BGMA levels are joined in order \lvl{low}$\to$\lvl{max}.}
+\label{fig:curve}
+\end{figure}
+
+Five observations follow.
+
+\emph{The dial works, at a steep price.} Each level costs about 2--3.5 times the previous one. The cost
+ratios at $n=400$ are \val{ratios400}. Up to $n=400$ each level also cuts the remaining excess roughly in
+half, from \rt{bgma-low}{400}{gap} at \lvl{low} to \rt{bgma-max}{400}{gap} at \lvl{max}. Fitted between
+$n=20$ and $400$, time grows as about $n^{\val{expAll@bgma-low}}$ at \lvl{low} and
+$n^{\val{expAll@bgma-max}}$ at \lvl{max}, but the growth steepens with $n$: between $100$ and $400$ the
+exponents are \val{exp@bgma-low} and \val{exp@bgma-max}. This matches the cost model of
+Section~\ref{sec:method}, in which the number of quadratic polishes itself grows with $n$. The
+LK-style baseline grows as $n^{\val{exp@lkh}}$ over the same range.
+
+\emph{From $n=200$ an LK-style ILS is the better trade-off below the top two levels.} At $n=200$ it
+takes about as long as \lvl{high} (\rt{lkh}{200}{ms} against \rt{bgma-high}{200}{ms}) for about a
+third of the excess (\rt{lkh}{200}{gap} against \rt{bgma-high}{200}{gap}). At $n=400$ the LK-style baseline takes
+\rt{lkh}{400}{ms} for \rt{lkh}{400}{gap}. That beats \lvl{mid} (\rt{bgma-mid}{400}{ms}, \rt{bgma-mid}{400}{gap}) and \lvl{high}
+(\rt{bgma-high}{400}{ms}, \rt{bgma-high}{400}{gap}) on both time and quality. \lvl{low} is faster
+(\rt{bgma-low}{400}{ms}) but its excess is much larger (\rt{bgma-low}{400}{gap}). Only \lvl{xhigh} and \lvl{max} find shorter tours (\rt{bgma-xhigh}{400}{gap} and
+\rt{bgma-max}{400}{gap}), and they need \val{xhighVsLk400} and \val{maxVsLk400} times the LK-style
+baseline's time. At $n\le 100$ the picture reverses. Both methods are near-optimal, and BGMA's middle
+levels get there faster (at $n=100$: \lvl{mid} \rt{bgma-mid}{100}{ms}, LK-style \rt{lkh}{100}{ms}).
+
+\emph{The memetic stage earns its place over its predecessor.} The beam + polish pipeline reaches the
+same quality as \lvl{low} at $n=400$ (\rt{tuned}{400}{gap} against \rt{bgma-low}{400}{gap}) but takes
+\val{tunedVsLow400} times as long. Polishing every beam final is wasteful; polishing only the best
+screened candidates is not.
+
+\emph{The guarantee is far from typical behaviour.} Christofides runs in milliseconds and is
+\val{chrRange} above the best found tour from $n=50$ up. From $n=50$ its
+excess is \val{chrVsLow} times that of \lvl{low}.
+
+\emph{Monotonicity across levels is not guaranteed.} Only the \lvl{max}~$\ge$~\lvl{xhigh} step is
+monotone by construction (Section~\ref{sec:method}). On individual instances a cheaper level sometimes
+beats a more expensive one; on rat783, for example, the \lvl{xhigh} unit beats both \lvl{max} restarts (Section~\ref{sec:tsplib}).

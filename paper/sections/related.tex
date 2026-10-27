@@ -1,0 +1,41 @@
+\section{Related work}\label{sec:related}
+
+\paragraph{Exact methods and bounds.}
+The Bellman--Held--Karp dynamic program~\citep{bellman1962,heldkarp1962} solves the TSP in
+$O(n^2 2^n)$ time and $O(n2^n)$ memory. In practice that limits it to a little over twenty cities on a
+workstation, and that is how we use it: as ground truth at $n\le 22$. The 1-tree relaxation with
+subgradient optimisation of node penalties~\citep{heldkarp1970,heldkarp1971} gives a valid lower bound
+at polynomial cost. We use it as a certificate, and show that its slack depends strongly on the
+geometry. Branch-and-cut, as implemented in Concorde~\citep{applegate2006}, routinely proves
+optimality for instances with thousands of cities, including every TSPLIB~\citep{reinelt1991} instance
+used here.
+
+\paragraph{Local search and its iterated forms.}
+2-opt~\citep{croes1958}, Or-opt~\citep{or1976} and Lin--Kernighan (LK)~\citep{lin1973} are the classical
+neighbourhoods. Neighbour lists and don't-look bits~\citep{bentley1992} make them nearly linear in
+practice. Iterating a local search from double-bridge perturbations of the incumbent gives the
+large-step Markov chain or chained LK~\citep{martin1991}, a form of iterated local
+search~\citep{lourenco2003}. Johnson and McGeoch survey and benchmark this family
+extensively~\citep{johnson1997,johnson2002}. Helsgaun's LKH~\citep{helsgaun2000,helsgaun2009,helsgaun2017},
+with $\alpha$-nearness candidate sets and 5-opt sequential moves, is the reference heuristic. On
+instances of the sizes studied here it usually finds the optimum in seconds.
+
+\paragraph{Memetic and genetic algorithms.}
+Memetic algorithms combine a population and recombination with local search~\citep{moscato1989}.
+\citet{merz2001} give a thorough study for the TSP with LK as the local search. Edge recombination
+(ERX)~\citep{whitley1989} is one of the earliest edge-preserving crossovers. The edge assembly crossover
+(EAX) GA of \citet{nagata2013} is among the strongest TSP heuristics known and is often competitive with
+LKH on large instances.
+
+\paragraph{Approximation and budgets.}
+Christofides' algorithm~\citep{christofides1976} guarantees a factor of $3/2$ on metric instances, and
+the Euclidean TSP admits a PTAS~\citep{arora1998}. BGMA has no guarantee of either kind. Its effort
+levels are \emph{contract} budgets in the sense of \citet{zilberstein1996}: the budget is fixed before
+the run, and the solver cannot be interrupted for a result.
+
+\paragraph{Position of this work.}
+Every component of BGMA is standard; the combination is ours. We do not claim that BGMA is
+competitive with LKH or EAX, and we did not run either. Instead the paper does three things. It
+measures BGMA against known optima rather than against bounds or best-found tours. It reports where
+the method's effort dial stops paying. And it compares BGMA with an LK-style iterated local search that
+lives in the same code base, uses the same language and runtime, and is timed on the same machine.

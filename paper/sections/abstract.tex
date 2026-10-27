@@ -1,0 +1,14 @@
+We describe Beam-Guided Memetic Annealing (BGMA), a heuristic for the symmetric Euclidean travelling
+salesman problem, and evaluate it against known optima rather than lower bounds. BGMA combines
+standard components: a beam-search constructor, candidate-list 2-opt/Or-opt screening, an elite pool
+recombined by edge recombination, double-bridge and short-anneal perturbation, and a full
+2-opt/Or-opt polish reserved for the best candidates. Five effort levels scale every budget with the
+instance size. Every level returns the Held--Karp optimum on all \val{hkInstances} instances with
+$n\le 22$. On ten TSPLIB instances with $51\le n\le 442$, the top level returns the published optimum
+in \val{tsSmallHits} of \val{tsSmallRuns} seeded runs, but on none of the ten seeds for pcb442. On four
+instances with $574\le n\le 1060$ its median gap is \val{tsBigRange}, at \ts{u574}{maxSerial} to
+\ts{u1060}{maxSerial} of CPU time per run. \input{sections/abstract_lk} We also show that the 1-tree
+bound is an unreliable yardstick: its distance below the optimum ranges over \val{boundBelowRange}
+across these instances, so an optimal fl417 tour reads \ts{fl417}{boundGap} above the bound. BGMA is
+not competitive with LKH, EAX or Concorde, none of which we ran. The code, the harnesses and every data
+file behind the paper are released, and one script regenerates every number.

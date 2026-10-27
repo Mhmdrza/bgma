@@ -1,0 +1,20 @@
+\begin{tabular}{@{}lrrrrrrrrrr@{}}
+\toprule
+ & \multicolumn{5}{c}{median time} & \multicolumn{5}{c}{mean excess over best found}\\
+\cmidrule(lr){2-6}\cmidrule(l){7-11}
+method & $n=20$ & $n=50$ & $n=100$ & $n=200$ & $n=400$ & $n=20$ & $n=50$ & $n=100$ & $n=200$ & $n=400$\\
+\midrule
+Greedy nearest neighbour & 3\,\textmu s & 6\,\textmu s & 13\,\textmu s & 24\,\textmu s & 50\,\textmu s & +14.03\% & +27.72\% & +31.90\% & +31.05\% & +26.46\%\\
+Christofides & 220\,\textmu s & 613\,\textmu s & 1.1\,ms & 11\,ms & 27\,ms & +10.50\% & +10.07\% & +13.07\% & +13.49\% & +13.03\%\\
+Beam + polish (4 restarts) & 1.1\,ms & 5.9\,ms & 43\,ms & 441\,ms & 4.10\,s & 0.00\% & +0.04\% & +0.69\% & +1.54\% & +2.22\%\\
+LK-style ILS & 13\,ms & 50\,ms & 97\,ms & 672\,ms & 1.40\,s & 0.00\% & 0.00\% & 0.00\% & +0.11\% & +0.37\%\\
+BGMA \lvl{low} & 1.3\,ms & 4.1\,ms & 12\,ms & 83\,ms & 622\,ms & 0.00\% & +0.12\% & +0.52\% & +1.70\% & +2.22\%\\
+BGMA \lvl{mid} & 5.0\,ms & 14\,ms & 37\,ms & 222\,ms & 1.95\,s & 0.00\% & 0.00\% & +0.03\% & +0.69\% & +1.13\%\\
+BGMA \lvl{high} & 9.6\,ms & 31\,ms & 84\,ms & 625\,ms & 6.37\,s & 0.00\% & 0.00\% & +0.02\% & +0.31\% & +0.60\%\\
+BGMA \lvl{xhigh} & 16\,ms & 52\,ms & 212\,ms & 1.81\,s & 15.0\,s & 0.00\% & 0.00\% & 0.00\% & +0.02\% & +0.12\%\\
+BGMA \lvl{max} & 65\,ms & 203\,ms & 676\,ms & 5.46\,s & 48.6\,s & 0.00\% & 0.00\% & 0.00\% & +0.01\% & +0.00\%\\
+\midrule
+1-tree bound (400 it.) & 96\,\textmu s & 3.5\,ms & 15\,ms & 66\,ms & 263\,ms &  &  &  &  & \\
+Held--Karp & 299\,ms & --- & --- & --- & --- &  &  &  &  & \\
+\bottomrule
+\end{tabular}

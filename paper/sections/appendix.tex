@@ -1,0 +1,23 @@
+\section{Reproduction}\label{app:repro}
+With Node.js $\ge 18$ and no other dependency:
+{\footnotesize
+\begin{verbatim}
+npm test                                  # self-tests
+TSPLIB=/path/to/tsplib sh paper/verify.sh # all experiments
+node paper/gen_tables.js                  # data -> tables
+\end{verbatim}
+}
+The steps of \code{verify.sh} can be run separately (\code{sh paper/verify.sh C} runs only the
+ten-seed TSPLIB step). Individual runs:
+{\footnotesize
+\begin{verbatim}
+node tuning/validate_effort.js --ns=18,20 --seeds=5
+node bench/runtime_bench.js --json=runtime.json --md=1
+node tuning/tsplib_bench.js --file=pcb442.tsp --opt=50778 \
+     --levels=lk,max --seed=1 --jobs=3
+node tuning/stress_parallel.js --ns=400 --families=convex,line,grid --levels=low,max
+node src/hybrid/hybrid_effort.js --n=200 --effort=max --bound=1
+\end{verbatim}
+}
+Runs are deterministic given (instance, seed, level): repeating a command reproduces the tour exactly,
+and only the times vary.

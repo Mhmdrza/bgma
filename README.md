@@ -452,3 +452,22 @@ runtime of each panel. Analysis and caveats: [docs/gerdal.md](docs/gerdal.md) (s
 
 No dependencies. Node only; the visual page is static HTML plus the `docs/js/` mirror of
 `src/hybrid/hybrid_vis.js` (regenerate with `node bench/sync_docs.js`).
+
+## Cite this
+
+Metadata in [`CITATION.cff`](CITATION.cff); release [`v1.0.0`](https://github.com/Mhmdrza/polynomialTSP/releases/tag/v1.0.0).
+
+```bibtex
+@software{aala_tsp_lab_2026,
+  author  = {Aala, Mohammadreza},
+  title   = {tsp-lab: Beam-Guided Memetic Annealing (BGMA) and LKH, benchmarked},
+  year    = {2026},
+  version = {1.0.0},
+  url     = {https://github.com/Mhmdrza/polynomialTSP},
+  note    = {Proprietary, all rights reserved. Use requires written permission: mr.ala72@gmail.com}
+}
+```
+
+**License: proprietary, all rights reserved** ([`LICENSE`](LICENSE)). Reading and forking on
+GitHub only; running it, reusing the code, or publishing results obtained from it requires prior
+written permission — contact **mr.ala72@gmail.com**.

@@ -9,14 +9,14 @@
   :root {
     --bg:#f7f7f5; --panel:#fff; --ink:#16181d; --muted:#6b7280; --line:#e2e2de;
     --algo:#16a34a; --algo2:#dc2626; --child:#ea580c; --pa:#2563eb; --pb:#7c3aed; --held:#2563eb; --cy:#0891b2;
-    --ghost:#c3c7ce; --sel:#e11d48;
+    --ghost:#c3c7ce; --sel:#e11d48; --zig2:#0d9488;
     --mono:ui-monospace, SFMono-Regular, Menlo, monospace;
     --sans:system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#0f1115; --panel:#171a20; --ink:#e8e8e6; --muted:#9aa0aa; --line:#2a2e37;
             --algo:#4ade80; --algo2:#f87171; --child:#fb923c; --pa:#60a5fa; --pb:#c084fc; --held:#60a5fa; --cy:#22d3ee;
-            --ghost:#4b5563; --sel:#fb7185; }
+            --ghost:#4b5563; --sel:#fb7185; --zig2:#5eead4; }
   }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); }
@@ -76,6 +76,11 @@
          repeating-linear-gradient(90deg, transparent 0 23px, color-mix(in srgb, var(--line) 55%, transparent) 23px 24px); }
   @media (max-width:900px) { #cv1 { height:400px; } }
   .stage { font-family:var(--mono); font-size:11.5px; color:var(--muted); margin:10px 0 4px; min-height:16px; }
+  .stage.zig { color:var(--pb); line-height:1.7; }
+  .stage.zig:empty { display:none; }
+  .stage.zig .zl { color:var(--muted); }
+  .stage.tour { color:var(--muted); line-height:1.7; }
+  .stage.tour:empty { display:none; }
   .note { margin:0; font-size:13px; line-height:1.5; color:var(--muted); }
   .note b { color:var(--ink); }
   .rank-head { display:grid; grid-template-columns:34px 60px 1fr 48px 46px; gap:6px;
@@ -139,7 +144,8 @@
   .legend span { display:flex; align-items:center; gap:6px; }
   .legend i { display:inline-block; width:22px; height:0; border-top:2px solid currentColor; }
   .legend i.dash { border-top-style:dashed; }
-  .legend i.dot { width:9px; height:9px; border:0; border-radius:50%; }
+  .legend i.dot { width:9px; height:9px; border:0; border-radius:50%; background:currentColor; }
+  .legend i.ring { width:9px; height:9px; border:1.5px solid currentColor; border-radius:50%; }
   .legend i.sq { width:9px; height:9px; border:1.5px solid currentColor; border-radius:1px; }
   .stats { display:grid; grid-template-columns:repeat(auto-fit, minmax(112px, 1fr)); gap:1px;
            background:var(--line); border:1px solid var(--line); border-radius:10px;
@@ -210,8 +216,11 @@
     <button id="beamFar" title="ask the focused node for its k farthest cities">farthest ×k</button>
     <button id="askCorners" title="all three corners answer with their k farthest cities">ask 3 corners</button>
     <button id="beamRight" title="fan every candidate ray out of the focused node, take the middle ray as the divider, report the last city clockwise of it">rightmost ×1</button>
-    <label class="chk" title="include cities already on the path in every beam answer">
+    <button id="zigzag" title="chain the farthest bounce from the cursor: its farthest city, then that city's farthest, and so on until no city is left">zigzag</button>
+    <label class="chk" title="let the rightmost fan include cities already on the path">
       <input id="allCities" type="checkbox"><span>all cities</span></label>
+    <label class="chk" title="draw the circle that has each picked pair as its diameter">
+      <input id="circles" type="checkbox" checked><span>circles</span></label>
     <span class="sep"></span>
     <button id="moveTo" title="move the cursor to the focused node, claiming that edge">move cursor → focus</button>
     <button id="jumpTo" title="move the cursor to the focused node without claiming an edge">jump cursor → focus</button>
@@ -225,6 +234,8 @@
       <h2><span>Map <span id="hMs"></span></span><span class="len" id="hLen">—</span></h2>
       <canvas id="cv1" role="img" aria-label="map with cursor, beams, far corners and the walked path"></canvas>
       <p class="stage" id="hStage">Press New map.</p>
+      <p class="stage zig" id="zigLine" aria-live="polite"></p>
+      <p class="stage tour" id="bgmaLine" aria-live="polite"></p>
       <p class="note" id="hNote">Click focuses, <b>shift-click</b> moves the cursor there,
         <b>double-click</b> jumps it with no edge. The cursor is the orange node. Wheel zooms, drag pans,
         double-click empty space or <code>0</code> resets the view.</p>
@@ -236,15 +247,18 @@
       <div class="rank-head"><span>#</span><span>pair</span><span>distance</span><span>d</span><span></span></div>
       <div class="rank-list" id="rankList"></div>
       <p class="hintline">Click rows to draw those pairs dashed on the map — several at once; the farthest pair
-        is drawn by default, and clicking a drawn row drops it.</p>
+        is drawn by default, and clicking a drawn row drops it. <em>circles</em> rings each drawn pair with
+        the circle that has it as its diameter.</p>
       <p class="hintline">Every request is a pure lookup: nothing is decided by it. Click a chip to move
         there, click a beam button twice to drop its answer, or <em>clear beams</em> (<code>n</code>) to
         drop them all.
         <b>&#8623; n</b> on a nearest chip counts the far/corner rays that already land on that city —
         hover it to see which ones. A nearest answer drawn in the red shade belongs to the cursor you
-        are on right now; the older green ones came from a cursor you have since left. <b>all cities</b> lets farthest and corner beams name cities you
-        already walked (useful for a second look at a full path); nearest keeps dropping the wired ones
-        either way, and with the switch off every beam stays usable as a move. Hover any line
+        are on right now; the older green ones came from a cursor you have since left. Farthest and the
+        three corners always see <b>every</b> city — they are map geometry, so they do not move as you
+        walk — while their bounce lands only on cities that still have an edge free. Nearest drops the
+        wired ones and the full ones either way, and <b>all cities</b> only widens the rightmost fan to
+        include cities already on the path. Hover any line
         on the map to read that edge's length; hover a city
         to get its total, split by source — e.g. <code>2 farthest · 1 near · 3 corners</code>.
         Wheel zoom keeps the point under the pointer fixed; drag pans; <code>0</code> resets.</p>
@@ -281,8 +295,10 @@
           wired to the focus — after <code>A → B</code> the nearest from B no longer names A, and the same
           goes for the city a jump left behind — and any city that already carries two walked edges, since
           nothing more can be wired into it. <em>farthest ×k</em> does not stop at its target: a faint ray names the k farthest, then
-          a bright leg leaves each of them for <em>that city's</em> farthest city — a bounce, so you see
-          where the far end of the map reflects back to. Excluding the source keeps it a reflection
+          a bright leg leaves each of them for <em>that city's</em> farthest city — a bounce, arrowed at
+          both ends, so you see where the far end of the map reflects back to. The farthest list is the whole map, walked
+          cities included, because it is the pole and should not move as you walk; the bounce only lands
+          on cities that still have an edge free. Excluding the source keeps it a reflection
           rather than a retrace. <em>rightmost ×1</em> builds its own axis: it fans a ray from the focus
           to every city, takes the middle ray by screen angle as the <b>divider</b> — drawn in cyan, it is
           the node's forward —
@@ -290,8 +306,11 @@
           half, the one that gets furthest clockwise before the divider comes back around behind you.
           Right follows the same switch: unchecked, cities already on the path stay out of the fan and
           can never be the answer; tick <em>all cities</em> to fan the whole map.
-          By default requests skip cities already on the path; tick <em>all
-          cities</em> to let them name walked ones too. Clicking the same button again removes its answer. The nearest chips carry a <b>&#8623; n</b> badge: the number of far and
+          <em>zigzag</em> chains the farthest bounce from <em>both</em> ends of the pole — <b>A</b> and
+          <b>Z</b> — each hop being the farthest city not yet on that chain, drawn one hop at a time in
+          purple for A and teal for Z. The two orders usually differ: both chains are printed under the
+          map, one below the other, with odd stops bold. A second click hides the walks; the strings stay.
+          Clicking the same button again removes its answer. The nearest chips carry a <b>&#8623; n</b> badge: the number of far and
           corner rays that land on that city right now, so a city pulled from two directions shows up
           before you move.</p>
       </div>
@@ -300,7 +319,8 @@
         <p>The dashed red lines are the pairs picked in the ranked table: click a row to draw that pair,
           click it again to drop it, so several can sit on the map at once. Each is labelled
           <code>#rank · d</code> and ringed at both ends; rank 1 is the map's pole <b>A–Z</b>, drawn for
-          you on every new map. <b>Z</b> is the far end of that pole. The other two corners are the endpoints of the pair
+          you on every new map. <em>circles</em> adds the circle that has each drawn pair as its diameter,
+          so every city on it sees that pair at a right angle. <b>Z</b> is the far end of that pole. The other two corners are the endpoints of the pair
           that maximises <code>distance × |sin</code> of the angle against the farthest pole — the
           longest pair that is roughly perpendicular to it. <em>ask 3 corners</em> makes all three
           report their k farthest cities at once; click it again to remove all three answers.</p>
@@ -356,8 +376,8 @@
   thin dashed red line, labelled <code>#rank · d</code>, both ends ringed; click it again to drop it, and
   several can stay drawn at once. Rank 1 — the farthest pair, the pole itself — is picked for you on
   every new map. <b>BGMA max</b> is the one automatic thing here: it runs the in-page
-  heuristic at the max effort preset and draws its tour in light grey, as a reference ring that ignores
-  your cursor and your walk. The full solver in this repo, <a href="hybrid_tsp.html">BGMA</a>, matched the published optimum on
+  heuristic at the max effort preset, draws its tour in light grey, and prints that tour under the
+  map; clicking it again hides the ring, the string stays. The full solver in this repo, <a href="hybrid_tsp.html">BGMA</a>, matched the published optimum on
   all 9 TSPLIB instances up to n = 417 and stayed within +0.33–2.10% of it at n = 442–1060.
 </footer>
 
@@ -380,7 +400,7 @@ const $ = id => document.getElementById(id);
 const PAL = {};
 function readPalette() {
   const cs = getComputedStyle(document.documentElement);
-  for (const k of ['bg', 'panel', 'ink', 'muted', 'line', 'algo', 'algo2', 'child', 'pa', 'pb', 'held', 'cy', 'ghost', 'sel']) {
+  for (const k of ['bg', 'panel', 'ink', 'muted', 'line', 'algo', 'algo2', 'child', 'pa', 'pb', 'held', 'cy', 'ghost', 'sel', 'zig2']) {
     PAL[k] = cs.getPropertyValue('--' + k).trim();
   }
   PAL.mono = 'ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -408,6 +428,9 @@ let FOCUS = -1;           // node the beam buttons ask
 let BEAMS = [];           // {id, from, kind:'near'|'far', corner, list:[{c,d}]}
 let BGMA = null;          // {tour, len} best tour from the in-page BGMA run, drawn grey
 let BGMA_BUSY = false;    // a max run is in flight
+let ZIGS = [];            // farthest-bounce chains, one from each pole end: [{from, chain, color}]
+let ZIG_N = 0;            // hops of every chain currently drawn
+let ZIG_TIMER = 0;        // step timer for the reveal
 let CLOSED = false;
 let OPT = null, OPTSRC = '', LEN = 0, COMPUTE = 0, T_SOLVE = 0;
 let BEAM_ID = 0;
@@ -431,6 +454,21 @@ function fitCanvas(canvas) {
   return [ctx, w, h];
 }
 
+/* arrowhead at the end of a segment from (x1,y1) to (x2,y2), pulled back by
+ * `back` px so the tip does not vanish under the city dot or its ring */
+function arrow(ctx, x1, y1, x2, y2, size, back) {
+  const dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1;
+  const ux = dx / L, uy = dy / L, a = Math.atan2(uy, ux);
+  const s = size || 7, k = back == null ? 4 : back;
+  const tx = x2 - ux * k, ty = y2 - uy * k;
+  ctx.beginPath();
+  ctx.moveTo(tx, ty);
+  ctx.lineTo(tx - s * Math.cos(a - .45), ty - s * Math.sin(a - .45));
+  ctx.lineTo(tx - s * Math.cos(a + .45), ty - s * Math.sin(a + .45));
+  ctx.closePath();
+  ctx.fill();
+}
+
 function drawMap() {
   const canvas = $('cv1');
   const [ctx, w, h] = fitCanvas(canvas);
@@ -452,6 +490,23 @@ function drawMap() {
     ctx.moveTo(X(INST.pts[t[0]]), Y(INST.pts[t[0]]));
     for (let i = 1; i < t.length; i++) ctx.lineTo(X(INST.pts[t[i]]), Y(INST.pts[t[i]]));
     ctx.closePath(); ctx.stroke(); ctx.restore();
+  }
+
+  /* circles: each picked pair as a diameter -- the circle through both ends, so
+   * every city on it sees the pair at a right angle. Under everything else. */
+  if ($('circles').checked && PICKS.size) {
+    ctx.save();
+    ctx.strokeStyle = PAL.sel; ctx.globalAlpha = .3; ctx.lineWidth = 1.1;
+    for (const rank of PICKS) {
+      const p = ROWS[rank];
+      if (!p) continue;
+      const xa = X(INST.pts[p.a]), ya = Y(INST.pts[p.a]);
+      const xb = X(INST.pts[p.b]), yb = Y(INST.pts[p.b]);
+      ctx.beginPath();
+      ctx.arc((xa + xb) / 2, (ya + yb) / 2, Math.hypot(xb - xa, yb - ya) / 2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
 
   /* walked edges */
@@ -498,6 +553,35 @@ function drawMap() {
     ctx.moveTo(X(INST.pts[a]), Y(INST.pts[a]));
     ctx.lineTo(X(INST.pts[b]), Y(INST.pts[b]));
     ctx.stroke(); ctx.restore();
+  }
+
+  /* the farthest-bounce zigzags, one from each end of the pole. ZIG_N is how many
+   * hops are on screen, so both chains are drawn in steps. */
+  if (ZIGS.length && ZIG_N > 0) {
+    ctx.save();
+    for (const z of ZIGS) {
+      const zc = col(z.color), shown = Math.min(ZIG_N, z.chain.length - 1);
+      ctx.strokeStyle = zc; ctx.lineWidth = 1.5; ctx.globalAlpha = .85;
+      ctx.setLineDash([6, 5]); ctx.lineJoin = 'round';
+      ctx.beginPath();
+      for (let i = 0; i < shown; i++) {
+        const a = INST.pts[z.chain[i]], b = INST.pts[z.chain[i + 1]];
+        ctx.moveTo(X(a), Y(a)); ctx.lineTo(X(b), Y(b));
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = zc;
+      for (let i = 0; i < shown; i++) {
+        const a = INST.pts[z.chain[i]], b = INST.pts[z.chain[i + 1]];
+        arrow(ctx, X(a), Y(a), X(b), Y(b), 7, 5.5);
+      }
+      if (shown < z.chain.length - 1) {
+        const h = INST.pts[z.chain[shown]];
+        ctx.globalAlpha = .9; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(X(h), Y(h), 8.5, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
 
   /* beams. nearest: one ray, source -> target. farthest: a bounce -- a faint ray
@@ -561,6 +645,16 @@ function drawMap() {
     }
     ctx.stroke();
 
+    /* arrows on the farthest construction: the faint ray points at the city it
+     * named, the bright leg points at the reflection */
+    if (far) {
+      ctx.setLineDash([]);
+      ctx.fillStyle = col(beamColor(b)); ctx.globalAlpha = .6;
+      for (const t of b.list) {
+        arrow(ctx, X(from), Y(from), X(INST.pts[t.c]), Y(INST.pts[t.c]), 6, 5.6);
+      }
+    }
+
     /* reflected leg: the target answers with its own farthest city */
     if (far) {
       ctx.lineWidth = 1.6; ctx.setLineDash([7, 5]); ctx.globalAlpha = .88;
@@ -570,6 +664,10 @@ function drawMap() {
         ctx.lineTo(X(INST.pts[t.bo]), Y(INST.pts[t.bo]));
       }
       ctx.stroke();
+      ctx.setLineDash([]); ctx.globalAlpha = .9;
+      for (const t of b.list) if (t.bo != null) {
+        arrow(ctx, X(INST.pts[t.c]), Y(INST.pts[t.c]), X(INST.pts[t.bo]), Y(INST.pts[t.bo]), 7, 4);
+      }
     }
 
     /* rings: the target (what the request named) and the bounce landing */
@@ -733,6 +831,8 @@ function newMap() {
   FOCUS = START; BEAMS = []; CLOSED = false; LEN = 0; BEAM_ID = 0;
   PICKS = new Set([0]);
   BGMA = null; $('bgmaMax').classList.remove('on');
+  ZIGS = []; ZIG_N = 0; clearTimeout(ZIG_TIMER); $('zigzag').classList.remove('on');
+  $('zigLine').innerHTML = ''; $('bgmaLine').innerHTML = '';
   VIEW = { k: 1, tx: 0, ty: 0 };
   OPT = n <= EXACT_MAX ? heldKarp(INST.D) : null;
   OPTSRC = n <= EXACT_MAX ? 'exact' : 'bound';
@@ -817,40 +917,64 @@ function walkDegree(node) {
 
 /* beam candidates. Nearest always sees the whole map -- walked cities included --
  * minus the ones already wired to the focus, because that edge is on the map
- * already. Everything else follows the "all cities" switch: off means only
- * unvisited cities, so their answers stay usable as moves. Right fans exactly
- * this pool to find its divider, so it follows the switch too. */
+ * already, and minus the cities that already carry two edges. Farthest is the
+ * pole: it asks the map, not the walk, so every city is a candidate and the
+ * answer does not move as you walk. Right follows the "all cities" switch: off
+ * means only unvisited cities, so its answer stays usable as a move. */
 function poolFor(from, kind) {
-  const all = $('allCities').checked;
+  const out = [];
   if (kind === 'near') {
     const wired = pathNeighbors(from);
     const cameFrom = from === PATH[PATH.length - 1] ? PREV : -1;
-    const out = [];
     for (let i = 0; i < INST.n; i++) {
       if (i === from || i === cameFrom || wired.has(i) || walkDegree(i) >= 2) continue;
       out.push(i);
     }
     return out;
   }
-  const out = [];
+  if (kind === 'far') {
+    for (let i = 0; i < INST.n; i++) if (i !== from) out.push(i);
+    return out;
+  }
+  const all = $('allCities').checked;
   for (let i = 0; i < INST.n; i++) if (i !== from && (all || !ON[i])) out.push(i);
   return out;
 }
 
 /* every request carries a key, so asking the same question twice takes the answer
  * back off the map instead of stacking a duplicate */
-/* the farthest city from t that is still free and is neither the source nor t
- * itself -- the bounce. Excluding the source is what makes it a reflection
- * instead of a straight retrace. */
+/* the farthest city from t that can still take an edge and is neither the source
+ * nor t itself -- the bounce. A city with two edges is full, so it never lands
+ * there; the ones on the path with a free end are fair game. Excluding the source
+ * is what makes it a reflection instead of a straight retrace. */
 function bounceOf(from, t) {
-  const all = $('allCities').checked;
   let best = -1, bd = -1;
   for (let i = 0; i < INST.n; i++) {
-    if ((!all && ON[i]) || i === from || i === t) continue;
+    if (i === from || i === t || walkDegree(i) >= 2) continue;
     const d = INST.D[t][i];
     if (d > bd) { bd = d; best = i; }
   }
   return best < 0 ? null : { c: best, d: bd };
+}
+
+/* the farthest-bounce chain: from a city, hop to the farthest city not yet on the
+ * chain, repeat. Skipping the visited ones is what keeps it a zigzag -- chasing
+ * the plain farthest city would just bounce A-B-A forever. */
+function buildZig(from) {
+  const seen = new Uint8Array(INST.n), chain = [from];
+  seen[from] = 1;
+  let cur = from;
+  for (;;) {
+    let z = -1, zd = -1;
+    for (let i = 0; i < INST.n; i++) {
+      if (seen[i]) continue;
+      const d = INST.D[cur][i];
+      if (d > zd) { zd = d; z = i; }
+    }
+    if (z < 0) break;
+    chain.push(z); seen[z] = 1; cur = z;
+  }
+  return chain;
 }
 
 /* The node's own right. There is no fixed axis, so the fan supplies one: rays to
@@ -1286,11 +1410,12 @@ $('n').addEventListener('input', () => { $('nOut').textContent = $('n').value; }
 $('seed').addEventListener('change', () => { if (INST) newMap(); });
 $('kind').addEventListener('change', () => { if (INST) newMap(); });
 $('k').addEventListener('change', () => { if (INST) render(); });
+$('circles').addEventListener('change', () => { if (INST) render(); });
 $('allCities').addEventListener('change', () => {
   if (!INST) return;
   say($('allCities').checked
-    ? 'Beams now consider <b>every</b> city, walked ones included. Existing answers keep their lists; ask again to refresh.'
-    : 'Beams now skip cities already on the path. Existing answers keep their lists; ask again to refresh.');
+    ? 'Rightmost now fans <b>every</b> city, walked ones included. Existing answers keep their lists; ask again to refresh.'
+    : 'Rightmost now skips cities already on the path. Existing answers keep their lists; ask again to refresh.');
   render();
 });
 
@@ -1312,6 +1437,64 @@ $('rankList').addEventListener('click', e => {
 $('beamNear').addEventListener('click', () => toggleAsk(FOCUS, 'near', 'near:' + FOCUS));
 $('beamFar').addEventListener('click', () => toggleAsk(FOCUS, 'far', 'far:' + FOCUS));
 $('beamRight').addEventListener('click', () => toggleAsk(FOCUS, 'right', 'right:' + FOCUS));
+/* the chain as one string. Odd stops (1st, 3rd, ...) bold, so the alternation
+ * reads at a glance; `upto` cuts it at the hop being revealed. */
+function zigText(chain, upto) {
+  const parts = [];
+  for (let i = 0; i < upto; i++) parts.push(i % 2 ? String(chain[i]) : '<b>' + chain[i] + '</b>');
+  return parts.join(' → ');
+}
+
+/* the chains as lines, A first, one under the other */
+function zigHtml(upto) {
+  return ZIGS.map(z => '<b>' + (z.from === START ? 'A' : 'Z') + '</b> ' +
+    zigText(z.chain, upto)).join('<br>');
+}
+
+/* reveal both chains one hop at a time, side by side in the string. A timer
+ * rather than a rAF loop: a step is one canvas repaint and a fixed hop list. */
+function playZig() {
+  const starts = [START];
+  if (CORNERS[0] != null && CORNERS[0] !== START) starts.push(CORNERS[0]);
+  ZIGS = starts.map((from, i) => ({ from: from, chain: buildZig(from),
+    color: i ? 'var(--zig2)' : 'var(--pb)' }));
+  ZIG_N = 0;
+  $('zigzag').classList.add('on');
+  const hops = INST.n - 1;
+  const total = z => {
+    let t = 0;
+    for (let i = 1; i < z.chain.length; i++) t += INST.D[z.chain[i - 1]][z.chain[i]];
+    return t;
+  };
+  const gap = Math.max(90, Math.min(420, 6000 / Math.max(1, hops)));
+  const step = () => {
+    ZIG_N++;
+    drawMap();
+    $('zigLine').innerHTML = zigHtml(ZIG_N + 1);
+    if (ZIG_N < hops) {
+      say('Hop <b>' + ZIG_N + '</b>/<b>' + hops + '</b>: ' + ZIGS.map(z =>
+        z.chain[ZIG_N] + ' <span class="zl">(' + (z.from === START ? 'A' : 'Z') + ')</span>').join(' · '));
+      ZIG_TIMER = setTimeout(step, gap);
+    } else {
+      ZIG_TIMER = 0;
+      say('Zigzag from both pole ends, ' + hops + ' hops each — ' + ZIGS.map(z =>
+        (z.from === START ? 'A' : 'Z') + ' (' + z.from + ') ' + total(z).toFixed(1)).join(', ') +
+        '. Every hop is the farthest city not yet on that chain.');
+      drawMap();
+    }
+  };
+  ZIG_TIMER = setTimeout(step, gap);
+}
+
+$('zigzag').addEventListener('click', () => {
+  if (!INST) return;
+  if (ZIGS.length) {
+    clearTimeout(ZIG_TIMER);
+    ZIGS = []; ZIG_N = 0; $('zigzag').classList.remove('on');
+    say('Zigzag hidden; the strings stay.'); render(); return;
+  }
+  playZig();
+});
 $('askCorners').addEventListener('click', askCorners);
 $('clearBeams').addEventListener('click', clearBeams);
 $('moveTo').addEventListener('click', () => moveTo(FOCUS));
@@ -1342,8 +1525,9 @@ $('bgmaMax').addEventListener('click', () => {
     if (!best) { say('BGMA returned no tour.'); renderFocus(); return; }
     BGMA = { tour: best.t, len: best.len };
     $('bgmaMax').classList.add('on');
+    $('bgmaLine').innerHTML = best.t.join(' → ') + ' → ' + best.t[0];
     say('BGMA max: <b>' + best.len.toFixed(2) + '</b> in ' + Math.round(ms) +
-      ' ms, drawn in light grey. Click again to hide.');
+      ' ms, drawn in light grey. Click again to hide the line; the string stays.');
     render();
   }, 0);
 });
@@ -1422,6 +1606,9 @@ function edgeAt(mx, my) {
   for (const rank of PICKS) {
     const p = ROWS[rank];
     if (p) add(p.a, p.b, 'picked pair');
+  }
+  for (const z of ZIGS) for (let i = 0; i + 1 < z.chain.length; i++) {
+    add(z.chain[i], z.chain[i + 1], 'zigzag hop');
   }
   for (const b of BEAMS) {
     if (b.kind === 'right') add(b.from, b.div, 'right divider');
@@ -1570,7 +1757,10 @@ $('legend').innerHTML = [
   '<span style="color:var(--held)"><i class="dash"></i>right beam: fan · right half</span>',
   '<span style="color:var(--child)"><i class="dash"></i>corner beam</span>',
   '<span style="color:var(--child)"><i class="dot"></i>cursor</span>',
+  '<span style="color:var(--pb)"><i class="dash"></i>zigzag from A</span>',
+  '<span style="color:var(--zig2)"><i class="dash"></i>zigzag from Z</span>',
   '<span style="color:var(--sel)"><i class="dash"></i>picked pair</span>',
+  '<span style="color:var(--sel)"><i class="ring"></i>pole circle</span>',
   '<span style="color:var(--pa)"><i class="sq"></i>far corner</span>',
   '<span style="color:var(--held)"><i></i>closing edge</span>',
   '<span style="color:var(--ghost)"><i></i>BGMA max tour</span>',

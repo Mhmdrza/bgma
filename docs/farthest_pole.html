@@ -4,17 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Beam console — aim the beams, walk the cursor</title>
-<meta name="description" content="A manual TSP lab: two nearest beams by default, three far corners, clickable beam results, and a cursor you move yourself.">
+<meta name="description" content="A manual TSP lab: one nearest beam, adjustable farthest beams, three far corners, clickable beam results, and a cursor you move yourself.">
 <style>
   :root {
     --bg:#f7f7f5; --panel:#fff; --ink:#16181d; --muted:#6b7280; --line:#e2e2de;
-    --algo:#16a34a; --algo2:#dc2626; --child:#ea580c; --pa:#2563eb; --pb:#7c3aed; --held:#2563eb;
+    --algo:#16a34a; --algo2:#dc2626; --child:#ea580c; --pa:#2563eb; --pb:#7c3aed; --held:#2563eb; --cy:#0891b2;
+    --ghost:#c3c7ce; --sel:#e11d48;
     --mono:ui-monospace, SFMono-Regular, Menlo, monospace;
     --sans:system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg:#0f1115; --panel:#171a20; --ink:#e8e8e6; --muted:#9aa0aa; --line:#2a2e37;
-            --algo:#4ade80; --algo2:#f87171; --child:#fb923c; --pa:#60a5fa; --pb:#c084fc; --held:#60a5fa; }
+            --algo:#4ade80; --algo2:#f87171; --child:#fb923c; --pa:#60a5fa; --pb:#c084fc; --held:#60a5fa; --cy:#22d3ee;
+            --ghost:#4b5563; --sel:#fb7185; }
   }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); }
@@ -83,8 +85,12 @@
   .rank-head span:nth-child(4) { text-align:right; }
   .rank-list { overflow:auto; height:300px; max-height:300px; }
   .rk { display:grid; grid-template-columns:34px 60px 1fr 48px 46px; gap:6px; align-items:center;
-        padding:3px 6px; font-family:var(--mono); font-size:11.5px; color:var(--muted);
+        padding:3px 6px; font-family:var(--mono); font-size:11.5px; color:var(--muted); cursor:pointer;
         border-bottom:1px solid color-mix(in srgb, var(--line) 60%, transparent); }
+  .rk:hover { background:color-mix(in srgb, var(--ink) 7%, transparent); }
+  .rk.sel { background:color-mix(in srgb, var(--sel) 13%, transparent);
+            box-shadow:inset 2px 0 0 var(--sel); }
+  .rk.sel .s, .rk.sel .d { color:var(--sel); }
   .rk .p { color:var(--ink); }
   .rk .bar { height:5px; border-radius:3px; background:color-mix(in srgb, var(--line) 70%, transparent); overflow:hidden; }
   .rk .bar i { display:block; height:100%; background:var(--muted); opacity:.45; }
@@ -103,6 +109,7 @@
                   border-radius:999px; border:1px solid currentColor; }
   .tag.near { color:var(--algo); }
   .tag.far { color:var(--pa); }
+  .tag.right { color:var(--held); }
   .req-top .x { margin-left:auto; padding:2px 8px; font-size:11px; border-radius:6px; }
   .req-chips { display:flex; flex-wrap:wrap; gap:4px; }
   .bch { display:inline-block; font-family:var(--mono); font-size:11.5px; padding:2px 8px;
@@ -113,6 +120,7 @@
   .bch.nearCur { border-color:var(--algo2); color:var(--ink); }
   .tag.nearCur { color:var(--algo2); }
   .bch.far { border-color:var(--pa); color:var(--pa); }
+  .bch.right { border-color:var(--held); color:var(--held); }
   .bch.walk { border-color:var(--child); color:var(--child); }
   .bch + .bounce { margin-left:-2px; }
   .bounce { font-family:var(--mono); font-size:10.5px; color:var(--muted); padding:0 2px 0 1px; }
@@ -162,7 +170,7 @@
   <h1>Aim the beams yourself. Move the cursor when you decide.</h1>
   <p class="lede">
     No algorithm runs on this page. There is a <b>cursor</b>, three <b>far corners</b>, and a beam
-    request you can fire at any node. Ask a node for its two nearest, or its two farthest (the beam
+    request you can fire at any node. Ask a node for its single nearest, or its k farthest (the beam
     width is adjustable), and the
     rays stay on the map until you clear them — so you can put several answers side by side, argue with
     them, and only then move the cursor to the city you pick. Every move is one real edge; the tour is
@@ -172,9 +180,9 @@
     <div class="ev"><span class="ev-n">3 corners</span>
       <span class="ev-l">the far end of the original pole plus the two ends of the longest pair that
         runs roughly perpendicular to it</span></div>
-    <div class="ev"><span class="ev-n">3 + 3</span>
-      <span class="ev-l">each request returns two targets by default, nearest-first or farthest-first, with the
-        distances that produced them</span></div>
+    <div class="ev"><span class="ev-n">1 + k</span>
+      <span class="ev-l">nearest always answers with one city, farthest with k of them (width is yours),
+        and every target carries the distance that produced it</span></div>
     <div class="ev"><span class="ev-n">click → move</span>
       <span class="ev-l">click any city to focus it, ask it anything, then move the cursor there or
         click a result chip instead</span></div>
@@ -186,20 +194,22 @@
     <label class="field">cities <span class="row"><input id="n" type="range" min="6" max="60" value="18"><span class="val" id="nOut">18</span></span></label>
     <label class="field">seed <span class="row"><input id="seed" type="number" min="1" max="99" value="7" step="1"><button id="dice" title="new seed">↻</button></span></label>
     <label class="field">points <span class="row"><select id="kind"><option value="uniform">uniform</option><option value="clustered">cluster</option></select></span></label>
-    <label class="field">beam width <span class="row"><input id="k" type="number" min="1" max="8" value="2" step="1"></span></label>
+    <label class="field">beam width <span class="row"><input id="k" type="number" min="1" max="60" value="2" step="1"></span></label>
     <div class="btns">
       <button id="run" class="primary">New map</button>
       <button id="undo" title="undo the last move">Undo</button>
       <button id="close" title="close the walked path into a tour">Close tour</button>
       <button id="resetPath" title="keep the map, walk again">Reset walk</button>
+      <button id="bgmaMax" title="run the in-page BGMA at max effort and draw its tour in light grey">BGMA max</button>
     </div>
   </section>
 
   <section class="console" aria-label="beam console">
     <span class="lbl">focus</span><span class="who" id="focusId">—</span>
-    <button id="beamNear" title="ask the focused node for its k nearest cities">nearest ×k</button>
+    <button id="beamNear" title="ask the focused node for its single nearest city">nearest ×1</button>
     <button id="beamFar" title="ask the focused node for its k farthest cities">farthest ×k</button>
     <button id="askCorners" title="all three corners answer with their k farthest cities">ask 3 corners</button>
+    <button id="beamRight" title="fan every candidate ray out of the focused node, take the middle ray as the divider, report the last city clockwise of it">rightmost ×1</button>
     <label class="chk" title="include cities already on the path in every beam answer">
       <input id="allCities" type="checkbox"><span>all cities</span></label>
     <span class="sep"></span>
@@ -225,6 +235,8 @@
       <div id="reqList"><p class="hintline">No beams yet. Focus a city and ask it something.</p></div>
       <div class="rank-head"><span>#</span><span>pair</span><span>distance</span><span>d</span><span></span></div>
       <div class="rank-list" id="rankList"></div>
+      <p class="hintline">Click rows to draw those pairs dashed on the map — several at once; the farthest pair
+        is drawn by default, and clicking a drawn row drops it.</p>
       <p class="hintline">Every request is a pure lookup: nothing is decided by it. Click a chip to move
         there, click a beam button twice to drop its answer, or <em>clear beams</em> (<code>n</code>) to
         drop them all.
@@ -253,7 +265,8 @@
     <h2>How to use the console</h2>
     <p class="sub">
       The map is the only input. The cursor starts on the first endpoint of the farthest pair — that is
-      corner <b>Z</b>'s partner, and the pole <b>A–Z</b> stays drawn across the map. Click any city to
+      corner <b>Z</b>'s partner — and the ranked table below the map draws the pairs you pick as dashed
+      red lines, so the pole is on the chart until you toggle it off. Click any city to
       make it the <b>focus</b>; the beam buttons always ask the focused node, so "ask any node" is just
       click-then-ask. Requests pile up and stay drawn across moves until you clear them or ask again —
       that is why the rays are dashed: they are answers, not edges. Every beam button is a toggle, so a
@@ -262,22 +275,32 @@
     <div class="detail">
       <div>
         <h3>1 · ask</h3>
-        <p><em>nearest ×k</em> returns the k closest cities to the focus and draws a plain ray to
-          each. It searches the <b>whole map</b>, walked cities included, but leaves out the ones already
+        <p><em>nearest ×1</em> returns the closest city to the focus — one, always, whatever the beam
+          width says — and draws a plain ray to
+          it. It searches the <b>whole map</b>, walked cities included, but leaves out the ones already
           wired to the focus — after <code>A → B</code> the nearest from B no longer names A, and the same
           goes for the city a jump left behind — and any city that already carries two walked edges, since
           nothing more can be wired into it. <em>farthest ×k</em> does not stop at its target: a faint ray names the k farthest, then
           a bright leg leaves each of them for <em>that city's</em> farthest city — a bounce, so you see
           where the far end of the map reflects back to. Excluding the source keeps it a reflection
-          rather than a retrace. By default requests skip cities already on the path; tick <em>all
+          rather than a retrace. <em>rightmost ×1</em> builds its own axis: it fans a ray from the focus
+          to every city, takes the middle ray by screen angle as the <b>divider</b> — drawn in cyan, it is
+          the node's forward —
+          and the half sweeping clockwise from it is the right side. The answer is the last ray of that
+          half, the one that gets furthest clockwise before the divider comes back around behind you.
+          Right follows the same switch: unchecked, cities already on the path stay out of the fan and
+          can never be the answer; tick <em>all cities</em> to fan the whole map.
+          By default requests skip cities already on the path; tick <em>all
           cities</em> to let them name walked ones too. Clicking the same button again removes its answer. The nearest chips carry a <b>&#8623; n</b> badge: the number of far and
           corner rays that land on that city right now, so a city pulled from two directions shows up
           before you move.</p>
       </div>
       <div>
         <h3>2 · the three corners</h3>
-        <p>The purple dashed line is the <b>pole</b>: the farthest pair in the map, labelled with its
-          length. <b>Z</b> is its far end. The other two corners are the endpoints of the pair
+        <p>The dashed red lines are the pairs picked in the ranked table: click a row to draw that pair,
+          click it again to drop it, so several can sit on the map at once. Each is labelled
+          <code>#rank · d</code> and ringed at both ends; rank 1 is the map's pole <b>A–Z</b>, drawn for
+          you on every new map. <b>Z</b> is the far end of that pole. The other two corners are the endpoints of the pair
           that maximises <code>distance × |sin</code> of the angle against the farthest pole — the
           longest pair that is roughly perpendicular to it. <em>ask 3 corners</em> makes all three
           report their k farthest cities at once; click it again to remove all three answers.</p>
@@ -322,26 +345,32 @@
 <footer>
   <b>Fine print.</b> This page is a manual explorer, not the heuristic — <code>src/farthest/farthest_pole.js</code>
   still holds the Farthest-Beam Walk that decides by itself, but the console never calls it. A beam
-  request is O(n) over the distance matrix and never mutates the path. Each button is a toggle: the
-  second click removes exactly the answer the first click added. The pole line is the rank-1 pair, so it
-  is also the pair the ranked list marks <em>start</em>. The cursor can only move to a
+  request is O(n) over the distance matrix — O(n log n) for the right fan's angle sort — and never mutates the path. Each button is a toggle: the
+  second click removes exactly the answer the first click added. Nothing is drawn that tracks the cursor;
+  the map only carries what you asked for. The cursor can only move to a
   city that is not already on the path, so the walked path is always simple and closing it yields a
   valid tour; <em>Undo</em> and <em>Reset walk</em> rebuild that state, and a jump seals the current leg instead of
   inventing an edge, so nothing is ever drawn that you did not accept or explicitly refuse. Distances are Euclidean on the
   unit square, so the numbers are map units, not kilometres. The demo caps n at 60 to keep the requests
-  and the ranked list readable. The full solver in this repo, <a href="hybrid_tsp.html">BGMA</a>, matched the published optimum on
+  and the ranked list readable. The ranked table is a picker: click a row and that pair is drawn as a
+  thin dashed red line, labelled <code>#rank · d</code>, both ends ringed; click it again to drop it, and
+  several can stay drawn at once. Rank 1 — the farthest pair, the pole itself — is picked for you on
+  every new map. <b>BGMA max</b> is the one automatic thing here: it runs the in-page
+  heuristic at the max effort preset and draws its tour in light grey, as a reference ring that ignores
+  your cursor and your walk. The full solver in this repo, <a href="hybrid_tsp.html">BGMA</a>, matched the published optimum on
   all 9 TSPLIB instances up to n = 417 and stayed within +0.33–2.10% of it at n = 442–1060.
 </footer>
 
 <div id="tip" class="tip" role="status" aria-live="polite"></div>
 
 <!-- beams/console logic is page-local; the solver stays in src/farthest/farthest_pole.js -->
+<script src="js/effort_profiles.js"></script>
 <script src="js/hybrid_vis.js"></script>
 <script src="js/farthest_pole.js"></script>
 <script>
 'use strict';
 
-const { EXACT_MAX, makeInstance, heldKarp, hkBoundTree } = window.HybridTSP;
+const { EXACT_MAX, makeInstance, heldKarp, hkBoundTree, buildSnapshots, effortOptions } = window.HybridTSP;
 const { rankPairs } = window.FarthestPole;
 
 const $ = id => document.getElementById(id);
@@ -351,7 +380,7 @@ const $ = id => document.getElementById(id);
 const PAL = {};
 function readPalette() {
   const cs = getComputedStyle(document.documentElement);
-  for (const k of ['bg', 'panel', 'ink', 'muted', 'line', 'algo', 'algo2', 'child', 'pa', 'pb', 'held']) {
+  for (const k of ['bg', 'panel', 'ink', 'muted', 'line', 'algo', 'algo2', 'child', 'pa', 'pb', 'held', 'cy', 'ghost', 'sel']) {
     PAL[k] = cs.getPropertyValue('--' + k).trim();
   }
   PAL.mono = 'ui-monospace, SFMono-Regular, Menlo, monospace';
@@ -367,7 +396,6 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 let INST = null;          // { n, pts, D }
 let RANK = null;          // rankPairs(INST.D)
 let CORNERS = [];         // [Z, P, Q]
-let POLE = null;          // {a, z, d} the farthest pair, drawn on the map
 let START = 0;            // A, first endpoint of the farthest pair
 let PATH = [];            // the live leg; the cursor is PATH[PATH.length-1]
 let DONE = [];            // legs sealed off by a jump, oldest first
@@ -378,14 +406,18 @@ let ON = null;            // Uint8Array, 1 = already on the path
 let PREV = -1;            // city the cursor just left, even when it jumped
 let FOCUS = -1;           // node the beam buttons ask
 let BEAMS = [];           // {id, from, kind:'near'|'far', corner, list:[{c,d}]}
+let BGMA = null;          // {tour, len} best tour from the in-page BGMA run, drawn grey
+let BGMA_BUSY = false;    // a max run is in flight
 let CLOSED = false;
 let OPT = null, OPTSRC = '', LEN = 0, COMPUTE = 0, T_SOLVE = 0;
 let BEAM_ID = 0;
 let LASTG = null;         // last canvas geometry, for hit testing
 let VIEW = { k: 1, tx: 0, ty: 0 };   // zoom + pan, in CSS pixels
 let ROWS = [];            // ranked pair rows
+let PICKS = new Set();   // ranks of the pairs drawn dashed on the map; rank 0 = the pole
 
-const K = () => Math.max(1, Math.min(8, Math.round(+$('k').value) || 2));
+const K = () => Math.max(1, Math.min(INST ? INST.n : +$('n').value,
+  Math.round(+$('k').value) || 2));
 
 /* ============================ geometry/draw ============================ */
 
@@ -409,6 +441,18 @@ function drawMap() {
   const X = p => ox + p[0] * s, Y = p => oy + p[1] * s;
   LASTG = { w, h, s0, s, ox, oy, X, Y };
   if (!INST) return;
+
+  /* the BGMA answer: a closed light grey ring, under everything you draw */
+  if (BGMA && BGMA.tour.length > 1) {
+    const t = BGMA.tour;
+    ctx.save();
+    ctx.strokeStyle = PAL.ghost; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+    ctx.globalAlpha = .9;
+    ctx.beginPath();
+    ctx.moveTo(X(INST.pts[t[0]]), Y(INST.pts[t[0]]));
+    for (let i = 1; i < t.length; i++) ctx.lineTo(X(INST.pts[t[i]]), Y(INST.pts[t[i]]));
+    ctx.closePath(); ctx.stroke(); ctx.restore();
+  }
 
   /* walked edges */
   ctx.save();
@@ -456,32 +500,13 @@ function drawMap() {
     ctx.stroke(); ctx.restore();
   }
 
-  /* the pole itself: the farthest pair, always drawn, labelled with its length */
-  if (POLE) {
-    const a = INST.pts[POLE.a], b = INST.pts[POLE.z];
-    ctx.save();
-    ctx.strokeStyle = col('var(--pb)'); ctx.lineWidth = 1.6; ctx.setLineDash([9, 6]);
-    ctx.globalAlpha = .9;
-    ctx.beginPath(); ctx.moveTo(X(a), Y(a)); ctx.lineTo(X(b), Y(b)); ctx.stroke();
-    ctx.setLineDash([]);
-    const mx = (X(a) + X(b)) / 2, my = (Y(a) + Y(b)) / 2;
-    const label = 'pole ' + POLE.d.toFixed(1);
-    ctx.font = '10px ' + PAL.mono;
-    const tw = ctx.measureText(label).width + 8;
-    ctx.fillStyle = PAL.panel; ctx.globalAlpha = .92;
-    ctx.fillRect(mx - tw / 2, my - 8, tw, 16);
-    ctx.globalAlpha = 1; ctx.fillStyle = PAL.pb;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(label, mx, my);
-    ctx.restore();
-  }
-
   /* beams. nearest: one ray, source -> target. farthest: a bounce -- a faint ray
    * reaches the target, then the bright leg answers back from the target's own
    * farthest city, the way a reflection leaves the mirror. */
   const cur = PATH.length ? PATH[PATH.length - 1] : -1;
   const beamColor = b => b.kind === 'near'
     ? (b.from === cur ? 'var(--algo2)' : 'var(--algo)')
+    : b.kind === 'right' ? 'var(--held)'
     : b.corner != null ? 'var(--child)' : 'var(--pa)';
   for (const b of BEAMS) {
     const from = INST.pts[b.from];
@@ -489,6 +514,41 @@ function drawMap() {
     ctx.save();
     ctx.strokeStyle = col(beamColor(b));
     ctx.lineCap = 'round';
+
+    /* right: show the whole construction -- the fan of every ray out of the node,
+     * the middle ray as divider, the clockwise half as dots, and the sweep from
+     * divider to the answer. */
+    if (b.kind === 'right') {
+      ctx.globalAlpha = .13; ctx.lineWidth = .8; ctx.setLineDash([]);
+      ctx.beginPath();
+      for (const i of b.pool) {
+        ctx.moveTo(X(from), Y(from));
+        ctx.lineTo(X(INST.pts[i]), Y(INST.pts[i]));
+      }
+      ctx.stroke();
+      /* the divider itself: cyan, so it reads apart from the beam blue */
+      ctx.strokeStyle = col('var(--cy)');
+      ctx.globalAlpha = .9; ctx.lineWidth = 1.6; ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(X(from), Y(from));
+      ctx.lineTo(X(INST.pts[b.div]), Y(INST.pts[b.div]));
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const a0 = Math.atan2(Y(INST.pts[b.div]) - Y(from), X(INST.pts[b.div]) - X(from));
+      const a1 = a0 + b.deg * Math.PI / 180;
+      ctx.globalAlpha = .9; ctx.lineWidth = 1.2; ctx.setLineDash([2, 3]);
+      ctx.beginPath(); ctx.arc(X(from), Y(from), 24, a0, a1); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = col('var(--cy)');
+      ctx.font = '10px ' + PAL.mono; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText('divider', (X(from) + X(INST.pts[b.div])) / 2 + 4,
+        (Y(from) + Y(INST.pts[b.div])) / 2 - 6);
+      ctx.fillStyle = col(beamColor(b));
+      const ax = X(INST.pts[b.list[0].c]), ay = Y(INST.pts[b.list[0].c]);
+      ctx.fillText('right ' + Math.round(b.deg) + '°', (X(from) + ax) / 2 + 4,
+        (Y(from) + ay) / 2 - 6);
+      ctx.strokeStyle = col(beamColor(b));
+    }
 
     /* incoming leg: faint for a bounce, full for a plain nearest ray */
     ctx.lineWidth = far ? 1 : 1.4;
@@ -574,6 +634,64 @@ function drawMap() {
       ctx.fillText(i, x + r + 4, y - r - 4);
     }
   }
+
+  /* right beams: membership has to sit above the city markers, or their panel
+   * halo eats it. Fill the right-half cities, ring the answer and the divider. */
+  for (const b of BEAMS) {
+    if (b.kind !== 'right') continue;
+    const c = col(beamColor(b));
+    ctx.save();
+    ctx.fillStyle = c; ctx.globalAlpha = .95;
+    for (const r of b.right) {
+      ctx.beginPath(); ctx.arc(X(INST.pts[r]), Y(INST.pts[r]), 2.1, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalAlpha = 1; ctx.lineWidth = 1.8; ctx.strokeStyle = c;
+    const t = b.list[0].c;
+    ctx.beginPath(); ctx.arc(X(INST.pts[t]), Y(INST.pts[t]), 7.4, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = 1.4; ctx.strokeStyle = col('var(--cy)');
+    ctx.beginPath(); ctx.arc(X(INST.pts[b.div]), Y(INST.pts[b.div]), 7.4, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+
+  /* pairs picked in the ranked table, dashed so they read as answers, not path.
+   * Rank 0 -- the pole itself -- is picked on every new map. Drawn last so both
+   * endpoints sit above the city markers; each label leans off its own line. */
+  if (PICKS.size && ROWS.length) {
+    ctx.save();
+    ctx.font = '10px ' + PAL.mono;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.strokeStyle = PAL.sel; ctx.lineWidth = 1.5; ctx.setLineDash([7, 5]);
+    ctx.globalAlpha = .5; ctx.lineCap = 'butt';
+    ctx.beginPath();
+    for (const rank of PICKS) {
+      const p = ROWS[rank];
+      if (!p) continue;
+      ctx.moveTo(X(INST.pts[p.a]), Y(INST.pts[p.a]));
+      ctx.lineTo(X(INST.pts[p.b]), Y(INST.pts[p.b]));
+    }
+    ctx.stroke();
+    ctx.setLineDash([]); ctx.lineWidth = 1.3; ctx.globalAlpha = .75;
+    for (const rank of PICKS) {
+      const p = ROWS[rank];
+      if (!p) continue;
+      for (const c of [p.a, p.b]) {
+        ctx.beginPath(); ctx.arc(X(INST.pts[c]), Y(INST.pts[c]), 8.6, 0, Math.PI * 2); ctx.stroke();
+      }
+      const xa = X(INST.pts[p.a]), ya = Y(INST.pts[p.a]);
+      const xb = X(INST.pts[p.b]), yb = Y(INST.pts[p.b]);
+      const len = Math.hypot(xb - xa, yb - ya) || 1;
+      const mx = (xa + xb) / 2 - (yb - ya) / len * 14;
+      const my = (ya + yb) / 2 + (xb - xa) / len * 14;
+      const label = '#' + (rank + 1) + ' · ' + p.d.toFixed(1);
+      const tw = ctx.measureText(label).width + 8;
+      ctx.globalAlpha = .92; ctx.fillStyle = PAL.panel;
+      ctx.fillRect(mx - tw / 2, my - 8, tw, 16);
+      ctx.globalAlpha = 1; ctx.fillStyle = PAL.sel;
+      ctx.fillText(label, mx, my);
+      ctx.globalAlpha = .75;
+    }
+    ctx.restore();
+  }
 }
 
 /* ============================== the map ================================ */
@@ -600,7 +718,7 @@ function findCorners(inst) {
     }
   }
   START = A;
-  return { start: A, pole: Z, poleDist: D[A][Z], corners: bp < 0 ? [Z] : [Z, bp, bq] };
+  return { start: A, corners: bp < 0 ? [Z] : [Z, bp, bq] };
 }
 
 function newMap() {
@@ -610,10 +728,11 @@ function newMap() {
   RANK = rankPairs(INST.D);
   const c = findCorners(INST);
   CORNERS = c.corners;
-  POLE = { a: c.start, z: c.pole, d: c.poleDist };
   PATH = [START]; DONE = []; LINKS = []; CLOSE = null; UNDO = [];
   ON = new Uint8Array(n); ON[START] = 1; PREV = -1;
   FOCUS = START; BEAMS = []; CLOSED = false; LEN = 0; BEAM_ID = 0;
+  PICKS = new Set([0]);
+  BGMA = null; $('bgmaMax').classList.remove('on');
   VIEW = { k: 1, tx: 0, ty: 0 };
   OPT = n <= EXACT_MAX ? heldKarp(INST.D) : null;
   OPTSRC = n <= EXACT_MAX ? 'exact' : 'bound';
@@ -637,6 +756,7 @@ function buildRankList() {
     const e = ord[r], a = ii[e], b = jj[e], d = dd[e];
     const row = document.createElement('div');
     row.className = 'rk';
+    row.dataset.rank = String(r);
     row.innerHTML = '<span class="i">' + (r + 1) + '</span>' +
       '<span class="p">' + a + '–' + b + '</span>' +
       '<span class="bar"><i style="width:' + (100 * d / maxD).toFixed(1) + '%"></i></span>' +
@@ -697,8 +817,9 @@ function walkDegree(node) {
 
 /* beam candidates. Nearest always sees the whole map -- walked cities included --
  * minus the ones already wired to the focus, because that edge is on the map
- * already. Farthest and corners follow the "all cities" switch: off means only
- * unvisited cities, so their answers stay usable as moves. */
+ * already. Everything else follows the "all cities" switch: off means only
+ * unvisited cities, so their answers stay usable as moves. Right fans exactly
+ * this pool to find its divider, so it follows the switch too. */
 function poolFor(from, kind) {
   const all = $('allCities').checked;
   if (kind === 'near') {
@@ -732,12 +853,46 @@ function bounceOf(from, t) {
   return best < 0 ? null : { c: best, d: bd };
 }
 
+/* The node's own right. There is no fixed axis, so the fan supplies one: rays to
+ * the candidates, sorted by screen angle (y grows down, so increasing atan2
+ * sweeps clockwise), the middle ray is the divider = forward, and the half within
+ * 180 degrees clockwise of it is the right side. ids = candidate cities. */
+function rightSplit(pts, from, ids) {
+  const o = pts[from], TAU = Math.PI * 2;
+  const ang = c => Math.atan2(pts[c][1] - o[1], pts[c][0] - o[0]);
+  const d2 = c => (pts[c][0] - o[0]) * (pts[c][0] - o[0]) + (pts[c][1] - o[1]) * (pts[c][1] - o[1]);
+  const pool = ids ? ids.slice() : [];
+  if (!ids) for (let i = 0; i < pts.length; i++) if (i !== from) pool.push(i);
+  pool.sort((a, b) => (ang(a) - ang(b)) || (d2(a) - d2(b)) || a - b);
+  if (!pool.length) return null;
+  const div = pool[(pool.length - 1) >> 1];
+  const rel = c => { const r = (ang(c) - ang(div)) % TAU; return r < 0 ? r + TAU : r; };
+  const right = [];
+  let pick = -1, pd = -1;
+  for (const c of pool) {
+    const r = rel(c);
+    if (r <= 1e-9 || r > Math.PI + 1e-9) continue;
+    right.push(c);
+    if (r > pd) { pd = r; pick = c; }
+  }
+  return pick < 0 ? null
+    : { div: div, right: right, pick: pick, pool: pool, deg: pd * 180 / Math.PI };
+}
+
 function makeRequest(from, kind, key, corner) {
+  if (kind === 'right') {
+    const rs = rightSplit(INST.pts, from, poolFor(from, kind));
+    if (!rs) return null;
+    return { id: ++BEAM_ID, from: from, kind: kind, key: key, corner: corner,
+      div: rs.div, right: rs.right, pool: rs.pool, deg: rs.deg,
+      list: [{ c: rs.pick, d: INST.D[from][rs.pick], bo: null, bd: null }] };
+  }
+
   const pool = poolFor(from, kind);
   pool.sort((a, b) => kind === 'near'
     ? (INST.D[from][a] - INST.D[from][b] || a - b)
     : (INST.D[from][b] - INST.D[from][a] || a - b));
-  const list = pool.slice(0, Math.min(K(), pool.length))
+  const list = pool.slice(0, kind === 'near' ? 1 : Math.min(K(), pool.length))
     .map(c => {
       const t = { c: c, d: INST.D[from][c], bo: null, bd: null };
       if (kind === 'far') {
@@ -750,23 +905,29 @@ function makeRequest(from, kind, key, corner) {
   return { id: ++BEAM_ID, from: from, kind: kind, key: key, corner: corner, list: list };
 }
 
+const KIND_NAME = { near: 'nearest', far: 'farthest', right: 'rightmost' };
+
 function toggleAsk(from, kind, key) {
   if (!INST || from == null || from < 0) { say('Focus a city first.'); return; }
   const at = BEAMS.findIndex(b => b.key === key);
   if (at >= 0) {
     BEAMS.splice(at, 1);
-    say('Took that answer back off the map: <b>' + from + '</b> ' +
-      (kind === 'near' ? 'nearest' : 'farthest') + '.');
+    say('Took that answer back off the map: <b>' + from + '</b> ' + KIND_NAME[kind] + '.');
     render();
     return;
   }
   const b = makeRequest(from, kind, key, null);
   if (!b) { say('Nothing left to ask from <b>' + from + '</b>.'); return; }
   BEAMS.push(b);
-  say('Asked <b>' + from + '</b> for its ' + b.list.length + ' ' +
-    (kind === 'near' ? 'nearest' : 'farthest') + ': ' +
-    b.list.map(x => x.c + ' (' + x.d.toFixed(1) + ')' +
-      (x.bo == null ? '' : ' &#8618; ' + x.bo)).join(', ') + '. Click again to clear.');
+  if (kind === 'right') {
+    say('From <b>' + from + '</b>: ' + b.pool.length + ' rays fanned, divider = <b>' + b.div +
+      '</b> (the middle ray). Right half = ' + b.right.length + ' cities clockwise of it; the extreme one is <b>' +
+      b.list[0].c + '</b> at ' + b.deg.toFixed(0) + '° (' + b.list[0].d.toFixed(1) + ' away). Click again to clear.');
+  } else {
+    say('Asked <b>' + from + '</b> for its ' + b.list.length + ' ' + KIND_NAME[kind] + ': ' +
+      b.list.map(x => x.c + ' (' + x.d.toFixed(1) + ')' +
+        (x.bo == null ? '' : ' &#8618; ' + x.bo)).join(', ') + '. Click again to clear.');
+  }
   render();
 }
 
@@ -1009,8 +1170,8 @@ function renderRequests() {
   }
   const cur = PATH.length ? PATH[PATH.length - 1] : -1;
   el.innerHTML = BEAMS.map(b => {
-    const tag = b.kind === 'near' ? (b.from === cur ? 'nearCur' : 'near') : 'far';
-    const tagText = b.kind === 'near' ? 'near' + (b.from === cur ? ' · cursor' : '') : 'far';
+    const tag = b.kind === 'near' ? (b.from === cur ? 'nearCur' : 'near') : b.kind;
+    const tagText = b.kind === 'near' ? 'near' + (b.from === cur ? ' · cursor' : '') : b.kind;
     const src = 'from ' + b.from + (b.corner != null
       ? ' · corner ' + (b.corner === 0 ? 'Z' : 'C' + b.corner) : '');
     return '<div class="req">' +
@@ -1040,11 +1201,14 @@ function renderFocus() {
   $('jumpTo').disabled = !INST || CLOSED || FOCUS < 0 || FOCUS === cur;
   $('undo').disabled = !INST || !UNDO.length;
   $('close').disabled = !INST || CLOSED;
-  $('beamNear').disabled = $('beamFar').disabled = $('askCorners').disabled = !INST;
+  $('bgmaMax').disabled = !INST || BGMA_BUSY;
+  $('beamNear').disabled = $('beamFar').disabled = $('askCorners').disabled =
+    $('beamRight').disabled = !INST;
   $('clearBeams').disabled = !BEAMS.length;
   const has = k => BEAMS.some(b => b.key === k);
   $('beamNear').classList.toggle('on', has('near:' + FOCUS));
   $('beamFar').classList.toggle('on', has('far:' + FOCUS));
+  $('beamRight').classList.toggle('on', has('right:' + FOCUS));
   $('askCorners').classList.toggle('on', BEAMS.some(b => b.key && b.key.indexOf('corner:') === 0));
   $('focusBar').innerHTML = INST
     ? 'cursor <b>' + cur + '</b> · focus <b>' + FOCUS + '</b> · path ' + PATH.length + ' / ' +
@@ -1098,6 +1262,7 @@ function markRows() {
     row.el.classList.toggle('pole', isStart && !used);
     row.el.classList.toggle('past', used);
     row.el.classList.toggle('cur', cur && !used);
+    row.el.classList.toggle('sel', PICKS.has(row.rank));
     row.s.textContent = used ? 'edge' : isStart ? 'start' : cur ? 'cursor' : '';
   }
 }
@@ -1129,8 +1294,24 @@ $('allCities').addEventListener('change', () => {
   render();
 });
 
+/* pick ranked pairs to draw; each click toggles one, so the map can hold
+ * several. rank 0 is the farthest pair, which is also the pole */
+$('rankList').addEventListener('click', e => {
+  const el = e.target.closest('.rk');
+  if (!el || !INST) return;
+  const row = ROWS[+el.dataset.rank];
+  if (!row) return;
+  const off = PICKS.has(row.rank);
+  if (off) PICKS.delete(row.rank); else PICKS.add(row.rank);
+  say((off ? 'Hidden' : 'Drawn') + ': pair <b>#' + (row.rank + 1) + '</b> ' +
+    row.a + '–' + row.b + ', d = ' + row.d.toFixed(2) +
+    '. ' + PICKS.size + ' drawn.');
+  render();
+});
+
 $('beamNear').addEventListener('click', () => toggleAsk(FOCUS, 'near', 'near:' + FOCUS));
 $('beamFar').addEventListener('click', () => toggleAsk(FOCUS, 'far', 'far:' + FOCUS));
+$('beamRight').addEventListener('click', () => toggleAsk(FOCUS, 'right', 'right:' + FOCUS));
 $('askCorners').addEventListener('click', askCorners);
 $('clearBeams').addEventListener('click', clearBeams);
 $('moveTo').addEventListener('click', () => moveTo(FOCUS));
@@ -1138,6 +1319,34 @@ $('jumpTo').addEventListener('click', () => jumpTo(FOCUS));
 $('undo').addEventListener('click', undo);
 $('resetPath').addEventListener('click', resetPath);
 $('close').addEventListener('click', closeTour);
+$('bgmaMax').addEventListener('click', () => {
+  if (!INST || BGMA_BUSY) return;
+  if (BGMA) {
+    BGMA = null; $('bgmaMax').classList.remove('on');
+    say('BGMA tour hidden.');
+    render();
+    return;
+  }
+  BGMA_BUSY = true; $('bgmaMax').disabled = true;
+  say('Running BGMA at <b>max</b> effort on ' + INST.n + ' cities…');
+  setTimeout(() => {
+    const t0 = performance.now();
+    let best = null, err = '';
+    try {
+      const snaps = buildSnapshots(INST, effortOptions('max', INST.n));
+      if (snaps.length) best = snaps[snaps.length - 1].best;
+    } catch (e) { err = e && e.message ? e.message : String(e); }
+    const ms = performance.now() - t0;
+    BGMA_BUSY = false;
+    if (err) { say('BGMA failed: ' + err + '.'); renderFocus(); return; }
+    if (!best) { say('BGMA returned no tour.'); renderFocus(); return; }
+    BGMA = { tour: best.t, len: best.len };
+    $('bgmaMax').classList.add('on');
+    say('BGMA max: <b>' + best.len.toFixed(2) + '</b> in ' + Math.round(ms) +
+      ' ms, drawn in light grey. Click again to hide.');
+    render();
+  }, 0);
+});
 $('resetCta').addEventListener('click', () => {
   document.querySelector('.controls').scrollIntoView({ behavior: 'smooth', block: 'center' });
   newMap();
@@ -1176,6 +1385,7 @@ window.addEventListener('keydown', e => {
   if (e.key === 'Escape' || e.key === 'n' || e.key === 'N') { clearBeams(); }
   else if (e.key === 'c' || e.key === 'C') { $('beamNear').click(); }
   else if (e.key === 'f' || e.key === 'F') { $('beamFar').click(); }
+  else if (e.key === 'r' || e.key === 'R') { $('beamRight').click(); }
   else if (e.key === 'z' || e.key === 'Z') { if (!$('undo').disabled) undo(); }
   else if (e.key === 'j' || e.key === 'J') { if (!$('jumpTo').disabled) jumpTo(FOCUS); }
   else if (e.key === '0') { resetView(); }
@@ -1206,10 +1416,18 @@ function edgeAt(mx, my) {
   for (let i = 0; i + 1 < PATH.length; i++) add(PATH[i], PATH[i + 1], 'walk');
   for (const l of LINKS) add(l.a, l.b, 'link');
   if (CLOSED && CLOSE) add(CLOSE.a, CLOSE.b, 'closing');
-  if (POLE) add(POLE.a, POLE.z, 'pole');
+  if (BGMA) for (let i = 0; i < BGMA.tour.length; i++) {
+    add(BGMA.tour[i], BGMA.tour[(i + 1) % BGMA.tour.length], 'BGMA max');
+  }
+  for (const rank of PICKS) {
+    const p = ROWS[rank];
+    if (p) add(p.a, p.b, 'picked pair');
+  }
   for (const b of BEAMS) {
+    if (b.kind === 'right') add(b.from, b.div, 'right divider');
     for (const t of b.list) {
-      add(b.from, t.c, b.kind === 'near' ? 'nearest beam' : 'farthest beam');
+      add(b.from, t.c, b.kind === 'near' ? 'nearest beam'
+        : b.kind === 'right' ? 'rightmost beam' : 'farthest beam');
       if (t.bo != null) add(t.c, t.bo, 'bounce');
     }
   }
@@ -1240,9 +1458,12 @@ function nodeAt(mx, my) {
 
 /* every line touching a city, grouped by what asked for it */
 function nodeEdgeCounts(node) {
-  const c = { near: 0, far: 0, corner: 0, walk: 0 };
+  const c = { near: 0, far: 0, right: 0, corner: 0, walk: 0 };
   for (const b of BEAMS) {
-    const slot = b.kind === 'near' ? 'near' : b.corner != null ? 'corner' : 'far';
+    /* a right beam fans a ray to every candidate, so each one carries one line */
+    if (b.kind === 'right') { if (b.pool.indexOf(node) >= 0) c.right++; continue; }
+    const slot = b.kind === 'near' ? 'near'
+      : b.corner != null ? 'corner' : 'far';
     for (const t of b.list) {
       if (t.c === node) c[slot]++;
       if (t.bo === node) c[slot]++;
@@ -1260,9 +1481,10 @@ $('cv1').addEventListener('mousemove', e => {
   const tip = $('tip');
   if (node >= 0) {
     const c = nodeEdgeCounts(node);
-    const total = c.near + c.far + c.corner + c.walk;
+    const total = c.near + c.far + c.right + c.corner + c.walk;
     const parts = [];
     if (c.far) parts.push(c.far + ' farthest');
+    if (c.right) parts.push(c.right + ' rightmost');
     if (c.near) parts.push(c.near + ' near');
     if (c.corner) parts.push(c.corner + ' corner' + (c.corner === 1 ? '' : 's'));
     if (c.walk) parts.push(c.walk + ' walk');
@@ -1344,11 +1566,14 @@ $('legend').innerHTML = [
   '<span style="color:var(--algo2)"><i class="dash"></i>nearest from cursor</span>',
   '<span style="color:var(--algo)"><i class="dash"></i>nearest, older cursor</span>',
   '<span style="color:var(--pa)"><i class="dash"></i>farthest beam (bounces)</span>',
+  '<span style="color:var(--cy)"><i class="dash"></i>right divider</span>',
+  '<span style="color:var(--held)"><i class="dash"></i>right beam: fan · right half</span>',
   '<span style="color:var(--child)"><i class="dash"></i>corner beam</span>',
   '<span style="color:var(--child)"><i class="dot"></i>cursor</span>',
-  '<span style="color:var(--pb)"><i class="dash"></i>farthest pole (A–Z)</span>',
+  '<span style="color:var(--sel)"><i class="dash"></i>picked pair</span>',
   '<span style="color:var(--pa)"><i class="sq"></i>far corner</span>',
   '<span style="color:var(--held)"><i></i>closing edge</span>',
+  '<span style="color:var(--ghost)"><i></i>BGMA max tour</span>',
   '<span style="color:var(--muted)"><i class="dot"></i>not on the path</span>'
 ].join('');
 
